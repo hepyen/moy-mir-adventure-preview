@@ -1,2 +1,2 @@
 import {defineConfig} from 'vite';
-export default defineConfig({base:'/moy-mir-adventure-preview/'});
+export default defineConfig(({mode})=>({base:mode==='android'?'/':'/moy-mir-adventure-preview/'}));
