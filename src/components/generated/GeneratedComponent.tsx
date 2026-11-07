@@ -86,6 +86,25 @@ export const GeneratedComponent = () => {
   const [pending, setPending] = useState<number[]>(saved?.pending??[]);
   const [pendingChores,setPendingChores]=useState<number[]>(saved?.day===today()?saved?.pendingChores??[]:[]);
   const [parent, setParent] = useState(false);
+  const [parentPinHash,setParentPinHash]=useState(()=>{try{return localStorage.getItem('moymir2-parent-pin-v1')||''}catch{return ''}});
+  const [pinOpen,setPinOpen]=useState(false);
+  const [pinInput,setPinInput]=useState('');
+  const [pinAgain,setPinAgain]=useState('');
+  const [pinError,setPinError]=useState('');
+  async function enterParent(){
+    if(!/^\d{4,6}$/.test(pinInput)){setPinError('Введите от 4 до 6 цифр');return}
+    try{
+      const hashBuffer=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('moymir2-parent-pin-v1:'+pinInput));
+      const hash=Array.from(new Uint8Array(hashBuffer)).map(x=>x.toString(16).padStart(2,'0')).join('');
+      if(!parentPinHash){
+        if(pinInput!==pinAgain){setPinError('Коды не совпадают');return}
+        localStorage.setItem('moymir2-parent-pin-v1',hash);setParentPinHash(hash);
+      }else if(hash!==parentPinHash){setPinError('Неверный родительский код');return}
+      setPinOpen(false);setPinInput('');setPinAgain('');setPinError('');setParent(true);
+    }catch{setPinError('Не удалось проверить код')}
+  }
+  function switchRole(){if(parent){setParent(false);return}setPinInput('');setPinAgain('');setPinError('');setPinOpen(true)}
+
   const [scene, setScene] = useState<'day' | 'night'>('day');
   const [mission, setMission] = useState(false);
   const [chat, setChat] = useState<{who:string;message:string;self:boolean}[]>(saved?.chat??[{
@@ -193,12 +212,12 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.2</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.3</span></strong><span>Остров приключений</span></div></div>
  <button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{coins}</b></button>
  </div>
  <div className="mw-tabs-top">
  <button className={!parent ? 'selected' : ''} onClick={() => setParent(false)}>👦 Илья</button>
- <button className={parent ? 'selected' : ''} onClick={() => setParent(true)}>👨‍👩‍👦 Родители</button>
+ <button className={parent ? 'selected' : ''} onClick={switchRole}>👨‍👩‍👦 Родители</button>
  <button className="mw-bell" title="Звук" onClick={() => setSound(x => !x)}>{sound ? '🔊' : '🔇'}</button>
  </div>
  <div className="mw-scroll">
@@ -269,6 +288,15 @@ export const GeneratedComponent = () => {
  </>}
  </div>
  <nav className="mw-bottom" aria-label="Навигация">{nav.map(([id, ico, label]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><span>{ico}</span><small>{label}</small>{id === 'shop' && pending.length > 0 && <i>{pending.length}</i>}</button>)}</nav>
+ {pinOpen&&<div className="mw-pin-overlay" role="dialog" aria-label="Вход родителя" aria-modal="true"><form className="mw-pin-card" onSubmit={e=>{e.preventDefault();void enterParent()}}>
+ <div className="mw-pin-icon">🔐</div><h2>{parentPinHash?'Вход для родителей':'Создать код родителя'}</h2>
+ <p>{parentPinHash?'Введите созданный вами код, чтобы редактировать задания и подтверждать награды.':'Установите родительский код из 4–6 цифр. Ребёнок не сможет открыть настройки простым нажатием.'}</p>
+ <label>Родительский код<input aria-label="Родительский код" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinInput} onChange={e=>setPinInput(e.target.value.replace(/\D/g,''))} required/></label>
+ {!parentPinHash&&<label>Повторите код<input aria-label="Повторите код" type="password" inputMode="numeric" autoComplete="off" minLength={4} maxLength={6} pattern="[0-9]{4,6}" value={pinAgain} onChange={e=>setPinAgain(e.target.value.replace(/\D/g,''))} required/></label>}
+ {pinError&&<p className="mw-pin-error">{pinError}</p>}
+ <div className="mw-pin-actions"><button type="button" onClick={()=>{setPinOpen(false);setPinError('')}}>Отмена</button><button type="submit">{parentPinHash?'Войти':'Создать код'}</button></div>
+ <small>Это локальная защита тестовой версии, а не серверная семейная авторизация.</small>
+ </form></div>}
  {message && <div className="mw-toast" role="status">{message}</div>}
  </div>
  </main>;
