@@ -1,0 +1,21 @@
+name: Package existing Android APK for download
+on:
+  workflow_dispatch:
+jobs:
+  package-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download existing signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v2.6.1 --repo hepyen/moy-mir-adventure-preview --pattern 'MOY_MIR_2.6.1_TEST.apk' --dir .
+          echo "1d909047317c8310c36a4d667d34d4253301baa8c336f6362136b453d4451ecf  MOY_MIR_2.6.1_TEST.apk" | sha256sum -c -
+      - name: Publish as GitHub Actions artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MOY_MIR_2_6_1_APK
+          path: MOY_MIR_2.6.1_TEST.apk
+          retention-days: 2
