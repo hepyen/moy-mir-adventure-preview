@@ -1,3 +1,6 @@
+import {MusicControl} from '../../features/MusicControl';
+import {FamilyChat} from '../../chat/FamilyChat';
+import {useChildPresence} from '../../features/useChildPresence';
 import {SoundControl} from '../../features/SoundControl';
 import {PushCenter} from '../../features/PushCenter';
 import {UpdateCenter} from '../../features/UpdateCenter';
@@ -9,7 +12,7 @@ import {World3D} from '../../legacyWorld/World3D';
 import {WORLD_01_OBJECTS,WORLD_01_END} from '../../legacyWorld/world01';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './MyWorld.css';
-type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual';
+type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual' | 'settings';
 type Proposal={id:number;title:string;points:number;emoji:string;status:'pending'|'accepted'|'rejected'};
 type Chore = {
   id: number;
@@ -77,14 +80,21 @@ const prices = [{
   title: 'Украшение для острова',
   price: 70
 }];
-const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Мой духовный рост'], ['family', '💬', 'Семья']];
+const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Духовный рост'], ['family', '💬', 'Семья'], ['settings', '⚙️', 'Настройки']];
 const SAVE_KEY='moymir2-demo-2.4';
 const OLD_SAVE_KEY='moymir2-demo-2.1';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function readSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'null')}catch{return null}}
 export const GeneratedComponent = () => {
  const cloud=useFamilyCloud();
+ useChildPresence(cloud.role==='child'&&!!cloud.session,cloud.session?.user.id||'');
  const [showConnection,setShowConnection]=useState(false);
+ useEffect(()=>{
+  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
+  window.addEventListener('moymir-notification-open',open);
+  return()=>window.removeEventListener('moymir-notification-open',open);
+ },[]);
+
   const saved=useMemo(()=>readSave(),[]);
   const [day,setDay]=useState(today());
 
@@ -244,19 +254,17 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.7.1</span></strong><span>Остров приключений</span></div></div>
- <button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.8.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
+ <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
  <div className="mw-tabs-top">
  <button className={!shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else setTab('tasks')}}>👦 Илья</button>
  <button className={shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else if(cloud.role==='child')setShowConnection(true);else setTab('tasks')}}>👨‍👩‍👦 Родители</button>
  <SoundControl onChange={setSound}/>
  </div>
  <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div> <div className="mw-scroll">
- <section className="mw-system-stack">
- <UpdateCenter/>
- {connected&&cloud.session&&<><NotificationInbox userId={cloud.session.user.id} familyId={cloud.familyId}/><PushCenter userId={cloud.session.user.id}/></>}
- </section>
+ <div className="mw-system-stack" style={{display:tab==='settings'?'flex':'none'}}><UpdateCenter/>{connected&&cloud.session&&<><NotificationInbox userId={cloud.session.user.id} familyId={cloud.familyId}/><PushCenter userId={cloud.session.user.id}/></>}</div>
  {showConnection&&(connected?<section className="mw-panel mw-cloud-account"><h3>Семейный аккаунт</h3><p>{cloud.session?.user.email}</p><button onClick={()=>{void cloud.logout();setShowConnection(false)}}>Выйти</button><button onClick={()=>setShowConnection(false)}>Закрыть</button></section>:tab==='world'?<CloudSignIn cloud={cloud}/>:null)}
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
  {tab === 'world' && <>
@@ -274,16 +282,9 @@ export const GeneratedComponent = () => {
  {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'shop' && (connected?<CloudShop cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'spiritual' && (connected?<CloudSpiritual cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'family' && <>
- <section className="mw-greeting"><div className="mw-eyebrow">ТОЛЬКО ДЛЯ НАС ТРОИХ</div><h1>Семья ❤️</h1><p>Наш личный семейный уголок.</p></section>
- <div className="mw-members"><span>👨 Папа</span><span>👩 Мама</span><span>👦 Илья</span></div>
- <div className="mw-chat">{chat.map((m, i) => <div key={i} className={'mw-chat-msg ' + (m.self ? 'self' : '')}><small>{m.who}</small><p>{m.message}</p></div>)}</div>
- <form className="mw-chat-input" onSubmit={e => {
-            e.preventDefault();
-            send();
-          }}><input placeholder="Написать семье..." value={draft} onChange={e => setDraft(e.target.value)} /><button>➤</button></form>
- <div className="mw-note">Семейный чат пока в демонстрационном режиме. Баллы, задания, награды и духовный рост подключены к семейной базе.</div><p className="mw-note">3D-модели: Quaternius, CreativeTrio, Kenney (CC0), белка — Simon Graff (CC BY 3.0). <a href="https://poly.pizza/m/dQdmcEiCXU3" target="_blank" rel="noreferrer">Источник и лицензия белки</a>.</p>
- </>}
+ {tab === 'family' && <><section className="mw-greeting"><div className="mw-eyebrow">НАШ СЕМЕЙНЫЙ ЧАТ</div><h1>Семья ❤️</h1><p>Сообщения доставляются всем участникам семьи.</p></section>{connected&&cloud.session?<FamilyChat familyId={cloud.familyId} userId={cloud.session.user.id}/>:<CloudSignIn cloud={cloud}/>}</>}
+ {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, обновления и твой духовный рост.</p></section><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}
+
  </div>
  <nav className="mw-bottom" aria-label="Навигация">{nav.map(([id, ico, label]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><span>{ico}</span><small>{label}</small>{id === 'shop' && pending.length > 0 && <i>{pending.length}</i>}</button>)}</nav>
  {false&&pinOpen&&<div className="mw-pin-overlay" role="dialog" aria-label="Вход родителя" aria-modal="true"><form className="mw-pin-card" onSubmit={e=>{e.preventDefault();void enterParent()}}>
