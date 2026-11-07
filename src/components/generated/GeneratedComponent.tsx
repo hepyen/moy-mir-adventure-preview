@@ -1,7 +1,8 @@
-import Island3D from './Island3D';
+import WorldInteractive from './WorldInteractive';
 import React, { useState, useMemo, useEffect } from 'react';
 import './MyWorld.css';
 type Tab = 'world' | 'tasks' | 'shop' | 'family';
+type Proposal={id:number;title:string;points:number;emoji:string;status:'pending'|'accepted'|'rejected'};
 type Chore = {
   id: number;
   title: string;
@@ -9,6 +10,7 @@ type Chore = {
   points: number;
   done: boolean;
   material: string;
+  repeat?: boolean;
 };
 const initial: Chore[] = [{
   id: 1,
@@ -68,17 +70,19 @@ const prices = [{
   price: 70
 }];
 const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['shop', '🎁', 'Магазин'], ['family', '💬', 'Семья']];
-const SAVE_KEY='moymir2-demo-2.1';
+const SAVE_KEY='moymir2-demo-2.2';
+const OLD_SAVE_KEY='moymir2-demo-2.1';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-function readSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'null')}catch{return null}}
+function readSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||localStorage.getItem(OLD_SAVE_KEY)||'null')}catch{return null}}
 export const GeneratedComponent = () => {
   const saved=useMemo(()=>readSave(),[]);
   const [day,setDay]=useState(today());
 
   const [tab, setTab] = useState<Tab>('world');
-  const [chores, setChores] = useState<Chore[]>(()=>saved?.day===today()&&Array.isArray(saved?.chores)?saved.chores:initial.map(x=>({...x,done:false})));
-  const [coins, setCoins] = useState<number>(saved?.coins??125);
-  const [xp, setXp] = useState<number>(saved?.xp??320);
+  const [chores, setChores] = useState<Chore[]>(()=>saved?.day===today()&&Array.isArray(saved?.chores)?saved.chores:(saved?.templates??initial).map((x:Chore)=>({...x,done:false})));
+  const [templates,setTemplates]=useState<Chore[]>(saved?.templates??initial.map(x=>({...x,repeat:true,done:false})));
+  const [coins, setCoins] = useState<number>(saved?.coins??0);
+  const [xp, setXp] = useState<number>(saved?.xp??0);
   const [pending, setPending] = useState<number[]>(saved?.pending??[]);
   const [pendingChores,setPendingChores]=useState<number[]>(saved?.day===today()?saved?.pendingChores??[]:[]);
   const [parent, setParent] = useState(false);
@@ -102,8 +106,34 @@ export const GeneratedComponent = () => {
   const [missionsUnlocked, setMissionsUnlocked] = useState(0);
   const [sound, setSound] = useState(true);
   const [building, setBuilding] = useState<string[]>(saved?.building??[]);
-  useEffect(()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify({day,chores,coins,xp,pending,pendingChores,building,chat}))}catch{}},[day,chores,coins,xp,pending,pendingChores,building,chat]);
-  useEffect(()=>{const timer=setInterval(()=>{const d=today();if(d!==day){setDay(d);setChores(initial.map(x=>({...x,done:false})));setPendingChores([])}},30000);return()=>clearInterval(timer)},[day]);
+  const [newTitle,setNewTitle]=useState('');
+  const [newPoints,setNewPoints]=useState('10');
+  const [newEmoji,setNewEmoji]=useState('⭐');
+  const [newRepeat,setNewRepeat]=useState(true);
+  const [proposals,setProposals]=useState<Proposal[]>(saved?.proposals??[]);
+  const [proposalTitle,setProposalTitle]=useState('');
+  const [proposalPoints,setProposalPoints]=useState('10');
+  const [editorOpen,setEditorOpen]=useState(false);
+  const createTask=(title:string,points:number,emoji:string,repeat=true)=>{
+   const t=title.trim();if(!t||!Number.isFinite(points)||points<1||points>500)return;
+   const item:Chore={id:Date.now()+Math.floor(Math.random()*100),title:t,points,emoji,repeat,done:false,material:'Ресурс'};
+   setTemplates(old=>[...old,item]);setChores(old=>[...old,item]);toast('Задание создано: '+t);
+  };
+  const offerTask=()=>{
+   const t=proposalTitle.trim();const points=Number(proposalPoints);
+   if(!t||!Number.isFinite(points)||points<1||points>500)return;
+   setProposals(old=>[...old,{id:Date.now(),title:t,points,emoji:'💡',status:'pending'}]);
+   setProposalTitle('');toast('Предложение отправлено родителю');
+  };
+  const reviewProposal=(id:number,accept:boolean)=>{
+   const p=proposals.find(q=>q.id===id);
+   if(!p||p.status!=='pending')return;
+   if(accept)createTask(p.title,p.points,'💡',true);
+   setProposals(old=>old.map(q=>q.id===id?{...q,status:accept?'accepted':'rejected'}:q));
+  };
+
+  useEffect(()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify({day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals}))}catch{}},[day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals]);
+  useEffect(()=>{const timer=setInterval(()=>{const d=today();if(d!==day){setDay(d);setChores(templates.map(x=>({...x,done:x.repeat===false?chores.some(c=>c.id===x.id&&c.done):false})));setPendingChores([])}},30000);return()=>clearInterval(timer)},[day,templates,chores]);
   const finished = chores.filter(x => x.done).length;
   const missionItems = chores.slice(0, 3);
   const missionDone = missionItems.every(x => x.done);
@@ -163,7 +193,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.1</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.2</span></strong><span>Остров приключений</span></div></div>
  <button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{coins}</b></button>
  </div>
  <div className="mw-tabs-top">
@@ -174,7 +204,7 @@ export const GeneratedComponent = () => {
  <div className="mw-scroll">
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{parent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{parent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{parent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
- <Island3D built={building} bridgeOpen={missionDone} />
+ <WorldInteractive built={building} bridgeOpen={missionDone} tasks={chores} coins={coins} onOpenTasks={()=>setTab('tasks')}/>
  <section className="mw-progress"><div className="mw-progress-head"><strong>⭐ Опыт строителя</strong><span>{xp % 500} / 500</span></div><div className="mw-progress-track"><div style={{
                 width: `${xp % 500 / 500 * 100}%`
               }} /></div><p>Ещё {nextXp} опыта до нового уровня</p></section>
@@ -188,16 +218,36 @@ export const GeneratedComponent = () => {
  <button className="mw-primary" onClick={() => missionDone ? toast('Первая миссия завершена! Следующее приключение скоро.') : setTab('tasks')}>{missionDone ? '🎉 Миссия завершена' : '🎯 Собрать материалы'} <span>→</span></button>
  </section>
  <div className="mw-section-heading"><h2>Что построим?</h2><span>Выбирай сам</span></div>
- <div className="mw-build-grid">{[['🌉', 'Мостик'], ['🌷', 'Цветник'], ['🏠', 'Домик собаки']].map(([emoji, title]) => <button className="mw-build" key={title} onClick={() => build(title)}><span>{emoji}</span><strong>{title}</strong><small>{building.includes(title) ? '✓ Построено' : '⭐ 80 опыта'}</small></button>)}</div>
- <div className="mw-miro"><span>🤖</span><div><strong>Миро подсказывает</strong><p>Каждое сделанное дело меняет твой остров. Какое приключение выберешь сегодня?</p></div></div>
+ <div className="mw-build-grid">{[['🏡', 'Домик'], ['🌉', 'Мостик'], ['🌷', 'Цветник'], ['🏠', 'Домик собаки']].map(([emoji, title]) => <button className="mw-build" key={title} onClick={() => build(title)}><span>{emoji}</span><strong>{title}</strong><small>{building.includes(title) ? '✓ Построено' : '⭐ 80 опыта'}</small></button>)}</div>
+
  </>}
  {tab === 'tasks' && <>
  <section className="mw-greeting"><div className="mw-eyebrow">ТВОИ ДОБРЫЕ ДЕЛА</div><h1>{parent ? 'Проверка заданий' : 'Задания на сегодня'}</h1><p>{parent ? 'Проверяйте дела Ильи, новые задания появляются каждый день.' : 'Выполняй дела, собирай материалы и развивай остров.'}</p></section>
+ {parent?<section className="mw-panel mw-task-admin">
+ <button className="mw-primary" type="button" onClick={()=>setEditorOpen(x=>!x)}>{editorOpen?'✕ Закрыть форму':'＋ Добавить задание'} <span>✎</span></button>
+ {editorOpen&&<form className="mw-new-task" onSubmit={e=>{e.preventDefault();createTask(newTitle,Number(newPoints),newEmoji,newRepeat);setNewTitle('');setEditorOpen(false)}}>
+  <label>Название задания<input required maxLength={120} value={newTitle} onChange={e=>setNewTitle(e.target.value)} placeholder="Например, полить растения"/></label>
+  <label>Баллы<input required type="number" min="1" max="500" value={newPoints} onChange={e=>setNewPoints(e.target.value)}/></label>
+  <label>Значок<input maxLength={4} value={newEmoji} onChange={e=>setNewEmoji(e.target.value)}/></label>
+  <label className="mw-checkline"><input type="checkbox" checked={newRepeat} onChange={e=>setNewRepeat(e.target.checked)}/> Повторять каждый день</label>
+  <button type="submit" className="mw-primary">Сохранить задание</button>
+ </form>}
+ {proposals.some(x=>x.status==='pending')&&<div className="mw-offers"><h3>💡 Предложения Ильи</h3>{proposals.filter(x=>x.status==='pending').map(x=><div className="mw-offer-row" key={x.id}><div><strong>{x.title}</strong><small>Предложено: {x.points} монет</small></div><button onClick={()=>reviewProposal(x.id,true)}>✓ Принять</button><button onClick={()=>reviewProposal(x.id,false)}>✕</button></div>)}</div>}
+ </section>:<section className="mw-panel mw-task-admin">
+ <h3>💡 Предложить задание родителю</h3>
+ <p className="mw-task-explain">Ты можешь предложить дело, а родители решат, добавлять ли его.</p>
+ <form className="mw-proposal-form" onSubmit={e=>{e.preventDefault();offerTask()}}>
+  <input required maxLength={120} placeholder="Например, помочь в саду" value={proposalTitle} onChange={e=>setProposalTitle(e.target.value)}/>
+  <label>Баллы <input type="number" min="1" max="500" value={proposalPoints} onChange={e=>setProposalPoints(e.target.value)}/></label>
+  <button type="submit">Предложить</button>
+ </form>
+ {proposals.filter(p=>p.status==='pending').map(p=><p className="mw-pending-offer" key={p.id}>⏳ «{p.title}» ожидает решения родителя</p>)}
+ </section>}
  <div className="mw-tasks-progress"><div><strong>{finished} из {chores.length}</strong><span>выполнено сегодня</span></div><div className="mw-task-track"><div style={{
                 width: `${finished / chores.length * 100}%`
               }} /></div></div>
  <div className="mw-section-heading"><h2>Сегодня</h2><span>Обновление каждый день</span></div>
- {chores.map(x => <div className={'mw-chore ' + (x.done ? 'mw-chore-done' : '')} key={x.id}><div className="mw-task-emoji">{x.emoji}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{x.done ? '✓ Готово' : 'Для миссии: ' + x.material}</small></div><div className="mw-task-right"><b>+{x.points} 🪙</b>{parent&&pendingChores.includes(x.id)?<><button onClick={()=>approveChore(x.id)}>✓ Принять</button><button onClick={()=>declineChore(x.id)}>✕</button></>:<button disabled={x.done || parent || pendingChores.includes(x.id)} onClick={() => mark(x.id)}>{x.done ? '✓' : pendingChores.includes(x.id) ? 'Ожидает' : parent ? 'Контроль' : 'Готово'}</button>}</div></div>)}
+ {chores.map(x => <div className={'mw-chore ' + (x.done ? 'mw-chore-done' : '')} key={x.id}><div className="mw-task-emoji">{x.emoji}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{x.done ? '✓ Готово' : (x.repeat===false?'Разовое задание':'Ежедневное дело')}</small></div><div className="mw-task-right"><b>+{x.points} 🪙</b>{parent&&pendingChores.includes(x.id)?<><button onClick={()=>approveChore(x.id)}>✓ Принять</button><button onClick={()=>declineChore(x.id)}>✕</button></>:<button disabled={x.done || parent || pendingChores.includes(x.id)} onClick={() => mark(x.id)}>{x.done ? '✓' : pendingChores.includes(x.id) ? 'Ожидает' : parent ? 'Контроль' : 'Готово'}</button>}</div></div>)}
  <div className="mw-note">ℹ️ Это демонстрационные данные отдельного прототипа. Для реальных начислений потребуется новый сервер или безопасное подключение к существующему.</div>
  </>}
  {tab === 'shop' && <>

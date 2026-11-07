@@ -7,7 +7,7 @@ type Id='dog'|'robot'|'squirrel';
 type Actor={root:THREE.Group;mixer?:THREE.AnimationMixer;clips:THREE.AnimationClip[];action?:THREE.AnimationAction};
 const base='https://ueqtitxbvsnqmbudwxwu.supabase.co/storage/v1/object/public/moymir2-models/';
 const nature='https://hidencod.github.io/tge-assets/packs/nature-kit/';
-const labels:Record<Id,string>={dog:'Рыжик',robot:'Миро',squirrel:'Искорка'};
+const labels:Record<Id,string>={dog:'Тобик',robot:'Миро',squirrel:'Искорка'};
 const info:{id:Id;file:string;pos:[number,number,number];height:number}[]=[
 {id:'dog',file:base+'dog.glb',pos:[-1.8,0,1.1],height:.95},
 {id:'robot',file:base+'robot.glb',pos:[1.7,.18,1.2],height:1.22},
@@ -71,8 +71,8 @@ const effects:Partial<Record<Id,{time:number;mode:string}>>={};
 const clock=new THREE.Clock();
 command.current=(id,action)=>{
 if(!actors[id]){setStatus('Персонаж загружается');return}
-if(id==='dog'&&action==='come'){goals.dog=new THREE.Vector3(-.55,0,1.8);play('dog','Run');setStatus('Рыжик бежит к тебе!')}
-else if(id==='dog'){play('dog','Headbutt');effects.dog={time:clock.elapsedTime,mode:action};setStatus('Рыжик играет с тобой!')}
+if(id==='dog'&&action==='come'){goals.dog=new THREE.Vector3(-.55,0,1.8);play('dog','Run');setStatus('Тобик бежит к тебе!')}
+else if(id==='dog'){play('dog','Headbutt');effects.dog={time:clock.elapsedTime,mode:action};setStatus('Тобик играет с тобой!')}
 else if(id==='robot'){play('robot',action==='dance'?'Dance':'Wave');effects.robot={time:clock.elapsedTime,mode:action};setStatus(action==='dance'?'Миро танцует!':'Миро приветствует тебя!')}
 else{effects.squirrel={time:clock.elapsedTime,mode:action};setStatus(action==='jump'?'Искорка прыгает!':'Искорка получила орех!')}
 };
@@ -91,11 +91,11 @@ const observer=new ResizeObserver(resize);observer.observe(element);resize();
 let frame=0;function animate(){if(dead)return;frame=requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;mixers.forEach(m=>m.update(dt));
 if(actors.robot)actors.robot.root.position.y=.19+Math.sin(t*2.0)*.13;
 if(actors.squirrel){const e=effects.squirrel;actors.squirrel.root.position.y=e&&t-e.time<2?Math.abs(Math.sin((t-e.time)*5))*1.08:Math.sin(t*3)*.025;if(e&&t-e.time>=2)delete effects.squirrel}
-const dog=actors.dog;if(dog){const goal=goals.dog;if(goal){const step=goal.clone().sub(dog.root.position);step.y=0;if(step.length()>.05){dog.root.position.addScaledVector(step.normalize(),dt*.95);dog.root.rotation.y=Math.atan2(step.x,step.z)}else{delete goals.dog;play('dog','Idle');setStatus('Рыжик рядом!')}}}
+const dog=actors.dog;if(dog){const goal=goals.dog;if(goal){const step=goal.clone().sub(dog.root.position);step.y=0;if(step.length()>.05){dog.root.position.addScaledVector(step.normalize(),dt*.95);dog.root.rotation.y=Math.atan2(step.x,step.z)}else{delete goals.dog;play('dog','Idle');setStatus('Тобик рядом!')}}}
 for(const k of ['dog','robot'] as Id[]){const e=effects[k];if(e&&t-e.time>3.5){delete effects[k];play(k,'Idle')}}
 renderer.render(scene,camera)}
 animate();
 return()=>{dead=true;cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener('pointerdown',onDown);renderer.domElement.removeEventListener('pointerup',onUp);mixers.forEach(m=>m.stopAllAction());renderer.dispose();renderer.domElement.remove()};
 },[]);
-return <div className="real-island"><div ref={host} className="real-island-stage"/><div className="real-island-top"><span>🌿 НАСТОЯЩИЙ 3D-МИР</span><button onClick={()=>{setNight(!night);setLighting.current(!night)}}>{night?'☀️':'🌙'}</button></div><div className="real-island-panel"><strong>{status}</strong><div className="real-island-buttons">{selected?(selected==='dog'?<><button onClick={()=>command.current('dog','come')}>🐕 Позвать</button><button onClick={()=>command.current('dog','play')}>🦴 Поиграть</button></>:selected==='robot'?<><button onClick={()=>command.current('robot','hello')}>👋 Привет</button><button onClick={()=>command.current('robot','dance')}>🎵 Танец</button></>:<><button onClick={()=>command.current('squirrel','nut')}>🌰 Орех</button><button onClick={()=>command.current('squirrel','jump')}>🌳 Прыжок</button></>):info.map(x=><button key={x.id} onClick={()=>setSelected(x.id)}>{x.id==='dog'?'🐕 Рыжик':x.id==='robot'?'🤖 Миро':'🐿️ Искорка'}</button>)}</div><small>Загружено: {loaded}/3 персонажей · нажимай на модели</small></div></div>;
+return <div className="real-island"><div ref={host} className="real-island-stage"/><div className="real-island-top"><span>🌿 НАСТОЯЩИЙ 3D-МИР</span><button onClick={()=>{setNight(!night);setLighting.current(!night)}}>{night?'☀️':'🌙'}</button></div><div className="real-island-panel"><strong>{status}</strong><div className="real-island-buttons">{selected?(selected==='dog'?<><button onClick={()=>command.current('dog','come')}>🐕 Позвать Тобика</button><button onClick={()=>command.current('dog','play')}>🦴 Поиграть</button></>:selected==='robot'?<><button onClick={()=>command.current('robot','hello')}>👋 Привет</button><button onClick={()=>command.current('robot','dance')}>🎵 Танец</button></>:<><button onClick={()=>command.current('squirrel','nut')}>🌰 Орех</button><button onClick={()=>command.current('squirrel','jump')}>🌳 Прыжок</button></>):info.map(x=><button key={x.id} onClick={()=>setSelected(x.id)}>{x.id==='dog'?'🐕 Тобик':x.id==='robot'?'🤖 Миро':'🐿️ Искорка'}</button>)}</div><small>Загружено: {loaded}/3 персонажей · нажимай на модели</small></div></div>;
 }
