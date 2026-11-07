@@ -72,7 +72,7 @@ const prices = [{
   title: 'Украшение для острова',
   price: 70
 }];
-const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Духовный рост'], ['family', '💬', 'Семья']];
+const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Мой духовный рост'], ['family', '💬', 'Семья']];
 const SAVE_KEY='moymir2-demo-2.4';
 const OLD_SAVE_KEY='moymir2-demo-2.1';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -163,8 +163,9 @@ export const GeneratedComponent = () => {
   const shownParent=connected?cloud.role==='parent':parent;
   const actualCoins=connected?cloud.balance:0;
   const actualXp=connected?cloud.worldPoints:0;
-  const firstWorldComplete=actualXp>=WORLD_01_END;
+  const firstWorldComplete=actualXp>=WORLD_01_END||(connected&&cloud.worldNumber===2);
   const actualWorld=previewWorld===2&&firstWorldComplete?2:1;
+  useEffect(()=>{if(connected&&cloud.worldNumber===2)setPreviewWorld(2)},[connected,cloud.worldNumber]);
   const actualWorldPoints=actualWorld===2?Math.max(0,actualXp-WORLD_01_END):Math.min(WORLD_01_END,actualXp);
   const finished = chores.filter(x => x.done).length;
   const missionItems = chores.slice(0, 3);
@@ -228,7 +229,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.6</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.6.1</span></strong><span>Остров приключений</span></div></div>
  <button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button>
  </div>
  <div className="mw-tabs-top">
@@ -237,7 +238,7 @@ export const GeneratedComponent = () => {
  <button className="mw-bell" title="Звук" onClick={() => setSound(x => !x)}>{sound ? '🔊' : '🔇'}</button>
  </div>
  <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div> <div className="mw-scroll">
- {showConnection&&(connected?<section className="mw-panel mw-cloud-account"><h3>Семейный аккаунт</h3><p>{cloud.session?.user.email}</p><button onClick={()=>{void cloud.logout();setShowConnection(false)}}>Выйти</button><button onClick={()=>setShowConnection(false)}>Закрыть</button></section>:<CloudSignIn cloud={cloud}/>)}
+ {showConnection&&(connected?<section className="mw-panel mw-cloud-account"><h3>Семейный аккаунт</h3><p>{cloud.session?.user.email}</p><button onClick={()=>{void cloud.logout();setShowConnection(false)}}>Выйти</button><button onClick={()=>setShowConnection(false)}>Закрыть</button></section>:tab==='world'?<CloudSignIn cloud={cloud}/>:null)}
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
