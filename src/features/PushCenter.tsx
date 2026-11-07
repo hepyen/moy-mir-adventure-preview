@@ -14,26 +14,40 @@ export function PushCenter({userId}:{userId:string}){
  const native=Capacitor.isNativePlatform()&&Capacitor.isPluginAvailable('PushNotifications');
  useEffect(()=>{
   if(!native)return;
-  let active=true;const listeners:PluginListenerHandle[]=[];
-
-  void PushNotifications.addListener('registration',async t=>{
+  let active=true;
+  const subscriptions:Promise<PluginListenerHandle>[]=[];
+  subscriptions.push(PushNotifications.addListener('registration',async t=>{
    if(!supabase||!active)return;
    const {error}=await supabase.from('device_push_tokens').upsert({token:t.value,user_id:userId,platform:'android',updated_at:new Date().toISOString()},{onConflict:'token'});
+   if(!active)return;
    if(error)setStatus('Ошибка сохранения токена: '+error.message);
-   else{setEnabled(true);setStatus('Телефон зарегистрирован в Firebase ✓')}
-  }).then(l=>listeners.push(l)).catch(()=>{});
-  void PushNotifications.addListener('registrationError',e=>{if(active)setStatus('Ошибка Firebase: '+JSON.stringify(e.error))}).then(l=>listeners.push(l)).catch(()=>{});
-  void PushNotifications.addListener('pushNotificationReceived',n=>{
+   else{
+    try{localStorage.setItem('moymir2-owned-push-token',JSON.stringify({token:t.value,userId}))}catch{}
+    setEnabled(true);setStatus('Телефон зарегистрирован в Firebase ✓');
+   }
+  }));
+  subscriptions.push(PushNotifications.addListener('registrationError',e=>{if(active)setStatus('Ошибка Firebase: '+JSON.stringify(e.error))}));
+  subscriptions.push(PushNotifications.addListener('pushNotificationReceived',n=>{
    if(!active)return;playSound('notification');setLastEvent(String(n.title||'Новое уведомление'));
-  }).then(l=>listeners.push(l)).catch(()=>{});
-  void PushNotifications.addListener('pushNotificationActionPerformed',n=>{
+  }));
+  subscriptions.push(PushNotifications.addListener('pushNotificationActionPerformed',n=>{
+   if(!active)return;
+   const data=n.notification.data||{};
+   window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:data}));
+   playSound('notification');
+  }));
+  // Register only once all listeners are mounted: fast FCM callbacks must never be lost.
+  void Promise.all(subscriptions).then(async()=>{
     if(!active)return;
-    const data=n.notification.data||{};
-    window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:data}));
-    playSound('notification');
-  }).then(l=>listeners.push(l)).catch(()=>{});
-  void Promise.resolve().then(async()=>{const perm=await PushNotifications.checkPermissions();if(!active)return;setEnabled(perm.receive==='granted');if(perm.receive==='granted'){await new Promise(r=>setTimeout(r,100));await PushNotifications.register()}}).catch(e=>{if(active)setStatus('Push: '+String(e))});
-  return()=>{active=false;listeners.forEach(l=>void l.remove())};
+    const permission=await PushNotifications.checkPermissions();
+    if(!active)return;
+    setEnabled(permission.receive==='granted');
+    if(permission.receive==='granted')await PushNotifications.register();
+  }).catch(e=>{if(active)setStatus('Ошибка регистрации уведомлений: '+String(e))});
+  return()=>{
+    active=false;
+    void Promise.allSettled(subscriptions).then(items=>items.forEach(item=>{if(item.status==='fulfilled')void item.value.remove()}));
+  };
  },[native,userId]);
  async function enable(){
   if(!native||busy)return;

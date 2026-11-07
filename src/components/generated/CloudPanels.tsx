@@ -23,6 +23,35 @@ function Action({children,run,disabled=false,className=''}:{children:React.React
  const[busy,setBusy]=useState(false),[error,setError]=useState('');
  return <span className="mw-cloud-action"><button type="button" disabled={busy||disabled} className={className} onClick={()=>{setBusy(true);setError('');void run().catch(e=>setError(e instanceof Error?e.message:'Ошибка')).finally(()=>setBusy(false))}}>{busy?'Обновление…':children}</button>{error&&<small className="mw-cloud-error">{error}</small>}</span>
 }
+function DailySettings({cloud}:{cloud:Cloud}){
+ const [title,setTitle]=useState(''),[points,setPoints]=useState('5'),[icon,setIcon]=useState('✅');
+ const [weekdays,setWeekdays]=useState<number[]>([0,1,2,3,4,5,6]);
+ const [error,setError]=useState(''),[busy,setBusy]=useState(false);
+ const names=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+ async function create(e:React.FormEvent){
+  e.preventDefault();if(busy)return;
+  if(!weekdays.length){setError('Выбери хотя бы один день');return}
+  setBusy(true);setError('');
+  try{
+   await cloud.rpc('create_daily_chore',{p_family:cloud.familyId,p_child:cloud.childId,p_title:title.trim(),p_points:Number(points),p_icon:icon,p_weekdays:weekdays});
+   setTitle('');setPoints('5');setIcon('✅');setWeekdays([0,1,2,3,4,5,6]);
+  }catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить ежедневное дело')}
+  finally{setBusy(false)}
+ }
+ return <details className="mw-panel mw-cloud-form" aria-label="Управление ежедневными заданиями"><summary>📆 Управление ежедневными заданиями ({cloud.dailyTemplates.length})</summary>
+  <p>Создавай дела на выбранные дни недели. Можно выключить старое задание без удаления истории.</p>
+  <form onSubmit={e=>void create(e)}>
+   <input required maxLength={160} placeholder="Например, почистить зубы вечером" value={title} onChange={e=>setTitle(e.target.value)}/>
+   <div className="mw-cloud-inline"><label>Значок<input aria-label="Значок ежедневного дела" maxLength={8} value={icon} onChange={e=>setIcon(e.target.value)}/></label>
+   <label>Баллы<input type="number" min={0} max={1000} required value={points} onChange={e=>setPoints(e.target.value)}/></label></div>
+   <div className="mw-weekdays">{names.map((name,i)=><label key={i}><input type="checkbox" checked={weekdays.includes(i)} onChange={e=>setWeekdays(old=>e.target.checked?[...old,i].sort():old.filter(x=>x!==i))}/>{name}</label>)}</div>
+   {error&&<small className="mw-cloud-error" role="alert">{error}</small>}
+   <button type="submit" disabled={busy}>{busy?'Сохраняем…':'Добавить ежедневное дело'}</button>
+  </form>
+  {cloud.dailyTemplates.map(t=><div className="mw-cloud-line" key={t.id}><div><strong>{t.icon||'✅'} {t.title}</strong><small>+{t.points} монет · {(t.weekdays||[]).map(d=>names[d]).join(', ')} · {t.active?'Активно':'Приостановлено'}</small></div>
+   <Action run={()=>cloud.rpc('manage_daily_chore',{p_id:t.id,p_title:t.title,p_points:t.points,p_icon:t.icon||'✅',p_weekdays:t.weekdays||[0,1,2,3,4,5,6],p_active:!t.active})}>{t.active?'Выключить':'Включить'}</Action></div>)}
+ </details>
+}
 export function CloudTasks({cloud}:{cloud:Cloud}){
  const[title,setTitle]=useState(''),[points,setPoints]=useState('10'),[propose,setPropose]=useState(''),[proposePoints,setProposePoints]=useState('10');
  const[deductReason,setDeductReason]=useState(''),[deductAmount,setDeductAmount]=useState('5'),[category,setCategory]=useState('agreement');
@@ -40,6 +69,7 @@ export function CloudTasks({cloud}:{cloud:Cloud}){
  {cloud.role==='child'&&<section className="mw-panel mw-cloud-form"><h3>💡 Предложить задание</h3><p>Предложение отправится родителям на рассмотрение.</p>
  <form onSubmit={e=>{e.preventDefault();void onProposal().catch(e=>alert(e.message))}}><input required maxLength={160} placeholder="Например, помочь приготовить ужин" value={propose} onChange={e=>setPropose(e.target.value)}/><label>Баллы<input type="number" min={0} max={1000} required value={proposePoints} onChange={e=>setProposePoints(e.target.value)}/></label><button type="submit">Отправить родителю</button></form></section>}
  {cloud.role==='parent'&&<section className="mw-panel mw-cloud-form"><h3>➕ Добавить задание</h3><form onSubmit={e=>{e.preventDefault();void onCreate().catch(e=>alert(e.message))}}><input required maxLength={160} placeholder="Название задания" value={title} onChange={e=>setTitle(e.target.value)}/><label>Баллы<input type="number" min={0} max={1000} value={points} onChange={e=>setPoints(e.target.value)}/></label><button type="submit">Создать задание</button></form></section>}
+ {cloud.role==='parent'&&<DailySettings cloud={cloud}/>}
  <h3 className="mw-cloud-heading">🗓️ Ежедневные дела ({cloud.daily.length})</h3>
  {all.length===0&&<p className="mw-note">Заданий пока нет. Нажми «Обновить» на панели аккаунта.</p>}
  {all.map(x=><article className="mw-chore" key={x.kind+x.id}><div className="mw-task-emoji">{x.icon||'✅'}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{x.status==='approved'?'✓ Подтверждено':x.status==='pending'?'⏳ Ожидает решения родителя':'Доступно сегодня'} · {x.kind==='daily'?'Ежедневное':'Обычное'}</small></div><div className="mw-task-right"><b>+{x.points} 🪙</b>

@@ -1,12 +1,13 @@
 {
   "name": "moy-mir-2-new",
   "private": true,
-  "version": "2.8.0",
+  "version": "2.8.1",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "qa:family": "node tests/qa-family.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",
@@ -26,6 +27,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.187.0",
+    "playwright-core": "^1.65.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.0"
   }

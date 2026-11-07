@@ -1,3 +1,4 @@
+import {WorldSafe} from './WorldSafe';
 import {MusicControl} from '../../features/MusicControl';
 import {FamilyChat} from '../../chat/FamilyChat';
 import {useChildPresence} from '../../features/useChildPresence';
@@ -100,6 +101,8 @@ export const GeneratedComponent = () => {
 
   const [tab, setTab] = useState<Tab>('world');
   const [previewWorld,setPreviewWorld]=useState<1|2>(1);
+  const [worldAdvanceError,setWorldAdvanceError]=useState('');
+  const [advancingWorld,setAdvancingWorld]=useState(false);
   const [chores, setChores] = useState<Chore[]>(()=>saved?.day===today()&&Array.isArray(saved?.chores)?saved.chores:(saved?.templates??initial).map((x:Chore)=>({...x,done:false})));
   const [templates,setTemplates]=useState<Chore[]>(saved?.templates??initial.map(x=>({...x,repeat:true,done:false})));
   const [coins, setCoins] = useState<number>(saved?.coins??0);
@@ -189,7 +192,7 @@ export const GeneratedComponent = () => {
     }
     previousCloudProgress.current={points:actualXp,balance:actualCoins};
   },[connected,actualXp,actualCoins]);
-  const actualWorld=previewWorld===2&&firstWorldComplete?2:1;
+  const actualWorld=previewWorld===2&&cloud.worldNumber===2?2:1;
   useEffect(()=>{if(connected&&cloud.worldNumber===2)setPreviewWorld(2)},[connected,cloud.worldNumber]);
   const actualWorldPoints=actualWorld===2?Math.max(0,actualXp-WORLD_01_END):Math.min(WORLD_01_END,actualXp);
   const finished = chores.filter(x => x.done).length;
@@ -254,7 +257,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.8.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.8.1</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -269,14 +272,17 @@ export const GeneratedComponent = () => {
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
- <div className="mw-worldswitch"><button className={currentWorld===1?'active':''} onClick={()=>setPreviewWorld(1)}>🏡 Домик на поляне</button><button className={currentWorld===2?'active':''} disabled={!firstWorldComplete} onClick={()=>setPreviewWorld(2)}>🌳 Домик на дереве {!firstWorldComplete?'🔒':''}</button></div>
- <World3D key={currentWorld} points={pointsInWorld} worldNumber={currentWorld} soundEnabled={sound}/>
+ <div className="mw-worldswitch"><button className={currentWorld===1?'active':''} onClick={()=>setPreviewWorld(1)}>🏡 Домик на поляне</button><button className={currentWorld===2?'active':''} disabled={cloud.worldNumber!==2} onClick={()=>setPreviewWorld(2)}>🌳 Домик на дереве {cloud.worldNumber!==2?'🔒':''}</button></div>
+ <WorldSafe key={currentWorld} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound}><World3D points={pointsInWorld} worldNumber={currentWorld} soundEnabled={sound}/></WorldSafe>
  {!connected&&<button className="mw-primary" onClick={()=>setShowConnection(true)}>☁️ Подключить мои прежние достижения</button>}
  {connected&&<div className="mw-balance-summary"><span>⭐ Заработано: {cloud.worldPoints}</span><span>🪙 Баланс: {cloud.balance}</span><span>🎁 Наград: {cloud.rewards.length}</span></div>}
  <section className="mw-progress"><div className="mw-progress-head"><strong>⭐ Очки развития</strong><span>{pointsInWorld} / {WORLD_01_END}</span></div>
  <div className="mw-progress-track"><div style={{width:`${pointsInWorld/WORLD_01_END*100}%`}}/></div>
  <p>{nextWorldStage?'Следующее улучшение: '+nextWorldStage.title+' — '+nextWorldStage.at+' очков':'Все 30 этапов этого мира открыты!'}</p></section>
- {firstWorldComplete&&currentWorld===1&&<button className="mw-primary" onClick={()=>setPreviewWorld(2)}>🌳 Перейти ко второму миру</button>}
+ {firstWorldComplete&&currentWorld===1&&cloud.worldNumber===1&&<div className="mw-panel"><p>🎉 Первый мир завершён! Илья может открыть домик на дереве. Старый мир останется доступен.</p>
+ {cloud.role==='child'?<button className="mw-primary" disabled={advancingWorld} onClick={()=>{setAdvancingWorld(true);setWorldAdvanceError('');void cloud.rpc('advance_my_world',{p_family:cloud.familyId}).then(()=>setPreviewWorld(2)).catch(e=>setWorldAdvanceError(e instanceof Error?e.message:'Ошибка перехода')).finally(()=>setAdvancingWorld(false))}}>{advancingWorld?'Открываем мир…':'🌳 Открыть второй мир'}</button>:<small>Переход подтверждается из аккаунта ребёнка.</small>}
+ {worldAdvanceError&&<p role="alert" className="mw-cloud-error">{worldAdvanceError}</p>}</div>}
+ {cloud.worldNumber===2&&currentWorld===1&&<button className="mw-primary" onClick={()=>setPreviewWorld(2)}>🌳 Вернуться ко второму миру</button>}
  <section className="mw-panel"><div className="mw-section-label">КАК РАЗВИВАТЬ МИР</div><p className="mw-task-explain">Каждое подтверждённое родителем задание приносит монеты и очки развития. Постройки возникают сами, в прежнем порядке. Трогай Миро на острове: он увеличится и поможет разобраться с уроками.</p><button className="mw-primary" onClick={()=>setTab('tasks')}>Посмотреть задания →</button></section>
  </>}
  {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
