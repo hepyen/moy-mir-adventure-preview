@@ -11,11 +11,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download v2.8.0 --repo hepyen/moy-mir-adventure-preview --pattern 'MOY_MIR_2.8.0_TEST.apk' --dir .
-          echo '644fef82c0141464708884dd8bf8dedfa519d39ddfb1f32e60b020a2691e0b2d  MOY_MIR_2.8.0_TEST.apk' | sha256sum -c -
+          gh release download v2.8.1 --repo hepyen/moy-mir-adventure-preview --pattern 'MOY_MIR_2.8.1_TEST.apk' --dir .
+          echo 'ee8c8f8e0b3dc920022cf6c6de4378cf4dc29935e21ece1c4e87f50b12ff68a7  MOY_MIR_2.8.1_TEST.apk' | sha256sum -c -
       - name: Publish APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MOY_MIR_2_8_0_APK
-          path: MOY_MIR_2.8.0_TEST.apk
+          name: MOY_MIR_2_8_1_APK
+          path: MOY_MIR_2.8.1_TEST.apk
           retention-days: 2
