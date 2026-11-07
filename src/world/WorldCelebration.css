@@ -1,0 +1,22 @@
+.world-victory-backdrop{position:fixed;inset:0;z-index:180;display:grid;place-items:center;padding:15px;background:#081a35ee;backdrop-filter:blur(9px)}
+.world-victory-stage{position:relative;width:min(610px,100%);max-height:94vh;overflow:hidden;text-align:center;color:#fff;border-radius:28px;border:3px solid #e6ca76;background:radial-gradient(circle at 50% 23%,#517cc4 0%,#213c82 42%,#16204b 100%);box-shadow:0 0 95px #ffdb7859,0 24px 60px #061026d9;padding:13px 18px 25px}
+.world-victory-sky{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.victory-firework{position:absolute;width:8px;height:8px;animation:victory-pulse 2.5s ease-out infinite}
+.victory-firework i{position:absolute;left:2px;top:2px;width:5px;height:5px;border-radius:100%;background:hsl(var(--hue) 90% 70%);box-shadow:0 0 9px currentColor;animation:victory-burst 2.5s ease-out infinite;transform-origin:center}
+.victory-confetti{position:absolute;top:-35px;color:#ffdc70;font-size:15px;animation:victory-fall 5s linear infinite}
+.victory-confetti:nth-child(3n){color:#ff88c3}.victory-confetti:nth-child(3n+1){color:#71f5e6}
+.victory-miro{position:relative;z-index:1;width:clamp(135px,37%,205px);margin:0 auto;filter:drop-shadow(0 14px 23px #56e5f490);animation:victory-robot-float 1.8s ease-in-out infinite alternate}
+.victory-miro svg{display:block;width:100%;height:205px;max-height:27vh}
+.victory-miro-stars{position:absolute;top:16px;right:-30px;color:#fff1a2;letter-spacing:10px;animation:victory-pulse 1.3s infinite alternate}
+.victory-content{position:relative;z-index:1}.victory-kicker{font-weight:800;color:#ffe59b;font-size:15px;margin:0 0 7px}
+.victory-content h2{margin:0;font-size:clamp(30px,6vw,43px);line-height:1.12;color:#fff0b7;text-shadow:0 3px 16px #f7c55573}
+.victory-content>p{font-size:16px;line-height:1.5}.victory-robot-quote{background:#ffffff19;border:1px solid #86ddf8;border-radius:16px;padding:13px 15px;margin:13px auto;max-width:490px}
+.victory-next{display:block;margin:17px auto 9px;background:linear-gradient(110deg,#ffe88f,#f5ba4f);color:#473517;border:0;padding:14px 22px;border-radius:15px;font-size:17px;font-weight:900;cursor:pointer;box-shadow:0 6px 0 #a47628}
+.victory-next:hover{filter:brightness(1.1)}.victory-next:active{transform:translateY(3px);box-shadow:0 3px 0 #a47628}
+.victory-later{background:transparent;color:#bfe5f7;border:none;padding:8px 12px;cursor:pointer;text-decoration:underline}
+.victory-preview-label{display:block;color:#c7e8fc;font-size:12px}
+@keyframes victory-robot-float{0%{transform:translateY(12px) scale(.88)}100%{transform:translateY(-8px) scale(1.08)}}
+@keyframes victory-burst{0%,5%{opacity:0;transform:rotate(var(--angle)) translateX(0) scale(.1)}15%{opacity:1}55%{opacity:1;transform:rotate(var(--angle)) translateX(80px) scale(1.45)}75%,100%{opacity:0;transform:rotate(var(--angle)) translateX(98px) scale(.35)}}
+@keyframes victory-pulse{50%{filter:brightness(1.6);transform:scale(1.13)}}
+@keyframes victory-fall{to{transform:translateY(95vh) rotate(var(--turn))}}
+@media(prefers-reduced-motion:reduce){.victory-miro,.victory-firework,.victory-firework i,.victory-confetti,.victory-miro-stars{animation:none!important}}

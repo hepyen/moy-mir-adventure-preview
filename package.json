@@ -1,7 +1,7 @@
 {
   "name": "moy-mir-2-new",
   "private": true,
-  "version": "2.4.1",
+  "version": "2.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -11,7 +11,9 @@
   "dependencies": {
     "@capacitor/android": "^8.6.0",
     "@capacitor/core": "^8.6.0",
+    "@capacitor/push-notifications": "^8.1.3",
     "@react-three/fiber": "^9.8.2",
+    "@supabase/supabase-js": "^2.119.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "three": "^0.187.0"

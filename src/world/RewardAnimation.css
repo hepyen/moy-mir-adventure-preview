@@ -1,0 +1,38 @@
+.reward-scene{position:relative;display:flex;align-items:center;justify-content:center;width:100%;height:205px;overflow:hidden;border-radius:21px;background:radial-gradient(ellipse at center,#4878a8,#173859 74%);isolation:isolate}
+.reward-scene-game{background:radial-gradient(ellipse at center,#6864bd,#212656)}
+.reward-scene-movie{background:radial-gradient(ellipse at center,#c77e6b,#45344e)}
+.reward-scene-mystery{background:radial-gradient(ellipse at center,#ad7a6f,#422652)}
+.reward-scene-money{background:radial-gradient(ellipse at center,#70b88a,#1a574f)}
+.reward-scene-walk{background:linear-gradient(#85cfe7 0 63%,#81c279 64%)}
+.reward-scene-dessert{background:radial-gradient(ellipse at center,#efb5d8,#9c4e8b)}
+.reward-scene-board{background:radial-gradient(ellipse at center,#8eb7f5,#405a83)}
+.reward-scene-music{background:radial-gradient(ellipse at center,#9a8bea,#393e7e)}
+.reward-spark{position:absolute;top:15%;left:20%;color:#ffe793;font-size:28px;animation:reward-twinkle 1.1s infinite alternate;pointer-events:none}
+.game-star-a{left:15%}.game-star-b{left:76%;top:65%}
+.game-hands{display:flex;align-items:center;justify-content:center;gap:0;animation:reward-controller-move .55s ease-in-out infinite alternate}
+.game-hands>span{font-size:48px;filter:drop-shadow(0 5px 6px #0004)}
+.game-pad{border-radius:40% 40% 45% 45%;background:linear-gradient(150deg,#d8e9fc,#7f9cbb);border:5px solid #e9faff;box-shadow:0 14px 16px #10163460;display:flex;align-items:center;gap:14px;padding:23px 19px;color:#24405f;font-size:20px}
+.game-pad b{font-size:11px}.game-pad span:last-child{font-size:18px;animation:reward-twinkle .45s infinite alternate}
+.movie-tv{border:10px solid #453d47;border-radius:18px;background:linear-gradient(135deg,#c2e3f2,#4a99bd);width:65%;height:110px;display:grid;place-items:center;font-size:27px;color:#fff2bc;box-shadow:0 10px 0 #292a32;animation:reward-tv-glow 1.3s infinite alternate}
+.movie-faces{position:absolute;bottom:4px;display:flex;gap:18px;font-size:35px;animation:reward-controller-move 1s ease-in-out infinite alternate}
+.mystery-box{position:absolute;top:80px;background:linear-gradient(140deg,#edb85b,#c2753a);border:5px solid #ffe4a0;border-radius:8px;width:118px;height:96px;display:grid;place-items:center;box-shadow:0 13px 25px #0005;animation:reward-box-bounce 1.3s infinite}
+.mystery-box span{font-size:47px}.mystery-lid{position:absolute;top:65px;width:138px;height:30px;border-radius:9px;background:#e0a45b;border:5px solid #fff2b6;animation:reward-lid 1.3s infinite}
+.mystery-rays{font-size:34px;color:#ffe4b4;position:absolute;top:22px;animation:reward-twinkle .5s infinite alternate}
+.money-fall{position:absolute;inset:0}.money-fall span{position:absolute;top:-46px;font-size:29px;animation:reward-rain 2s linear infinite}
+.money-bag{font-size:69px;align-self:end;margin-bottom:10px;filter:drop-shadow(0 8px 9px #0005)}
+.walk-sun{position:absolute;top:10px;right:25px;font-size:46px;animation:reward-twinkle 1.5s infinite alternate}
+.walk-trees{position:absolute;bottom:28px;font-size:65px;white-space:pre;opacity:.9}
+.walk-feet{position:absolute;bottom:14px;font-size:27px;animation:reward-walk 1.6s ease-in-out infinite}
+.reward-center-bounce{font-size:85px;animation:reward-box-bounce 1.3s ease-in-out infinite}
+.reward-center-bounce+.reward-spark{top:22px;left:32%;font-size:30px}
+@keyframes reward-controller-move{to{transform:translateY(-8px) rotate(5deg)}}
+@keyframes reward-twinkle{to{opacity:.4;transform:scale(.82) rotate(8deg)}}
+@keyframes reward-tv-glow{to{filter:brightness(1.3);transform:scale(1.025)}}
+@keyframes reward-box-bounce{50%{transform:translateY(-14px) rotate(-5deg)}}
+@keyframes reward-lid{50%{transform:translateY(-23px) rotate(-8deg)}}
+@keyframes reward-rain{to{transform:translateY(255px) rotate(160deg)}}
+@keyframes reward-walk{50%{transform:translateX(18px) rotate(-5deg)}}
+@media(prefers-reduced-motion:reduce){.reward-scene *{animation:none!important}}
+.reward-scene-family{background:radial-gradient(ellipse at center,#e9b385,#784d78)}
+.reward-scene-time{background:radial-gradient(ellipse at center,#7ed2f4,#3c4d99)}
+.reward-scene-gift{background:radial-gradient(ellipse at center,#b18be4,#604594)}
