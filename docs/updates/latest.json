@@ -1,14 +1,15 @@
 {
-  "version": "2.8.0",
-  "title": "Мой Мир 2.8 · Семейный чат и уведомления",
+  "version": "2.8.1",
+  "title": "Мой Мир 2.8.1 — исправления и стабильность",
   "notes": [
-    "Настройки, Миро EV и звёзды",
-    "Настоящий семейный чат с уведомлениями",
-    "Сигнал родителю при входе Ильи",
-    "Тест системных уведомлений и музыка"
+    "Исправлен переход во второй мир",
+    "Управление ежедневными делами",
+    "Стабильная регистрация уведомлений",
+    "Защита от потери 3D-графики",
+    "Исправлена синхронизация семейных данных"
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.8.0/MOY_MIR_2.8.0_OTA.zip",
-  "sha256": "839f9bc7d299667e7dc80c6703ad89796d168cff1ba2ff88b4e488f70db21395",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.8.1/MOY_MIR_2.8.1_OTA.zip",
+  "sha256": "70c6a84ac7717b8d14bd26d9faf8a0076165ac3e1ba99c0dcd8b83498fa63cbd",
   "nativeBaseVersion": "2.7.0",
   "required": false
 }
