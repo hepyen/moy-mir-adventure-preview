@@ -27,21 +27,20 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{world
  useEffect(()=>{if(spiritualPoints>previousSpiritual.current){setFace('smile');setMessage('Отлично! Ещё один хороший шаг! 🌱')}previousSpiritual.current=spiritualPoints},[spiritualPoints])
  function open(){playMiroChirp(sounds.current++,soundEnabled);setFace('wink');setExpanded(true);setMessage(null)}
  function close(){setExpanded(false);setError('');setFace('smile')}
- async function send(question:string,retry=false){
+ async function send(question:string){
   const text=question.trim()
   if(!text||busy||text.length>1600)return
-  const next:Turn[]=(retry?history:[...history,{role:'user' as const,content:text}]).slice(-MAX_HISTORY)
+  const next:Turn[]=[...history,{role:'user' as const,content:text}].slice(-MAX_HISTORY)
   setHistory(next);setDraft('');setBusy(true);setError('');setFace('wow')
   const ac=new AbortController();controller.current=ac
-  const timer=window.setTimeout(()=>ac.abort(),78000)
   try{
    const response=await fetch(ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:next.filter(t=>t.role==='user'||t.role==='assistant').slice(-10)}),signal:ac.signal})
    const output=await response.json()
    if(!response.ok||!output?.answer)throw new Error(output?.error||'Сервис недоступен')
    setHistory(old=>[...old,{role:'assistant' as const,content:String(output.answer)}].slice(-MAX_HISTORY))
    setFace('smile')
-  }catch(err){setFace('wow');setError(ac.signal.aborted?'Истекло время ожидания ответа. Попробуй повторить вопрос.':err instanceof Error?err.message:'Не получается связаться с нейросетью')}
-  finally{window.clearTimeout(timer);setBusy(false);controller.current=null}
+  }catch(err){if(ac.signal.aborted)return;setFace('wow');setError(err instanceof Error?err.message:'Не получается связаться с нейросетью')}
+  finally{setBusy(false);controller.current=null}
  }
  const robot=<>
     <svg viewBox="0 0 150 172" aria-hidden="true">
@@ -69,8 +68,8 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{world
   <button type="button" className="miro-big-avatar" onDoubleClick={close} onTouchEnd={e=>{const now=Date.now();if(now-lastTouch.current<400){e.preventDefault();close()}lastTouch.current=now}} title="Нажми дважды, чтобы уменьшить">{robot}<span>Нажми дважды, чтобы уменьшить меня</span></button>
   <section className="miro-ai-chat"><div className="miro-ai-history" aria-live="polite">
   {history.map((m,i)=><div key={i} className={'miro-ai-turn '+(m.role==='user'?'mine':'robot')}>{m.content}</div>)}
-  {busy&&<div className="miro-ai-turn robot">Миро обращается к нейросети… <button type="button" className="miro-ai-stop" onClick={()=>controller.current?.abort()}>Остановить</button></div>}
-  {error&&<div className="miro-ai-error" role="alert">{error}<button onClick={()=>void send(history.filter(x=>x.role==='user').at(-1)?.content||'',true)} disabled={busy}>Повторить</button></div>}
+  {busy&&<div className="miro-ai-turn robot">Миро думает…</div>}
+  {error&&<div className="miro-ai-error" role="alert">{error}<button onClick={()=>void send(history.filter(x=>x.role==='user').at(-1)?.content||'')} disabled={busy}>Повторить</button></div>}
   <div ref={historyEnd}/>
   </div>
   <div className="miro-ai-examples">{['Помоги с дробями','Объясни испанский глагол ser','Как учить английские слова?'].map(x=><button key={x} onClick={()=>void send(x)} disabled={busy}>{x}</button>)}</div>

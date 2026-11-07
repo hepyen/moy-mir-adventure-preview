@@ -1,8 +1,0 @@
-.today-clock{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:12px auto;padding:12px 19px;max-width:1240px;width:calc(100% - 28px);border:1px solid rgba(148,203,221,.34);border-radius:16px;background:linear-gradient(120deg,#184d60,#173e57);box-shadow:0 6px 20px #09192922;color:#f2fff7}
-.today-clock-icon{font-size:25px}
-.today-clock-date{flex:1;min-width:180px}
-.today-clock-date,.today-clock-time{display:grid;gap:3px}
-.today-clock small{font-size:11px;letter-spacing:.05em;color:#b9dbdf}
-.today-clock-date strong{font-size:17px}
-.today-clock-time strong{font-size:28px;letter-spacing:.045em;font-variant-numeric:tabular-nums}
-@media(max-width:500px){.today-clock{gap:9px;padding:10px 12px}.today-clock-date{min-width:125px}.today-clock-date strong{font-size:14px}.today-clock-time strong{font-size:23px}}

@@ -1,5 +1,6 @@
-# Credits
-
-The original 3D worlds and flying robot were restored from the owner's earlier “Мой Мир” family project. The separate experimental characters from releases 2.1–2.3 are not loaded in version 2.5.
-
-The current AI assistant uses free, third-party inference endpoints; availability and quotas may change. No model API credentials are distributed with the application.
+# 3D-ресурсы и лицензии
+- Dog by Quaternius (CC0), source: https://poly.pizza/m/2kUk0QqpCg
+- Animated Robot by Quaternius (CC0), source: https://poly.pizza/m/QCm7qe9uNJ
+- Lowpoly Squirrel by Simon Graff (CC BY 3.0), source: https://poly.pizza/m/dQdmcEiCXU3 — model resized and animated in the scene. License: https://creativecommons.org/licenses/by/3.0/
+- Cottage by CreativeTrio (CC0), source: https://poly.pizza/m/YDGLLT0emC
+- Nature Kit by Kenney (CC0), source: https://kenney.nl/assets/nature-kit

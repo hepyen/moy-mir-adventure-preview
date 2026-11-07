@@ -1,4 +1,2 @@
-import CloudApp from './CloudApp'
-import './App.css'
-import './AppV25.css'
-export default function App(){return <CloudApp onDemo={()=>{}}/>}
+import {GeneratedComponent} from './components/generated/GeneratedComponent';
+export default function App(){return <GeneratedComponent/>;}
