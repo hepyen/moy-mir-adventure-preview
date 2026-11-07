@@ -1,4 +1,5 @@
-import WorldInteractive from './WorldInteractive';
+import {World3D} from '../../legacyWorld/World3D';
+import {WORLD_01_OBJECTS,WORLD_01_END} from '../../legacyWorld/world01';
 import React, { useState, useMemo, useEffect } from 'react';
 import './MyWorld.css';
 type Tab = 'world' | 'tasks' | 'shop' | 'family';
@@ -70,15 +71,16 @@ const prices = [{
   price: 70
 }];
 const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['shop', '🎁', 'Магазин'], ['family', '💬', 'Семья']];
-const SAVE_KEY='moymir2-demo-2.2';
+const SAVE_KEY='moymir2-demo-2.4';
 const OLD_SAVE_KEY='moymir2-demo-2.1';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-function readSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||localStorage.getItem(OLD_SAVE_KEY)||'null')}catch{return null}}
+function readSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'null')}catch{return null}}
 export const GeneratedComponent = () => {
   const saved=useMemo(()=>readSave(),[]);
   const [day,setDay]=useState(today());
 
   const [tab, setTab] = useState<Tab>('world');
+  const [previewWorld,setPreviewWorld]=useState<1|2>(1);
   const [chores, setChores] = useState<Chore[]>(()=>saved?.day===today()&&Array.isArray(saved?.chores)?saved.chores:(saved?.templates??initial).map((x:Chore)=>({...x,done:false})));
   const [templates,setTemplates]=useState<Chore[]>(saved?.templates??initial.map(x=>({...x,repeat:true,done:false})));
   const [coins, setCoins] = useState<number>(saved?.coins??0);
@@ -157,6 +159,9 @@ export const GeneratedComponent = () => {
   const missionItems = chores.slice(0, 3);
   const missionDone = missionItems.every(x => x.done);
   const nextXp = 500 - xp % 500;
+  const currentWorld=previewWorld===2&&xp>=WORLD_01_END?2:1;
+  const pointsInWorld=currentWorld===2?Math.max(0,xp-WORLD_01_END):Math.min(xp,WORLD_01_END);
+  const nextWorldStage=WORLD_01_OBJECTS.find(o=>o.at>pointsInWorld);
   const toast = (v: string) => {
     setMessage(v);
     window.setTimeout(() => setMessage(''), 2800);
@@ -172,7 +177,7 @@ export const GeneratedComponent = () => {
     if(!task||task.done||!pendingChores.includes(id))return;
     setPendingChores(a=>a.filter(v=>v!==id));
     setChores(a=>a.map(x=>x.id===id?{...x,done:true}:x));
-    setCoins(n=>n+task.points);setXp(n=>n+task.points*2);
+    setCoins(n=>n+task.points);setXp(n=>n+task.points);
     toast('Родитель подтвердил! +'+task.points+' монет');
   };
   const declineChore=(id:number)=>{setPendingChores(a=>a.filter(x=>x!==id));toast('Задание возвращено для проверки')};
@@ -212,7 +217,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.3</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.4</span></strong><span>Остров приключений</span></div></div>
  <button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{coins}</b></button>
  </div>
  <div className="mw-tabs-top">
@@ -223,22 +228,13 @@ export const GeneratedComponent = () => {
  <div className="mw-scroll">
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{parent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{parent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{parent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
- <WorldInteractive built={building} bridgeOpen={missionDone} tasks={chores} coins={coins} onOpenTasks={()=>setTab('tasks')}/>
- <section className="mw-progress"><div className="mw-progress-head"><strong>⭐ Опыт строителя</strong><span>{xp % 500} / 500</span></div><div className="mw-progress-track"><div style={{
-                width: `${xp % 500 / 500 * 100}%`
-              }} /></div><p>Ещё {nextXp} опыта до нового уровня</p></section>
- <section className="mw-panel mw-mission">
- <div className="mw-section-label">МИССИЯ ДНЯ <span className="mw-spark">✦</span></div>
- <div className="mw-mission-top"><div className="mw-squirrel">🐿️</div><div><h2>{missionDone ? 'Мост спасён!' : 'Спаси белку!'}</h2><p>{missionDone ? 'Отличная работа! Белка вернулась домой.' : 'Белка застряла за ручьём. Собери три материала для моста.'}</p></div></div>
- <div className="mw-step-list">{missionItems.map(x => <button key={x.id} className={x.done ? 'mw-step done' : 'mw-step'} onClick={() => {
-                setTab('tasks');
-                toast('Найди задание «' + x.title + '»');
-              }}><span>{x.done ? '✅' : '○'}</span>{x.material}<small>{x.done ? 'Найдено' : 'Нужно найти'}</small></button>)}</div>
- <button className="mw-primary" onClick={() => missionDone ? toast('Первая миссия завершена! Следующее приключение скоро.') : setTab('tasks')}>{missionDone ? '🎉 Миссия завершена' : '🎯 Собрать материалы'} <span>→</span></button>
- </section>
- <div className="mw-section-heading"><h2>Что построим?</h2><span>Выбирай сам</span></div>
- <div className="mw-build-grid">{[['🏡', 'Домик'], ['🌉', 'Мостик'], ['🌷', 'Цветник'], ['🏠', 'Домик собаки']].map(([emoji, title]) => <button className="mw-build" key={title} onClick={() => build(title)}><span>{emoji}</span><strong>{title}</strong><small>{building.includes(title) ? '✓ Построено' : '⭐ 80 опыта'}</small></button>)}</div>
-
+ <div className="mw-worldswitch"><button className={currentWorld===1?'active':''} onClick={()=>setPreviewWorld(1)}>🏡 Домик на поляне</button><button className={currentWorld===2?'active':''} disabled={xp<WORLD_01_END} onClick={()=>setPreviewWorld(2)}>🌳 Домик на дереве {xp<WORLD_01_END?'🔒':''}</button></div>
+ <World3D key={currentWorld} points={pointsInWorld} worldNumber={currentWorld} soundEnabled={sound}/>
+ <section className="mw-progress"><div className="mw-progress-head"><strong>⭐ Очки развития</strong><span>{pointsInWorld} / {WORLD_01_END}</span></div>
+ <div className="mw-progress-track"><div style={{width:`${pointsInWorld/WORLD_01_END*100}%`}}/></div>
+ <p>{nextWorldStage?'Следующее улучшение: '+nextWorldStage.title+' — '+nextWorldStage.at+' очков':'Все 30 этапов этого мира открыты!'}</p></section>
+ {xp>=WORLD_01_END&&currentWorld===1&&<button className="mw-primary" onClick={()=>setPreviewWorld(2)}>🌳 Перейти ко второму миру</button>}
+ <section className="mw-panel"><div className="mw-section-label">КАК РАЗВИВАТЬ МИР</div><p className="mw-task-explain">Каждое подтверждённое родителем задание приносит монеты и очки развития. Постройки возникают сами, в прежнем порядке. Трогай Миро на острове: он увеличится и поможет разобраться с уроками.</p><button className="mw-primary" onClick={()=>setTab('tasks')}>Посмотреть задания →</button></section>
  </>}
  {tab === 'tasks' && <>
  <section className="mw-greeting"><div className="mw-eyebrow">ТВОИ ДОБРЫЕ ДЕЛА</div><h1>{parent ? 'Проверка заданий' : 'Задания на сегодня'}</h1><p>{parent ? 'Проверяйте дела Ильи, новые задания появляются каждый день.' : 'Выполняй дела, собирай материалы и развивай остров.'}</p></section>
