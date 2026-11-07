@@ -7,15 +7,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Download and verify Android APK
+      - name: Fetch signed APK 2.8.0
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download v2.7.0 --repo hepyen/moy-mir-adventure-preview --pattern 'MOY_MIR_2.7.0_TEST.apk' --dir .
-          echo "c79387634134091fcab59657f330256759539dd0b6938cc4a1c26de7b487e55c  MOY_MIR_2.7.0_TEST.apk" | sha256sum -c -
-      - name: Upload APK as workflow artifact
+          gh release download v2.8.0 --repo hepyen/moy-mir-adventure-preview --pattern 'MOY_MIR_2.8.0_TEST.apk' --dir .
+          echo '644fef82c0141464708884dd8bf8dedfa519d39ddfb1f32e60b020a2691e0b2d  MOY_MIR_2.8.0_TEST.apk' | sha256sum -c -
+      - name: Publish APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MOY_MIR_2_7_0_APK
-          path: MOY_MIR_2.7.0_TEST.apk
+          name: MOY_MIR_2_8_0_APK
+          path: MOY_MIR_2.8.0_TEST.apk
           retention-days: 2
