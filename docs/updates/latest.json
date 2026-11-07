@@ -1,1 +1,13 @@
-{"version": "2.7.0", "title": "Мой Мир 2.7.0", "notes": ["Звуки", "Системные уведомления", "Новая иконка", "Встроенное обновление"], "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.7.0/MOY_MIR_2.7.0_OTA.zip", "sha256": "c36f027a1f64aa08e633f7f7f0806d8e85a65b69389e741793bdbf6eb5332525", "nativeBaseVersion": "2.7.0"}
+{
+  "version": "2.7.1",
+  "title": "Доступно обновление «Мой Мир 2.7.1»",
+  "notes": [
+    "Улучшены звуки достижений",
+    "Исправлена обработка версии",
+    "Установка прямо внутри приложения"
+  ],
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.7.1/MOY_MIR_2.7.1_OTA.zip",
+  "sha256": "569de5d2c06cc01d28c0c677920e5f4d1e36036822631f3498f844b7d4f8c3d1",
+  "nativeBaseVersion": "2.7.0",
+  "required": false
+}
