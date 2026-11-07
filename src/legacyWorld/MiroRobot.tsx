@@ -65,7 +65,7 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{world
  </>
  const overlay=expanded?createPortal(<div className="miro-fullscreen" role="dialog" aria-modal="true" aria-label="Миро — нейросеть и помощь с уроками">
   <div className="miro-full-top"><strong>🤖 Миро · ИИ-помощник</strong><button type="button" onClick={close} aria-label="Уменьшить Миро">↘ Свернуть</button></div>
-  <button type="button" className="miro-big-avatar" onClick={close} onDoubleClick={close} onTouchEnd={e=>{const now=Date.now();if(now-lastTouch.current<400){e.preventDefault();close()}lastTouch.current=now}} title="Нажми дважды, чтобы уменьшить">{robot}<span>Нажми дважды, чтобы уменьшить меня</span></button>
+  <button type="button" className="miro-big-avatar" onDoubleClick={close} onTouchEnd={e=>{const now=Date.now();if(now-lastTouch.current<400){e.preventDefault();close()}lastTouch.current=now}} title="Нажми дважды, чтобы уменьшить">{robot}<span>Нажми дважды, чтобы уменьшить меня</span></button>
   <section className="miro-ai-chat"><div className="miro-ai-history" aria-live="polite">
   {history.map((m,i)=><div key={i} className={'miro-ai-turn '+(m.role==='user'?'mine':'robot')}>{m.content}</div>)}
   {busy&&<div className="miro-ai-turn robot">Миро думает…</div>}
