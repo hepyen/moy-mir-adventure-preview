@@ -1,4 +1,4 @@
-name: Package existing Android APK for download
+name: Export Android APK to ChatGPT
 on:
   workflow_dispatch:
 jobs:
@@ -7,15 +7,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Download existing signed APK
+      - name: Download and verify Android APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download v2.6.1 --repo hepyen/moy-mir-adventure-preview --pattern 'MOY_MIR_2.6.1_TEST.apk' --dir .
-          echo "1d909047317c8310c36a4d667d34d4253301baa8c336f6362136b453d4451ecf  MOY_MIR_2.6.1_TEST.apk" | sha256sum -c -
-      - name: Publish as GitHub Actions artifact
+          gh release download v2.7.0 --repo hepyen/moy-mir-adventure-preview --pattern 'MOY_MIR_2.7.0_TEST.apk' --dir .
+          echo "c79387634134091fcab59657f330256759539dd0b6938cc4a1c26de7b487e55c  MOY_MIR_2.7.0_TEST.apk" | sha256sum -c -
+      - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MOY_MIR_2_6_1_APK
-          path: MOY_MIR_2.6.1_TEST.apk
+          name: MOY_MIR_2_7_0_APK
+          path: MOY_MIR_2.7.0_TEST.apk
           retention-days: 2
