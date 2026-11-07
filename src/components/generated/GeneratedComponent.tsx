@@ -7,7 +7,7 @@ import {useFamilyCloud} from '../../lib/useFamilyCloud';
 import {CloudSignIn,CloudTasks,CloudShop,CloudSpiritual} from './CloudPanels';
 import {World3D} from '../../legacyWorld/World3D';
 import {WORLD_01_OBJECTS,WORLD_01_END} from '../../legacyWorld/world01';
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './MyWorld.css';
 type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual';
 type Proposal={id:number;title:string;points:number;emoji:string;status:'pending'|'accepted'|'rejected'};
@@ -169,6 +169,16 @@ export const GeneratedComponent = () => {
   const actualCoins=connected?cloud.balance:0;
   const actualXp=connected?cloud.worldPoints:0;
   const firstWorldComplete=actualXp>=WORLD_01_END||(connected&&cloud.worldNumber===2);
+  const previousCloudProgress=useRef<{points:number;balance:number}|null>(null);
+  useEffect(()=>{
+    if(!connected){previousCloudProgress.current=null;return}
+    const old=previousCloudProgress.current;
+    if(old){
+      if(actualXp>old.points)playSound('build');
+      else if(actualCoins>old.balance)playSound('coin');
+    }
+    previousCloudProgress.current={points:actualXp,balance:actualCoins};
+  },[connected,actualXp,actualCoins]);
   const actualWorld=previewWorld===2&&firstWorldComplete?2:1;
   useEffect(()=>{if(connected&&cloud.worldNumber===2)setPreviewWorld(2)},[connected,cloud.worldNumber]);
   const actualWorldPoints=actualWorld===2?Math.max(0,actualXp-WORLD_01_END):Math.min(WORLD_01_END,actualXp);
@@ -234,7 +244,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.7.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.7.1</span></strong><span>Остров приключений</span></div></div>
  <button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button>
  </div>
  <div className="mw-tabs-top">
