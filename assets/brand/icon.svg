@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs>
+ <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#20bfea"/><stop offset=".55" stop-color="#208ee4"/><stop offset="1" stop-color="#6544cb"/></linearGradient>
+ <linearGradient id="grass" x1="0" y1="0" x2="1" y2=".6"><stop stop-color="#c2ee63"/><stop offset=".62" stop-color="#43be61"/><stop offset="1" stop-color="#188c62"/></linearGradient>
+ <linearGradient id="dirt" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a96c41"/><stop offset="1" stop-color="#633f73"/></linearGradient>
+ <linearGradient id="roof" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f7863d"/><stop offset="1" stop-color="#dd4e36"/></linearGradient>
+ <filter id="shadow" x="-40%" y="-50%" width="190%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+</defs>
+<rect x="2" y="2" width="508" height="508" rx="110" fill="url(#sky)"/>
+<circle cx="98" cy="90" r="24" fill="#ecfcff" opacity=".75"/>
+<circle cx="138" cy="84" r="29" fill="#ecfcff" opacity=".65"/>
+<circle cx="421" cy="121" r="22" fill="#ecfcff" opacity=".72"/>
+<circle cx="389" cy="111" r="17" fill="#ecfcff" opacity=".72"/>
+<ellipse cx="248" cy="358" rx="190" ry="39" fill="#1d456f" opacity=".35" filter="url(#shadow)"/>
+<path d="M75 301 Q251 343 437 301 L396 358 Q323 419 256 420 Q175 416 115 353Z" fill="url(#dirt)" stroke="#704866" stroke-width="4"/>
+<ellipse cx="256" cy="298" rx="192" ry="69" fill="url(#grass)" stroke="#6dca53" stroke-width="5"/>
+<path d="M106 304 Q250 356 406 307" fill="none" stroke="#b9ed79" stroke-width="9" stroke-linecap="round"/>
+<!-- tree -->
+<path d="M128 266 L137 154 L162 154 L169 277Z" fill="#835633"/>
+<path d="M145 169 Q115 132 90 161 M153 172 Q179 132 199 153" fill="none" stroke="#835633" stroke-width="13" stroke-linecap="round"/>
+<circle cx="110" cy="146" r="47" fill="#339d52"/><circle cx="167" cy="132" r="53" fill="#42b85c"/><circle cx="141" cy="95" r="45" fill="#66c966"/><circle cx="197" cy="165" r="31" fill="#35a453"/>
+<circle cx="125" cy="109" r="18" fill="#91e17b" opacity=".55"/>
+<!-- cottage -->
+<path d="M181 205 L181 305 L326 302 L326 205 Z" fill="#fff2cd" stroke="#b17a55" stroke-width="6"/>
+<path d="M160 215 L252 134 L346 217 L324 233 L252 170 L181 235Z" fill="url(#roof)" stroke="#a84b38" stroke-width="7" stroke-linejoin="round"/>
+<rect x="237" y="248" width="40" height="59" rx="9" fill="#a46d48" stroke="#8c5734" stroke-width="5"/>
+<circle cx="268" cy="279" r="4" fill="#ffd668"/>
+<rect x="193" y="241" width="31" height="29" rx="5" fill="#ffde7c" stroke="#ac774b" stroke-width="5"/>
+<rect x="290" y="241" width="29" height="29" rx="5" fill="#ffde7c" stroke="#ac774b" stroke-width="5"/>
+<!-- robot -->
+<ellipse cx="373" cy="146" rx="53" ry="47" fill="#e2f7ff" stroke="#9ac7e7" stroke-width="7"/>
+<rect x="331" y="117" width="85" height="57" rx="27" fill="#143657"/>
+<path d="M351 138 Q357 126 364 138" fill="none" stroke="#42e1fc" stroke-width="7" stroke-linecap="round"/>
+<path d="M383 138 Q390 126 397 138" fill="none" stroke="#42e1fc" stroke-width="7" stroke-linecap="round"/>
+<path d="M362 153 Q374 164 386 153" fill="none" stroke="#4bdaff" stroke-width="4" stroke-linecap="round"/>
+<ellipse cx="368" cy="208" rx="37" ry="28" fill="#e2f7ff" stroke="#98c6e5" stroke-width="7"/>
+<path d="M335 200 L320 216 M400 197 L414 216" stroke="#ddf7ff" stroke-width="13" stroke-linecap="round"/>
+<circle cx="368" cy="210" r="10" fill="#34bcee"/>
+<!-- title -->
+<text x="256" y="461" font-family="Arial Rounded MT Bold,Arial,sans-serif" font-size="64" font-weight="900" text-anchor="middle" stroke="#1658a6" stroke-width="12" stroke-linejoin="round" paint-order="stroke" fill="#fff">Мой Мир</text>
+</svg>

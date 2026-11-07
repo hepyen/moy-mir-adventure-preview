@@ -1,3 +1,8 @@
+import {SoundControl} from '../../features/SoundControl';
+import {PushCenter} from '../../features/PushCenter';
+import {UpdateCenter} from '../../features/UpdateCenter';
+import {NotificationInbox} from '../../notifications/NotificationInbox';
+import {isSoundEnabled,playSound} from '../../features/sounds';
 import {useFamilyCloud} from '../../lib/useFamilyCloud';
 import {CloudSignIn,CloudTasks,CloudShop,CloudSpiritual} from './CloudPanels';
 import {World3D} from '../../legacyWorld/World3D';
@@ -129,7 +134,7 @@ export const GeneratedComponent = () => {
   const [draft, setDraft] = useState('');
   const [message, setMessage] = useState('');
   const [missionsUnlocked, setMissionsUnlocked] = useState(0);
-  const [sound, setSound] = useState(true);
+  const [sound, setSound] = useState(isSoundEnabled);
   const [building, setBuilding] = useState<string[]>(saved?.building??[]);
   const [newTitle,setNewTitle]=useState('');
   const [newPoints,setNewPoints]=useState('10');
@@ -229,15 +234,19 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.6.1</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.7.0</span></strong><span>Остров приключений</span></div></div>
  <button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button>
  </div>
  <div className="mw-tabs-top">
  <button className={!shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else setTab('tasks')}}>👦 Илья</button>
  <button className={shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else if(cloud.role==='child')setShowConnection(true);else setTab('tasks')}}>👨‍👩‍👦 Родители</button>
- <button className="mw-bell" title="Звук" onClick={() => setSound(x => !x)}>{sound ? '🔊' : '🔇'}</button>
+ <SoundControl onChange={setSound}/>
  </div>
  <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div> <div className="mw-scroll">
+ <section className="mw-system-stack">
+ <UpdateCenter/>
+ {connected&&cloud.session&&<><NotificationInbox userId={cloud.session.user.id} familyId={cloud.familyId}/><PushCenter userId={cloud.session.user.id}/></>}
+ </section>
  {showConnection&&(connected?<section className="mw-panel mw-cloud-account"><h3>Семейный аккаунт</h3><p>{cloud.session?.user.email}</p><button onClick={()=>{void cloud.logout();setShowConnection(false)}}>Выйти</button><button onClick={()=>setShowConnection(false)}>Закрыть</button></section>:tab==='world'?<CloudSignIn cloud={cloud}/>:null)}
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
  {tab === 'world' && <>

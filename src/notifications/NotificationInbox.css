@@ -1,0 +1,13 @@
+.notification-inbox{margin:10px 0}
+.notification-toggle{display:inline-flex;align-items:center;gap:8px;padding:11px 15px;border-radius:12px;border:1px solid #96bfcb8a;background:#17465a;color:#fff;cursor:pointer;font-weight:700}
+.notification-count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 5px;border-radius:20px;background:#b82f45;color:white}
+.notification-panel{padding:14px;margin-top:10px;border:1px solid #80b8c2;border-radius:15px;background:#173a51}
+.notification-panel-title{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.notification-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-bottom:1px solid #ffffff25}
+.notification-item>div{flex:1;min-width:150px}
+.notification-item p{margin:5px 0;font-size:13px}
+.notification-item small{color:#b4d0d7}
+.notification-unread{background:#b6e6d014;border-left:3px solid #b7e5bc}
+@media(max-width:600px){.notification-item{align-items:start;flex-direction:column}}
+
+.notification-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
