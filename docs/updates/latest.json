@@ -1,15 +1,13 @@
 {
-  "version": "2.8.1",
-  "title": "Мой Мир 2.8.1 — исправления и стабильность",
+  "version": "2.8.2",
+  "title": "Исправление семейного чата · Мой Мир 2.8.2",
   "notes": [
-    "Исправлен переход во второй мир",
-    "Управление ежедневными делами",
-    "Стабильная регистрация уведомлений",
-    "Защита от потери 3D-графики",
-    "Исправлена синхронизация семейных данных"
+    "Поле ввода сообщений всегда видно",
+    "Исправлено отображение с открытой клавиатурой",
+    "Чат и отправка работают в родительском и детском аккаунтах"
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.8.1/MOY_MIR_2.8.1_OTA.zip",
-  "sha256": "70c6a84ac7717b8d14bd26d9faf8a0076165ac3e1ba99c0dcd8b83498fa63cbd",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.8.2/MOY_MIR_2.8.2_OTA.zip",
+  "sha256": "a25bb96d0c0c6911c754ba0aabf4816e4de6ca17b1cdd752fbd3626cb0daf53c",
   "nativeBaseVersion": "2.7.0",
   "required": false
 }
