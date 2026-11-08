@@ -86,7 +86,7 @@ const prices = [{
   title: 'Украшение для острова',
   price: 70
 }];
-const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['school', '📚', 'Учёба'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Духовный рост'], ['family', '💬', 'Семья'], ['settings', '⚙️', 'Настройки']];
+const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['school', '📚', 'Учёба'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Духовный рост'], ['family', '💬', 'Семья']];
 const SAVE_KEY='moymir2-demo-2.4';
 const OLD_SAVE_KEY='moymir2-demo-2.1';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -277,7 +277,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.1</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.2</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
