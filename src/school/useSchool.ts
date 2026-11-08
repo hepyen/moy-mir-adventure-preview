@@ -7,11 +7,17 @@ export type BackpackCheck={id:string;item_id:string;for_date:string;checked_at:s
 export type SchoolPrefs={school_enabled:boolean;school_remind_at:string;homework_enabled:boolean;homework_remind_at:string;verse_enabled:boolean;verse_remind_at:string};
 export const initialPrefs:SchoolPrefs={school_enabled:false,school_remind_at:'07:30',homework_enabled:false,homework_remind_at:'18:30',verse_enabled:false,verse_remind_at:'08:00'};
 const formatTime=(v:string|null|undefined)=>v?.slice(0,5)||'';
-export function useSchool(familyId:string,childId:string,enabled:boolean){
+type SchoolCache={lessons:Lesson[];homework:Homework[];prefs:SchoolPrefs;backpackItems:BackpackItem[];backpackChecks:BackpackCheck[];savedAt:number};
+function cacheKey(family:string,child:string,viewer:string){return `moymir31-school:${family}:${child}:${viewer}`}
+function readCache(key:string):SchoolCache|null{try{const raw=JSON.parse(localStorage.getItem(key)||'null');return raw&&Array.isArray(raw.lessons)&&Array.isArray(raw.homework)&&Array.isArray(raw.backpackItems)&&Array.isArray(raw.backpackChecks)?raw:null}catch{return null}}
+function writeCache(key:string,data:SchoolCache){try{localStorage.setItem(key,JSON.stringify(data))}catch{}}
+
+export function useSchool(familyId:string,childId:string,enabled:boolean,viewerId:string=''){
  const[lessons,setLessons]=useState<Lesson[]>([]),[homework,setHomework]=useState<Homework[]>([]),[prefs,setPrefs]=useState<SchoolPrefs>(initialPrefs);
  const[backpackItems,setBackpackItems]=useState<BackpackItem[]>([]),[backpackChecks,setBackpackChecks]=useState<BackpackCheck[]>([]);
  const[loading,setLoading]=useState(false),[error,setError]=useState('');
  const seq=useRef(0);
+ const [cachedAt,setCachedAt]=useState<number|null>(null);
  const refresh=useCallback(async()=>{
   if(!enabled||!supabase||!familyId||!childId){seq.current++;setLessons([]);setHomework([]);setBackpackItems([]);setBackpackChecks([]);setPrefs(initialPrefs);setError('');return}
   const id=++seq.current;setLoading(true);
@@ -25,15 +31,20 @@ export function useSchool(familyId:string,childId:string,enabled:boolean){
    ]);
    for(const response of [l,h,p,bag,checks])if(response.error)throw response.error;
    if(id!==seq.current)return;
-   setLessons((l.data||[]).map(x=>({...x,starts_at:formatTime(x.starts_at)})));
-   setHomework(h.data||[]);
-   setBackpackItems(bag.data||[]);setBackpackChecks(checks.data||[]);
+   const cleanLessons=(l.data||[]).map(x=>({...x,starts_at:formatTime(x.starts_at)}));
+   setLessons(cleanLessons);setHomework(h.data||[]);setBackpackItems(bag.data||[]);setBackpackChecks(checks.data||[]);
    const nextPrefs=p.data?{school_enabled:p.data.school_enabled,school_remind_at:formatTime(p.data.school_remind_at),homework_enabled:p.data.homework_enabled,homework_remind_at:formatTime(p.data.homework_remind_at),verse_enabled:p.data.verse_enabled,verse_remind_at:formatTime(p.data.verse_remind_at)}:initialPrefs;
    setPrefs(previous=>JSON.stringify(previous)===JSON.stringify(nextPrefs)?previous:nextPrefs);
-   setError('');
-  }catch(e){if(id===seq.current)setError(e instanceof Error?e.message:'Ошибка загрузки учебного плана')}
+   const snapshot={lessons:cleanLessons,homework:h.data||[],prefs:nextPrefs,backpackItems:bag.data||[],backpackChecks:checks.data||[],savedAt:Date.now()};
+   writeCache(cacheKey(familyId,childId,viewerId),snapshot);setCachedAt(snapshot.savedAt);setError('');
+  }catch(e){if(id===seq.current){const saved=readCache(cacheKey(familyId,childId,viewerId));if(saved){setLessons(saved.lessons);setHomework(saved.homework);setPrefs(saved.prefs);setBackpackItems(saved.backpackItems);setBackpackChecks(saved.backpackChecks);setCachedAt(saved.savedAt);setError('Нет связи. Показана последняя сохранённая версия расписания и рюкзака. Для изменений нужен интернет.')}else setError(e instanceof Error?e.message:'Ошибка загрузки учебного плана')}}
   finally{if(id===seq.current)setLoading(false)}
- },[enabled,familyId,childId]);
+ },[enabled,familyId,childId,viewerId]);
+ useEffect(()=>{
+  if(!enabled)return;
+  const cached=readCache(cacheKey(familyId,childId,viewerId));
+  if(cached){setLessons(cached.lessons);setHomework(cached.homework);setPrefs(cached.prefs);setBackpackItems(cached.backpackItems);setBackpackChecks(cached.backpackChecks);setCachedAt(cached.savedAt)}
+ },[enabled,familyId,childId,viewerId]);
  useEffect(()=>{void refresh();if(!enabled)return;
   // Avoid continually downloading five tables when Android is backgrounded.
   const t=setInterval(()=>{if(document.visibilityState==='visible')void refresh()},90_000);
@@ -57,5 +68,5 @@ export function useSchool(familyId:string,childId:string,enabled:boolean){
  }
  async function deleteBackpackItem(id:string){if(!supabase)throw Error('Нет подключения к базе');const{error}=await supabase.from('moymir_backpack_items').delete().eq('id',id).eq('family_id',familyId);if(error)throw error;await refresh()}
  async function checkBackpackItem(id:string,date:string,done:boolean){if(!supabase)throw Error('Нет подключения к базе');const{error}=await supabase.rpc('moymir_check_backpack',{p_item:id,p_date:date,p_done:done});if(error)throw error;await refresh()}
- return {lessons,homework,prefs,backpackItems,backpackChecks,loading,error,refresh,writeLesson,deleteLesson,addHomework,deleteHomework,markHomework,savePrefs,addBackpackItem,deleteBackpackItem,checkBackpackItem};
+ return {lessons,homework,prefs,backpackItems,backpackChecks,loading,error,cachedAt,refresh,writeLesson,deleteLesson,addHomework,deleteHomework,markHomework,savePrefs,addBackpackItem,deleteBackpackItem,checkBackpackItem};
 }

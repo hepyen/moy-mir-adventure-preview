@@ -1,6 +1,17 @@
+import {getMiroDayContext} from '../day/miroContext';
+import {dateInMadrid} from '../daily/library';
 /** Instant local help for basic navigation. No AI quota and no personal data sent. */
-export function miroOfflineAnswer(question:string):string|null{
+export function miroOfflineAnswer(question:string,userId='guest'):string|null{
  const q=question.toLocaleLowerCase('ru-RU');
+ const today=getMiroDayContext(userId,dateInMadrid());
+ if(today){
+  if(/домашн|deberes|доделать.*урок|что.*задани/.test(q))return today.homework.length?'Вот что пока не завершено: '+today.homework.slice(0,5).map(x=>`${x.subject}: ${x.description} (до ${x.due_date})`).join(' · ')+'. Полный список в разделе «Учёба».':'В школьном списке сейчас нет незавершённых домашних заданий. Если что-то задали сегодня, попроси внести это в «Учёбу».';
+  if(/рюкзак|портфель|что взять.*школ|что.*положить|завтра.*урок|учебник|тетрад/.test(q))return 'Следующий учебный день: '+today.nextDay+'. Уроки: '+(today.nextLessons.join(', ')||'расписания пока нет')+'. '+(today.backpack.length?'В рюкзак по сохранённому списку: '+today.backpack.join(', ')+'.':'Список вещей для этих предметов пока не заполнен родителем. Не буду придумывать учебники.');
+  if(/урок.*сегодня|какие.*урок|расписан.*сегодня|hoy|clases hoy/.test(q))return today.lessons.length?'Сегодня у тебя '+today.lessons.length+' уроков: '+today.lessons.join(', ')+'. Посмотреть время можно в «Horario escolar».':'Сегодня по сохранённому расписанию уроков нет.';
+  if(/сколько.*(монет|балл)|сколько.*до.*(награды|приза)|награду.*остал/.test(q))return 'В магазине сейчас '+today.coins+' монет. '+(today.nextReward?`До награды «${today.nextReward.title}» осталось ${today.nextReward.missing} монет.`:'Доступные награды можно посмотреть в магазине.')+' Духовная шкала учитывается отдельно: '+today.spiritualPoints+' баллов.';
+  if(/дела.*сегодня|сегодня.*дела|невыполненн.*дел|что мне сделать/.test(q))return `В списке на сегодня ещё ${today.pendingChores} дел, которые не отмечены или не подтверждены. Начни с одного небольшого дела, затем вернись к списку.`;
+ }
+
  if(/рюкзак|портфель|учебник|тетрад|что взять в школу/.test(q))return 'Открой раздел «📚 Учёба» и найди «🎒 Рюкзак на завтра». Там отмечай учебники и принадлежности по завтрашнему расписанию. Если список ещё пуст, попроси родителей добавить нужные вещи для предметов.';
  if(/где.*(урок|расписан)|уроки сегодня|какие.*урок/.test(q))return 'Нажми «📚 Учёба» внизу экрана. Там есть расписание по дням недели, названия сегодняшних предметов и домашние задания.';
  if(/стих.*(сегодня|день)|ежедневн.*стих|духовн.*рост/.test(q))return 'Открой вкладку «🌾 Духовный рост» и выбери «📖 Текст на каждый день». Прочитать стих и комментарий можно прямо в приложении, без браузера.';

@@ -1,3 +1,4 @@
+import {ParentActivityJournal} from './ParentActivityJournal';
 import {GrowthFocus} from './GrowthFocus';
 import {WeeklyReport} from './WeeklyReport';
 import React,{useState} from 'react';
@@ -100,6 +101,7 @@ export function CloudTasks({cloud}:{cloud:Cloud}){
  <label>Баллы<select value={deductAmount} onChange={e=>setDeductAmount(e.target.value)}><option value="5">−5</option><option value="10">−10</option></select></label>
  <textarea required minLength={8} maxLength={300} placeholder="Причина и как исправить ситуацию" value={deductReason} onChange={e=>setDeductReason(e.target.value)}/><button type="submit">Зафиксировать списание</button></form></section>}
  {cloud.behavior.length>0&&<section className="mw-panel"><h3>История дисциплинарных мер</h3>{cloud.behavior.map(x=><div className="mw-cloud-line" key={x.id}><div><strong>{x.cancelled_at?'Отменено':'−'+x.amount+' 🪙'}</strong><small>{x.reason}</small></div>{cloud.role==='parent'&&!x.cancelled_at&&<Action run={()=>cloud.rpc('cancel_behavior_point_deduction',{p_id:x.id})}>Вернуть</Action>}</div>)}</section>}
+ {cloud.role==='parent'&&<ParentActivityJournal cloud={cloud}/>}
  </>;
 }
 function RewardEditor({cloud,item}:{cloud:Cloud;item:CloudItem}){

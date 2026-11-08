@@ -38,7 +38,7 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId=
   if(!text||busy||text.length>1600)return
   const next:Turn[]=[...history,{role:'user' as const,content:text}].slice(-MAX_HISTORY)
   setHistory(next);setDraft('');setBusy(true);setError('');setFace('wow')
-  const local=miroOfflineAnswer(text);
+  const local=miroOfflineAnswer(text,userId);
   if(local){setHistory([...next,{role:'assistant' as const,content:local}].slice(-MAX_HISTORY));setBusy(false);setFace('smile');return}
   const ac=new AbortController();controller.current=ac
   try{

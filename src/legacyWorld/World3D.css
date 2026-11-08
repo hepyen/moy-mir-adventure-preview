@@ -20,3 +20,5 @@
 .world3d-panel:fullscreen .world3d-next{margin-bottom:4px}
 
 .world3d-viewport{isolation:isolate;overflow:hidden}
+
+.world3d-adventures{display:flex;align-items:center;gap:7px;flex-wrap:wrap;border:1px solid #cfe6c9;border-radius:12px;background:#f2fff0;padding:9px;margin:8px 0;color:#4c9a66;font-size:10px}.world3d-adventures strong{font-size:11px}.world3d-adventures span{flex:1}.world3d-adventures button{border:0;padding:7px 10px;border-radius:8px;background:#d9f5da;color:#428053;font-size:10px;font-weight:800}.world3d-story-message{border-radius:11px;padding:10px;background:#eafbe5;color:#4b8655;font-size:11px;display:flex;justify-content:space-between;gap:8px}.world3d-story-message button{background:none;border:0;color:#52845b;font-size:18px}

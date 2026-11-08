@@ -1,3 +1,8 @@
+import {useIslandStory} from '../../legacyWorld/useIslandStory';
+import {IslandStory} from '../../legacyWorld/IslandStory';
+import {PlayTimeBank} from '../../playtime/PlayTimeBank';
+import {updateMiroDayContext} from '../../day/miroContext';
+import {MyDay} from '../../day/MyDay';
 import {IslandMoments} from '../../legacyWorld/IslandMoments';
 import {lazy,Suspense} from 'react';
 import {attachMusicLifecycle,setMusicScene} from '../../features/music';
@@ -97,8 +102,9 @@ const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'
 function readSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'null')}catch{return null}}
 export const GeneratedComponent = () => {
  const cloud=useFamilyCloud();
- const school=useSchool(cloud.familyId,cloud.childId,!!cloud.role&&!!cloud.session&&!cloud.error);
+ const school=useSchool(cloud.familyId,cloud.childId,!!cloud.role&&!!cloud.session&&!!cloud.familyId,cloud.session?.user.id||'');
  const reminders=useSchoolNotificationSync(school,cloud);
+ const story=useIslandStory(cloud.familyId,cloud.childId,!!cloud.role&&!!cloud.session);
  useChildPresence(cloud.role==='child'&&!!cloud.session,cloud.session?.user.id||'');
  const [showConnection,setShowConnection]=useState(false);
  const askMiro=(question:string)=>{try{sessionStorage.setItem('moymir-miro-next-question',question.slice(0,1400))}catch{}setTab('world')};
@@ -108,14 +114,14 @@ export const GeneratedComponent = () => {
   const subscription=LocalNotifications.addListener('localNotificationActionPerformed',event=>{
    if(!active)return;
    const section=event.notification.extra?.section;
-   if(section==='school'||section==='spiritual')setTab(section);
+   if(section==='school'||section==='spiritual'||section==='shop')setTab(section);
    else if(section==='updates')setTab('settings');
   }).catch(e=>console.warn('Reminders navigation unavailable',e));
   return()=>{active=false;void subscription.then(listener=>{if(listener)return listener.remove()})};
  },[]);
 
  useEffect(()=>{
-  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.section==='school')setTab('school');else if(data.section==='spiritual')setTab('spiritual');else if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
+  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.section==='school')setTab('school');else if(data.section==='spiritual')setTab('spiritual');else if(data.section==='shop')setTab('shop');else if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
   window.addEventListener('moymir-notification-open',open);
   return()=>window.removeEventListener('moymir-notification-open',open);
  },[]);
@@ -201,6 +207,24 @@ export const GeneratedComponent = () => {
 
   useEffect(()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify({day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals}))}catch{}},[day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals]);
   useEffect(()=>{const timer=setInterval(()=>{const d=today();if(d!==day){setDay(d);setChores(templates.map(x=>({...x,done:x.repeat===false?chores.some(c=>c.id===x.id&&c.done):false})));setPendingChores([])}},30000);return()=>clearInterval(timer)},[day,templates,chores]);
+  useEffect(()=>{
+   if(!cloud.session||!cloud.role){updateMiroDayContext(null);return}
+   const date=today();const wd=new Date(date+'T12:00:00Z').getUTCDay();
+   const actualLessons=school.lessons.filter(x=>x.weekday===wd).sort((a,b)=>a.lesson_order-b.lesson_order);
+   let nextDate='',nextWd=0;
+   for(let offset=1;offset<=7;offset++){
+    const target=new Date(date+'T12:00:00Z');target.setUTCDate(target.getUTCDate()+offset);
+    const d=target.getUTCDay();if(school.lessons.some(x=>x.weekday===d)){nextDate=target.toISOString().slice(0,10);nextWd=d;break}
+   }
+   const tomorrow=school.lessons.filter(x=>x.weekday===nextWd).sort((a,b)=>a.lesson_order-b.lesson_order);
+   const available=cloud.rewards.filter(r=>r.active!==false&&Number(r.cost||0)>cloud.balance).sort((a,b)=>Number(a.cost||0)-Number(b.cost||0))[0];
+   updateMiroDayContext({userId:cloud.session.user.id,date,lessons:actualLessons.map(x=>x.subject),nextDay:nextDate,nextLessons:tomorrow.map(x=>x.subject),
+    backpack:school.backpackItems.filter(x=>tomorrow.some(l=>l.subject===x.subject)).map(x=>x.item),
+    homework:school.homework.filter(x=>!x.completed_at).slice(0,5).map(x=>({subject:x.subject,description:x.description,due_date:x.due_date})),
+    pendingChores:cloud.daily.filter(x=>x.status!=='approved').length+cloud.tasks.filter(x=>x.status!=='approved').length,
+    coins:cloud.balance,spiritualPoints:cloud.spiritualPoints,nextReward:available?{title:available.title,missing:Number(available.cost||0)-cloud.balance}:null});
+   return()=>updateMiroDayContext(null)
+  },[cloud.session?.user.id,cloud.role,cloud.daily,cloud.tasks,cloud.rewards,cloud.balance,cloud.spiritualPoints,school.lessons,school.homework,school.backpackItems]);
   const connected=!!cloud.session&&!!cloud.role&&!!cloud.familyId;
   useEffect(()=>attachMusicLifecycle(),[]);
   useEffect(()=>{setMusicScene((tab==='spiritual'||tab==='school')?'reading':tab==='world'&&cloud.worldNumber===2?'treehouse':'meadow')},[tab,cloud.worldNumber]);
@@ -283,7 +307,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.0.3</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.1.0</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -298,8 +322,10 @@ export const GeneratedComponent = () => {
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
+ {connected&&<MyDay cloud={cloud} school={school} onGo={setTab} onAskMiro={askMiro}/>}
  <div className="mw-worldswitch"><button className={currentWorld===1?'active':''} onClick={()=>setPreviewWorld(1)}>🏡 Домик на поляне</button><button className={currentWorld===2?'active':''} disabled={cloud.worldNumber!==2} onClick={()=>setPreviewWorld(2)}>🌳 Домик на дереве {cloud.worldNumber!==2?'🔒':''}</button></div>
- <WorldSafe key={currentWorld+':'+(cloud.session?.user.id||'guest')} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound} userId={cloud.session?.user.id||'guest'}><Suspense fallback={<div className="mw-panel">🌳 Загружаем остров…</div>}><World3D points={pointsInWorld} worldNumber={currentWorld} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||'guest'} soundEnabled={sound}/></Suspense></WorldSafe>
+ <WorldSafe key={currentWorld+':'+(cloud.session?.user.id||'guest')} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound} userId={cloud.session?.user.id||'guest'}><Suspense fallback={<div className="mw-panel">🌳 Загружаем остров…</div>}><World3D points={pointsInWorld} worldNumber={currentWorld} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||'guest'} soundEnabled={sound} adventureCount={story.total}/></Suspense></WorldSafe>
+ {connected&&<IslandStory cloud={cloud} story={story}/>}
  {connected&&<IslandMoments cloud={cloud} worldNumber={currentWorld}/>}
  {!connected&&<button className="mw-primary" onClick={()=>setShowConnection(true)}>☁️ Подключить мои прежние достижения</button>}
  {connected&&<div className="mw-balance-summary"><span>⭐ Заработано: {cloud.worldPoints}</span><span>🪙 Баланс: {cloud.balance}</span><span>🎁 Наград: {cloud.rewards.length}</span></div>}
@@ -315,7 +341,7 @@ export const GeneratedComponent = () => {
  </>}
  {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'school' && (connected?<SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro}/>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'shop' && (connected?<CloudShop cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'shop' && (connected?<><CloudShop cloud={cloud}/><PlayTimeBank cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'spiritual' && (connected?<><DailyTextReader cloud={cloud} onAskMiro={askMiro} onSchoolSettings={()=>setTab('school')}/><CloudSpiritual cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'family' && <><section className="mw-greeting"><div className="mw-eyebrow">НАШ СЕМЕЙНЫЙ ЧАТ</div><h1>Семья ❤️</h1><p>Сообщения доставляются всем участникам семьи.</p></section>{connected&&cloud.session?<FamilyChat familyId={cloud.familyId} userId={cloud.session.user.id}/>:<CloudSignIn cloud={cloud}/>}</>}
  {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, обновления и твой духовный рост.</p></section><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>📚 Учёба и расписание</strong><p>Предметы, домашние задания и время напоминаний.</p><button onClick={()=>setTab('school')}>Открыть расписание</button></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}

@@ -51,7 +51,10 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
- const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;
+ const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;let playBalance=60,playCap=30,storyDone=[];
+ let playSessions=role==='parent'?[{id:'91111111-1111-4111-8111-111111111111',minutes:10,status:'pending',requested_at:new Date().toISOString(),started_at:null}]:[];
+ const playOverview=()=>({balance:playBalance,dailyLimit:playCap,todayUsed:playSessions.filter(x=>['active','finished'].includes(x.status)).reduce((n,x)=>n+x.minutes,0)});
+
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
   const request=route.request(),url=new URL(request.url()), name=url.pathname.split('/').pop(),method=request.method();
   const resp=(data,object=false)=>route.fulfill({status:200,contentType:object?'application/vnd.pgrst.object+json':'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
@@ -68,7 +71,16 @@ async function run(role,browser){
    }
   }
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
-  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
+    if(name==='moymir_playtime_set_limit'){playCap=Number(request.postDataJSON()?.p_daily);return resp(true)}
+    if(name==='moymir_playtime_grant'){playBalance+=Number(request.postDataJSON()?.p_minutes);return resp(true)}
+    if(name==='moymir_playtime_request'){const minutes=Number(request.postDataJSON()?.p_minutes);playSessions=[{id:'92222222-2222-4222-8222-222222222222',minutes,status:'pending',requested_at:new Date().toISOString(),started_at:null}];return resp(playSessions[0].id)}
+    if(name==='moymir_playtime_review'){playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:request.postDataJSON()?.p_approve?'approved':'rejected'}:x);return resp(request.postDataJSON()?.p_approve?'approved':'rejected')}
+    if(name==='moymir_playtime_start'){const when=new Date().toISOString();playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'active',started_at:when}:x);return resp(when)}
+    if(name==='moymir_playtime_finish'){playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'finished'}:x);return resp(true)}
+    if(name==='moymir_complete_story_chapter'){storyDone.push(Number(request.postDataJSON()?.p_chapter));return resp(true)}
+    if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+  if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
@@ -80,6 +92,11 @@ async function run(role,browser){
    case 'moymir_backpack_items':data=[{id:'b1111111-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,subject:'Matemáticas',item:'Тетрадь по математике'}];break;
    case 'moymir_backpack_checks':data=backpackChecked?[{id:'a5555555-5555-4555-8555-555555555555',item_id:'b1111111-1111-4111-8111-111111111111',for_date:dateToday,checked_at:new Date().toISOString()}]:[];break;
    case 'moymir_island_memories':data=[];break;
+   case 'moymir_story_chapters':data=storyDone.map(chapter=>({chapter}));break;
+   case 'moymir_playtime_sessions':data=playSessions;break;
+   case 'moymir_playtime_policy':data=[{daily_limit:playCap}];break;
+   case 'moymir_playtime_credits':data=[];break;
+
    case 'moymir_growth_focus':data=growthChoice?{quality:growthChoice}:null;break;
    case 'moymir_growth_daily':data=growthAward?[{activity_date:dateToday,quality:growthChoice,points:20}]:[];break;
    case 'family_members': data=url.searchParams.get('role')==='eq.child'?[{user_id:ids.child}]:url.searchParams.has('user_id')?{family_id:ids.family,role}:[{user_id:ids.parent,role:'parent'},{user_id:ids.child,role:'child'}];break;
@@ -109,6 +126,16 @@ async function run(role,browser){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ const myday=page.getByRole('region',{name:'Мой день'});
+ check('smart daily planner exists',await myday.count()===1);
+ check('three day modes and auto',await myday.getByRole('button',{name:/Утро/}).count()===1&&await myday.getByRole('button',{name:/После школы/}).count()===1&&await myday.getByRole('button',{name:/Вечер/}).count()===1);
+ await myday.getByRole('button',{name:/Утро/}).click();
+ check('morning reflects real Spanish subjects',await myday.getByText('Matemáticas',{exact:false}).count()>0||await myday.getByText(/Hoy no hay clases/).count()>0);
+ await myday.getByRole('button',{name:/Вечер/}).click();
+ check('evening includes tomorrow backpack',await myday.getByText(/Собери рюкзак на следующий день/).count()>0);
+ await myday.getByRole('button',{name:'Авто'}).click();
+ check('seven-day squirrel quest visible',await page.getByRole('region',{name:'История белочки на семь дней'}).count()>0);
+
  await page.getByRole('button',{name:/Дела/}).last().click();
  check('assigned task',await page.getByText('Сделать уроки').count()>0);
  check('weekly overview from server',await page.getByText('Семейный отчёт за семь дней').count()>0||await page.getByText('Моя неделя').count()>0);
@@ -128,6 +155,13 @@ async function run(role,browser){
    check('advance persisted',counters.rpc.some(x=>x.name==='advance_my_world'));
    check('world2 available',await page.getByRole('button',{name:/Домик на дереве/}).isEnabled());
    check('living island event',await page.getByRole('region',{name:'Приключение острова и семейный альбом'}).count()>0);
+   const story=page.getByRole('region',{name:'История белочки на семь дней'});
+   check('7 story chapters',await story.locator('.island-story-days button').count()===7);
+   await story.getByRole('button',{name:'🧺 Корзинка'}).click();
+   await story.getByRole('button',{name:'Продолжить историю'}).click();await page.waitForTimeout(220);
+   check('first story chapter persisted',storyDone.includes(1)&&counters.rpc.some(x=>x.name==='moymir_complete_story_chapter'));
+   check('story completion indicator',await story.locator('.island-story-days button.done').count()>0);
+
    const tokens=page.locator('.island-moments-grid button');
    const texts=await tokens.allTextContents();
    const target=texts.includes('🌰')?'🌰':texts.includes('⭐')?'⭐':'🔵';
@@ -160,6 +194,7 @@ async function run(role,browser){
  await page.getByRole('button',{name:/Учёба/}).last().click();
  check('school tab',await page.getByRole('heading',{name:'Учёба'}).count()>0);
  check('school lesson',await page.getByText('Matemáticas',{exact:true}).count()>0);
+ check('school cached for offline reopening',await page.evaluate(([f,c,u])=>{try{const x=JSON.parse(localStorage.getItem(`moymir31-school:${f}:${c}:${u}`)||'null');return x?.lessons?.length===30&&Array.isArray(x?.homework)}catch{return false}},[ids.family,ids.child,uid]));
  check('Spanish timetable heading',await page.getByRole('heading',{name:/Horario escolar/}).count()>0);
  check('weekdays shown in Spanish',await page.getByRole('button',{name:'Lun',exact:true}).count()===1&&await page.getByRole('button',{name:'Mié',exact:true}).count()===1);
  await page.getByRole('button',{name:'Lun',exact:true}).click();
@@ -171,7 +206,7 @@ async function run(role,browser){
  check('homework card',await page.getByText('Повторить дроби').count()>0);
  check('ask Miro',await page.getByRole('button',{name:/Миро/}).count()>0);
  check('backpack panel appears',await page.getByRole('region',{name:'Рюкзак на следующий учебный день'}).count()>0);
- if(role==='child'){await page.getByRole('button',{name:'Открыть Миро и спросить об уроках'}).click();await page.waitForTimeout(480);check('Miro opens from school tab',await page.getByRole('dialog',{name:/Миро/}).count()>0);check('study prompt filled',await page.getByRole('textbox',{name:'Вопрос Миро'}).inputValue().then(x=>x.includes('домашними заданиями')));const offlineRequests=[];page.on('request',r=>{if(r.url().includes('moymir2-miro-ai'))offlineRequests.push(r.url())});await page.getByRole('textbox',{name:'Вопрос Миро'}).fill('Что взять в рюкзак?');await page.getByRole('button',{name:'➤'}).click();await page.waitForTimeout(160);check('Miro local guidance without API',await page.getByText(/Открой раздел «📚 Учёба»/).count()>0&&offlineRequests.length===0);await page.getByRole('button',{name:'Уменьшить Миро'}).click();await page.getByRole('button',{name:/Учёба/}).last().click()}
+ if(role==='child'){await page.getByRole('button',{name:'Открыть Миро и спросить об уроках'}).click();await page.waitForTimeout(480);check('Miro opens from school tab',await page.getByRole('dialog',{name:/Миро/}).count()>0);check('study prompt filled',await page.getByRole('textbox',{name:'Вопрос Миро'}).inputValue().then(x=>x.includes('домашними заданиями')));const offlineRequests=[];page.on('request',r=>{if(r.url().includes('moymir2-miro-ai'))offlineRequests.push(r.url())});await page.getByRole('textbox',{name:'Вопрос Миро'}).fill('Что взять в рюкзак?');await page.getByRole('button',{name:'➤'}).click();await page.waitForTimeout(160);check('Miro local guidance without API',await page.getByText(/Следующий учебный день:/).count()>0&&offlineRequests.length===0);await page.getByRole('button',{name:'Уменьшить Миро'}).click();await page.getByRole('button',{name:/Учёба/}).last().click()}
 
  if(role==='parent'){
    await page.getByPlaceholder('Предмет, например: Matemáticas').fill('Español');
@@ -198,6 +233,34 @@ async function run(role,browser){
 
  }
  await page.getByRole('button',{name:/Магазин/}).last().click();check('same rewards',await page.getByText('Семейное кино').count()>0);
+ const playbank=page.getByRole('region',{name:'Копилка игрового времени'});
+ check('playtime wallet accessible',await playbank.count()===1);
+ if(role==='parent'){
+  await playbank.getByRole('button',{name:/Добавить 20 минут/}).click();await page.waitForTimeout(200);
+  check('parent grants minutes with protected RPC',counters.rpc.some(x=>x.name==='moymir_playtime_grant'));
+  check('parent sees pending request',await playbank.getByText(/Запрос от Ильи: 10 минут/).count()>0);
+  await playbank.getByRole('button',{name:'✓ Разрешить'}).click();await page.waitForTimeout(220);
+  check('parent approves session',counters.rpc.some(x=>x.name==='moymir_playtime_review'));
+  await page.getByRole('button',{name:/Дела/}).last().click();
+  const journal=page.getByText('📋 Журнал семейных достижений и решений');await journal.click();await page.waitForTimeout(260);
+  check('parent sees secure activity journal',counters.rpc.some(x=>x.name==='moymir_parent_activity_feed')&&await page.getByText('🧹 Ежедневное дело').count()>0);
+  await page.getByRole('button',{name:/Магазин/}).last().click();
+ }else{
+  check('initial time bank balance',await playbank.getByText('60 мин').count()>0);
+  await playbank.getByRole('button',{name:'Попросить 20 минут'}).click();await page.waitForTimeout(220);
+  check('child requests time with protected RPC',counters.rpc.some(x=>x.name==='moymir_playtime_request'));
+  check('child waits for approval',await playbank.getByText(/Ждём решения родителя/).count()>0);
+  // A simulated parent approves the request between browser refreshes.
+  playSessions=playSessions.map(x=>({...x,status:'approved'}));
+  await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await page.waitForTimeout(370);
+  check('child sees approval',await playbank.getByRole('button',{name:/Начать 20 минут/}).count()>0);
+  await playbank.getByRole('button',{name:/Начать 20 минут/}).click();await page.waitForTimeout(330);
+  check('server-backed timer started',counters.rpc.some(x=>x.name==='moymir_playtime_start')&&await playbank.getByRole('timer').count()>0);
+  await playbank.getByRole('button',{name:'Завершить сеанс'}).click();await page.waitForTimeout(250);
+  check('timer finished without bonus points',counters.rpc.some(x=>x.name==='moymir_playtime_finish'));
+
+ }
+
  if(role==='parent'){check('inactive reward visible to parent',await page.getByText('Неактивная награда').count()>0);await page.getByRole('button',{name:'✎ Изменить награду'}).first().click();check('reward editor',await page.getByRole('button',{name:'Сохранить награду'}).count()>0);await page.getByRole('button',{name:'Сохранить награду'}).click();await page.waitForTimeout(170);check('manage reward protected RPC',counters.rpc.some(x=>x.name==='manage_reward'))}else check('inactive reward hidden from child',await page.getByText('Неактивная награда').count()===0);
 
  if(role==='child'){await page.getByRole('button',{name:'Заказать'}).first().click();await page.waitForTimeout(180);check('reward request RPC',counters.rpc.some(x=>x.name==='request_reward'))}

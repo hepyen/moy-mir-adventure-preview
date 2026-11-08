@@ -130,7 +130,26 @@ function FocusCamera({worldNumber}:{worldNumber:number}){
  return null
 }
 const TREEHOUSE_BUILD_ORDER=[0,27,...Array.from({length:26},(_,i)=>i+1),28,29]
-function WorldScene({points,worldNumber}:{points:number;worldNumber:number}) {
+// Story chapters unlock *visible and clickable* objects on the actual island.
+function AdventureDecor({count,onDiscover}:{count:number;onDiscover:(label:string)=>void}){
+ return <group>
+  {count>=1&&<group position={[-2.42,0,1.45]} onClick={e=>{e.stopPropagation();onDiscover('🌻 Цветник дружбы вырос после первой главы белочки!')}}>
+   <Block position={[0,.09,0]} size={[.64,.18,.62]} color="#936343" round={.04}/>
+   {[[0,0],[-.19,-.16],[.19,.15]].map(([x,z],i)=><Flower key={i} x={x} z={z} tint={['#f89dc3','#ffe47e','#a78dec'][i]}/>)}
+  </group>}
+  {count>=4&&<group position={[2.34,0,-1.45]} onClick={e=>{e.stopPropagation();onDiscover('📚 Читальный уголок: истории и знания делают наш остров уютнее.')}}>
+   <Block position={[0,.34,0]} size={[.75,.12,.5]} color="#d4a47b"/>
+   {[-.28,.28].map(x=><Block key={x} position={[x,.16,0]} size={[.08,.34,.09]} color="#866143"/>)}
+   {['#e9b965','#76b4e0','#c891cb'].map((c,i)=><Block key={i} position={[-.24+i*.23,.43,0]} size={[.19,.08,.3]} color={c} round={.018}/>)}
+  </group>}
+  {count>=10&&<group position={[2.35,0,.33]} onClick={e=>{e.stopPropagation();onDiscover('🏮 Фонарик друзей освещает дорогу домой.')}}>
+   <Block position={[0,.74,0]} size={[.09,1.48,.09]} color="#87613f"/>
+   <Block position={[0,1.39,0]} size={[.36,.43,.36]} color="#d2a05b"/>
+   <Ball position={[0,1.39,.23]} size={.14} color="#ffe6a1"/>
+  </group>}
+ </group>
+}
+function WorldScene({points,worldNumber,adventureCount,onDiscover}:{points:number;worldNumber:number;adventureCount:number;onDiscover:(label:string)=>void}) {
  const island=useRef<Group>(null)
  useFrame(({clock})=>{if(island.current)island.current.position.y=Math.sin(clock.elapsedTime*.7)*.045})
  return <><color attach="background" args={['#87ddf4']}/><ambientLight intensity={0.72}/><hemisphereLight args={['#e6f8ff','#75b86e',0.95]}/><directionalLight position={[-4,9,6]} intensity={2.15} castShadow shadow-mapSize={[512,512]}/>
@@ -138,11 +157,13 @@ function WorldScene({points,worldNumber}:{points:number;worldNumber:number}) {
   <Block position={[0,-.34,0]} size={[5.8,.67,4.5]} color="#9d623f" round={.39}/>
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
   {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points}/>)}
+  {worldNumber===1&&<AdventureDecor count={adventureCount} onDiscover={onDiscover}/>}
  </group>
  </>
 }
-export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest'}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string}) {
+export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',adventureCount=0}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;adventureCount?:number}) {
  const panelRef=useRef<HTMLDivElement>(null)
+ const[storyMessage,setStoryMessage]=useState('')
  async function toggleFullscreen() {
   const element=panelRef.current
   if(!element)return
@@ -151,7 +172,9 @@ export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=tru
  }
  const unlocked=unlockedWorldObjects(points)
  const next=nextWorldObject(points)
- return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран">⛶ На весь экран</button></div><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><FocusCamera worldNumber={worldNumber}/><WorldScene points={points} worldNumber={worldNumber}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
+ return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран">⛶ На весь экран</button></div><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><FocusCamera worldNumber={worldNumber}/><WorldScene points={points} worldNumber={worldNumber} adventureCount={adventureCount} onDiscover={setStoryMessage}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
+ {worldNumber===1&&adventureCount>0&&<div className="world3d-adventures"><strong>🌱 Постройки истории</strong><span>{adventureCount>=1?'🌻 Цветник':null}{adventureCount>=4?' · 📚 Читальный уголок':null}{adventureCount>=10?' · 🏮 Фонарик друзей':null}</span><button type="button" onClick={()=>setStoryMessage('За прохождение истории на полянке появились новые предметы. Нажми на них в 3D-мире!')}>Исследовать</button></div>}
+ {storyMessage&&<div className="world3d-story-message" role="status">{storyMessage}<button onClick={()=>setStoryMessage('')} aria-label="Закрыть подсказку">×</button></div>}
  <div className="world3d-bottom"><span>{worldNumber===1?'🏡 Домик на поляне':'🌳 Домик на дереве'} · {unlocked.length}/30 открыто</span><strong>{Math.min(points,WORLD_01_END)} / {WORLD_01_END} ✨</strong></div>
  <div className="world3d-track"><div style={{width:Math.min(100,points/WORLD_01_END*100)+'%'}}/></div>
  <p className="world3d-next">{next ? 'Следующее открытие: '+(worldNumber===1?next.title:TREEHOUSE_STAGES[unlocked.length])+' · '+next.at+' баллов' : '🎉 Мир завершён! Все элементы открыты.'}</p>
