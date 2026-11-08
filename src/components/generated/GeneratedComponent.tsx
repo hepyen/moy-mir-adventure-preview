@@ -1,6 +1,6 @@
+import {DailyTextReader} from '../../daily/DailyTextReader';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {Capacitor} from '@capacitor/core';
-import {DailyTextCard} from '../../school/DailyTextCard';
 import {SchoolHub,useSchoolNotificationSync} from '../../school/SchoolHub';
 import {useSchool} from '../../school/useSchool';
 import {WorldSafe} from './WorldSafe';
@@ -197,7 +197,7 @@ export const GeneratedComponent = () => {
 
   useEffect(()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify({day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals}))}catch{}},[day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals]);
   useEffect(()=>{const timer=setInterval(()=>{const d=today();if(d!==day){setDay(d);setChores(templates.map(x=>({...x,done:x.repeat===false?chores.some(c=>c.id===x.id&&c.done):false})));setPendingChores([])}},30000);return()=>clearInterval(timer)},[day,templates,chores]);
-  const connected=!!cloud.session&&!!cloud.role&&!cloud.error;
+  const connected=!!cloud.session&&!!cloud.role&&!!cloud.familyId;
   const shownParent=connected?cloud.role==='parent':parent;
   const actualCoins=connected?cloud.balance:0;
   const actualXp=connected?cloud.worldPoints:0;
@@ -277,7 +277,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.2</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.3</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -309,7 +309,7 @@ export const GeneratedComponent = () => {
  {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'school' && (connected?<SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'shop' && (connected?<CloudShop cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'spiritual' && (connected?<><DailyTextCard onAskMiro={askMiro} onSchoolSettings={()=>setTab('school')}/><CloudSpiritual cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'spiritual' && (connected?<><DailyTextReader cloud={cloud} onAskMiro={askMiro} onSchoolSettings={()=>setTab('school')}/><CloudSpiritual cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'family' && <><section className="mw-greeting"><div className="mw-eyebrow">НАШ СЕМЕЙНЫЙ ЧАТ</div><h1>Семья ❤️</h1><p>Сообщения доставляются всем участникам семьи.</p></section>{connected&&cloud.session?<FamilyChat familyId={cloud.familyId} userId={cloud.session.user.id}/>:<CloudSignIn cloud={cloud}/>}</>}
  {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, обновления и твой духовный рост.</p></section><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>📚 Учёба и расписание</strong><p>Предметы, домашние задания и время напоминаний.</p><button onClick={()=>setTab('school')}>Открыть расписание</button></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}
 

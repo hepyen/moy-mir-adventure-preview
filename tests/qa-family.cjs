@@ -1,9 +1,37 @@
 const {chromium}=require('playwright-core');
+const JSZip=require('jszip');
 const BASE=process.env.QA_BASE_URL||'http://127.0.0.1:5248/';
 const ids={parent:'11111111-1111-4111-8111-111111111111',child:'22222222-2222-4222-8222-222222222222',family:'33333333-3333-4333-8333-333333333333',task:'44444444-4444-4444-8444-444444444444',daily:'55555555-5555-4555-8555-555555555555',reward:'66666666-6666-4666-8666-666666666666'};
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function makeJWT(id){const payload=Buffer.from(JSON.stringify({sub:id,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+7200})).toString('base64url');return 'eyJhbGciOiJIUzI1NiJ9.'+payload+'.synthetic'}
 let failures=0;
+const privateDaily=new Map();
+async function syntheticEpub(){
+ const zip=new JSZip();
+ const weekdays=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+ const months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+ for(let i=0;i<365;i++){
+  const day=new Date(Date.UTC(2026,0,i+1));const date=day.toISOString().slice(0,10);
+  const heading=`${weekdays[day.getUTCDay()]}, ${day.getUTCDate()} ${months[day.getUTCMonth()]}`;
+  const xml=`<?xml version="1.0" encoding="utf-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>${heading}</title></head><body><header><h2>${heading}</h2></header><p class="themeScrp">СИНТЕТИЧЕСКИЙ ТЕКСТ ${date}</p><div class="bodyTxt"><p>Синтетический комментарий ${date}</p></div></body></html>`;
+  zip.file(`OEBPS/1102026200-split${i+1}.xhtml`,xml);
+ }
+ return zip.generateAsync({type:'nodebuffer'});
+}
+async function syntheticArchive(){
+ const zip=new JSZip();
+ for(const year of [2026,2027]){
+  const dates={};
+  const daycount=365;
+  for(let i=0;i<daycount;i++){
+   const d=new Date(Date.UTC(year,0,i+1)).toISOString().slice(0,10);
+   dates[d]={date:d,heading:'Тестовая дата '+d,theme:'СИНТЕТИЧЕСКИЙ ТЕКСТ '+d,commentary:'Тестовый комментарий. Это не материал издательства.'};
+  }
+  zip.file('daily-'+year+'.json',JSON.stringify({schema:'moymir-daily-texts-1',year,language:'ru',source:'QA synthetic',publisher:'QA',dates}));
+ }
+ return zip.generateAsync({type:'nodebuffer'});
+}
+const dateToday=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
@@ -12,6 +40,18 @@ async function run(role,browser){
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
   const request=route.request(),url=new URL(request.url()), name=url.pathname.split('/').pop(),method=request.method();
   const resp=(data,object=false)=>route.fulfill({status:200,contentType:object?'application/vnd.pgrst.object+json':'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
+  if(url.pathname.includes('/storage/v1/object/')){
+   const key=url.pathname.replace(/^.*?moymir-daily-private\//,'');
+   if(method==='POST'||method==='PUT'||method==='PATCH'){
+    const raw=request.postDataBuffer().toString('utf8');const content=Buffer.from(raw.slice(raw.indexOf('{'),raw.lastIndexOf('}')+1));privateDaily.set(key,content);
+    return resp({Key:key});
+   }
+   if(method==='GET'){
+    const book=privateDaily.get(key);
+    if(book)return route.fulfill({status:200,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:book});
+    return route.fulfill({status:404,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({message:'Object not found'})});
+   }
+  }
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
   if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(!url.pathname.includes('/rest/v1/'))return resp({});
@@ -103,7 +143,37 @@ async function run(role,browser){
  }
  await page.getByRole('button',{name:/Магазин/}).last().click();check('same rewards',await page.getByText('Семейное кино').count()>0);
  if(role==='child'){await page.getByRole('button',{name:'Заказать'}).first().click();await page.waitForTimeout(180);check('reward request RPC',counters.rpc.some(x=>x.name==='request_reward'))}
- await page.getByRole('button',{name:/Духовный рост/}).last().click();check('spiritual tab',await page.getByText('Библейские занятия').count()>0);check('daily verse official link',await page.getByRole('button',{name:'Открыть стих и комментарий'}).count()>0);
+ await page.getByRole('button',{name:/Духовный рост/}).last().click();
+ check('spiritual tab',await page.getByText('Библейские занятия').count()>0);
+ check('offline scripture reader',await page.getByRole('region',{name:'Календарь ежедневных библейских текстов'}).count()>0);
+ if(role==='parent'){
+  const picker=page.getByRole('textbox',{name:'Выбрать EPUB или ZIP с ежедневными текстами'});
+  const archive=await syntheticArchive();
+  await page.locator('input[type=file][accept*=".epub"]').setInputFiles({name:'MOY_MIR_daily_texts_2026_2027.zip',mimeType:'application/zip',buffer:archive});
+  await page.waitForTimeout(700);
+  check('book import private storage',privateDaily.size===2,'files='+privateDaily.size);
+  check('text in calendar after import',await page.getByText('СИНТЕТИЧЕСКИЙ ТЕКСТ '+dateToday).count()>0);
+  const input=page.getByRole('textbox',{name:'Выбрать дату ежедневного текста'});await input.fill('2027-11-08');
+  check('2027 calendar lookup',await page.getByText('СИНТЕТИЧЕСКИЙ ТЕКСТ 2027-11-08').count()>0);
+  const originalEpub=await syntheticEpub();
+  await page.locator('input[type=file][accept*=".epub"]').setInputFiles({name:'es26_U.epub',mimeType:'application/epub+zip',buffer:originalEpub});
+  await page.waitForTimeout(600);
+  await input.fill(dateToday);
+  check('original EPUB calendar parser',await page.getByText('СИНТЕТИЧЕСКИЙ ТЕКСТ '+dateToday).count()>0);
+
+ }else{
+  await page.waitForTimeout(1800);
+  check('child downloads private scripture library',await page.getByText('СИНТЕТИЧЕСКИЙ ТЕКСТ '+dateToday).count()>0);
+  check('offline scripture date picker',await page.getByRole('textbox',{name:'Выбрать дату ежедневного текста'}).count()>0);
+  check('family identity cached for offline use',await page.evaluate(uid=>!!localStorage.getItem('moymir-family-offline-'+uid),uid));
+  await page.context().setOffline(true);
+  await page.locator('.mw-cloud-syncbar button').first().click();
+  await page.waitForTimeout(900);
+  check('daily text remains readable offline',await page.getByText('СИНТЕТИЧЕСКИЙ ТЕКСТ '+dateToday).count()>0);
+  await page.context().setOffline(false);
+
+ }
+
  await page.getByRole('button',{name:/Семья/}).last().click();check('real chat',await page.locator('.family-chat').count()===1);
  const field=page.getByRole('textbox',{name:'Сообщение семье'});
  check('composer present',await field.count()===1);
@@ -123,4 +193,4 @@ async function run(role,browser){
  }catch(e){console.log('TEST_EXCEPTION',role,e.message.slice(0,650));failures++}
  await ctx.close();
 }
-(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.env.QA_BROWSER_PATH||'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',args:['--enable-unsafe-swiftshader']});await run('child',browser);await run('parent',browser);await browser.close();console.log('TOTAL_FAILS',failures);process.exitCode=failures?1:0})().catch(e=>{console.error(e);process.exit(1)})
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:process.env.QA_BROWSER_PATH||'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',args:['--enable-unsafe-swiftshader']});await run('parent',browser);await run('child',browser);await browser.close();console.log('TOTAL_FAILS',failures);process.exitCode=failures?1:0})().catch(e=>{console.error(e);process.exit(1)})

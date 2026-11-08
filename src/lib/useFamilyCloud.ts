@@ -5,6 +5,16 @@ type Row=Record<string,any>;
 export type CloudItem={id:string;title:string;points:number;icon?:string;status?:string;cost?:number;weekdays?:number[];active?:boolean};
 const empty={worldPoints:0,worldNumber:1 as number,balance:0,earned:0,spent:0,deducted:0,spiritualPoints:0,daily:[] as CloudItem[],dailyTemplates:[] as CloudItem[],tasks:[] as CloudItem[],rewards:[] as CloudItem[],proposals:[] as Row[],spiritual:[] as Row[],behavior:[] as Row[],rewardRequests:[] as Row[],pendingSpiritual:[] as Row[],activity:[] as Row[],dailyDone:[] as Row[]};
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+type OfflineFamily={familyId:string;childId:string;role:'parent'|'child';childName:string;worldPoints:number;balance:number;worldNumber:number;spiritualPoints:number};
+const offlineKey=(uid:string)=>'moymir-family-offline-'+uid;
+function readOffline(uid:string):OfflineFamily|null{
+ try{const raw=JSON.parse(localStorage.getItem(offlineKey(uid))||'null') as OfflineFamily|null;
+  if(!raw||!raw.familyId||!raw.childId||!['parent','child'].includes(raw.role))return null;
+  return raw;
+ }catch{return null}
+}
+function writeOffline(uid:string,data:OfflineFamily){try{localStorage.setItem(offlineKey(uid),JSON.stringify(data))}catch{}}
+
 export function useFamilyCloud(){
  const [session,setSession]=useState<Session|null>(null);
  const [role,setRole]=useState<'parent'|'child'|null>(null);
@@ -25,7 +35,7 @@ export function useFamilyCloud(){
    const uid=session.user.id;
    const member=await supabase.from('family_members').select('family_id,role').eq('user_id',uid).limit(1).maybeSingle();
    if(member.error)throw member.error;
-   if(!member.data){setError('Аккаунт пока не привязан к семье');return}
+   if(!member.data){setError('Аккаунт пока не привязан к семье');setRole(null);setFamilyId('');try{localStorage.removeItem(offlineKey(uid))}catch{}return}
    const fid=member.data.family_id as string;const r=member.data.role as 'parent'|'child';
    const people=r==='parent'?await supabase.from('family_members').select('user_id').eq('family_id',fid).eq('role','child').limit(5):{data:[{user_id:uid}],error:null};
    if(people.error)throw people.error;
@@ -62,8 +72,20 @@ export function useFamilyCloud(){
    const items=(rewards.data??[]).filter(x=>x.active).map(x=>({id:x.id,title:x.title,points:0,cost:x.cost}));
    if(serial!==fetchSerial.current||currentUser.current!==uid)return;
    setData({worldPoints:lifetime,worldNumber:world.data?.[0]?.active_world===2?2:1,balance:earned-spent-deducted,earned,spent,deducted,spiritualPoints,daily,dailyTemplates,tasks:taskItems,rewards:items,proposals:proposals.data??[],spiritual:spiritual.data??[],behavior:behaviors.data??[],rewardRequests:requests.data??[],pendingSpiritual:extra.data??[],activity:sub.data??[],dailyDone:done.data??[]});
-   setFamilyId(fid);setChildId(child);setRole(r);setChildName(profile.data?.display_name||'Илья');setError('');
-  }catch(e){if(serial===fetchSerial.current&&currentUser.current===session.user.id)setError(e instanceof Error?e.message:'Не удаётся загрузить семейные данные')}
+   const childLabel=profile.data?.display_name||'Илья';
+   setFamilyId(fid);setChildId(child);setRole(r);setChildName(childLabel);setError('');
+   writeOffline(uid,{familyId:fid,childId:child,role:r,childName:childLabel,worldPoints:lifetime,balance:earned-spent-deducted,worldNumber:world.data?.[0]?.active_world===2?2:1,spiritualPoints});
+  }catch(e){
+   if(serial!==fetchSerial.current||currentUser.current!==session.user.id)return;
+   const msg=e instanceof Error?e.message:String(e);
+   const offline=typeof navigator!=='undefined'&&!navigator.onLine||/failed to fetch|fetch failed|network|offline|load failed|timeout|socket/i.test(msg);
+   const cached=offline?readOffline(session.user.id):null;
+   if(cached){
+    setFamilyId(cached.familyId);setChildId(cached.childId);setRole(cached.role);setChildName(cached.childName);
+    setData(prev=>({...prev,worldPoints:cached.worldPoints,balance:cached.balance,worldNumber:cached.worldNumber,spiritualPoints:cached.spiritualPoints}));
+    setError('Нет связи с сервером. Показываем сохранённые данные; изменения доступны после подключения.');
+   }else setError(msg||'Не удаётся загрузить семейные данные');
+  }
  },[session]);
  useEffect(()=>{void refresh()},[refresh]);
  useEffect(()=>{if(!session)return;const interval=setInterval(()=>{void refresh()},25000);const onFocus=()=>void refresh();window.addEventListener('focus',onFocus);return()=>{clearInterval(interval);window.removeEventListener('focus',onFocus)}},[session,refresh]);
