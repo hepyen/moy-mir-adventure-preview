@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Quaternion, Vector3 } from 'three'
 import type { Group } from 'three'
@@ -9,6 +9,7 @@ type Coord=[number,number,number]
 function Timber({at,dim,color='#bd8654',turn=[0,0,0]}:{at:Coord;dim:Coord;color?:string;turn?:Coord}){
  const [dx,dy,dz]=dim
  const geometry=useMemo(()=>new RoundedBoxGeometry(dx,dy,dz,3,Math.min(.065,dx/4,dy/4,dz/4)),[dx,dy,dz])
+ useEffect(()=>()=>geometry.dispose(),[geometry])
  return <mesh position={at} rotation={turn} castShadow receiveShadow geometry={geometry}><meshStandardMaterial color={color} roughness={.77}/></mesh>
 }
 function Orb({at,r,color,scale=[1,1,1]}:{at:Coord;r:number;color:string;scale?:Coord}){

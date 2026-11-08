@@ -1,3 +1,4 @@
+import {BackpackAssistant} from './BackpackAssistant';
 import {useEffect,useMemo,useState} from 'react';
 import type {useFamilyCloud} from '../lib/useFamilyCloud';
 import type {SchoolPrefs} from './useSchool';
@@ -56,6 +57,7 @@ export function SchoolHub({cloud,school,reminders,onAskMiro}:{cloud:Cloud;school
   <input required maxLength={80} placeholder="Предмет, например: Matemáticas" value={subject} onChange={e=>setSubject(e.target.value)}/><input maxLength={280} placeholder="Класс или заметка (необязательно)" value={note} onChange={e=>setNote(e.target.value)}/><button disabled={busy} type="submit">Сохранить урок</button>
  </form>}
  </section>
+ <BackpackAssistant cloud={cloud} school={school}/>
  <section className="mw-panel school-card"><h3>📝 Домашние задания</h3><p className="school-help">Ближайшие задания и сроки сдачи. Выполненное сохраняется в истории.</p>
  {pending.length?pending.map(h=><div className="school-homework" key={h.id}><div><strong>{h.subject}</strong><span>{h.due_date<today.iso?'⚠ Просрочено · ':''}Сдать: {h.due_date}</span><p>{h.description}</p></div><div className="school-actions"><button onClick={()=>void action(()=>school.markHomework(h.id,true))}>✓ Готово</button><button onClick={()=>onAskMiro('Помоги мне разобраться с домашним заданием по предмету '+h.subject+': '+h.description+'. Объясняй по шагам, чтобы я понял решение.')}>🤖 Миро</button>{cloud.role==='parent'&&<button className="school-danger" onClick={()=>void action(()=>school.deleteHomework(h.id))}>Удалить</button>}</div></div>):<p className="school-empty">Пока нет заданий, ожидающих выполнения.</p>}
  {school.homework.filter(x=>x.completed_at).length>0&&<details className="school-done"><summary>✓ Выполненные ({school.homework.filter(x=>x.completed_at).length})</summary>{school.homework.filter(x=>x.completed_at).map(h=><div className="school-line" key={h.id}><div><strong>{h.subject}</strong><small>{h.description}</small></div><button onClick={()=>void action(()=>school.markHomework(h.id,false))}>Вернуть</button></div>)}</details>}

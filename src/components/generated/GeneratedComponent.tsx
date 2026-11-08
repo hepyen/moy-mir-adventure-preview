@@ -1,3 +1,7 @@
+import {IslandMoments} from '../../legacyWorld/IslandMoments';
+import {lazy,Suspense} from 'react';
+import {attachMusicLifecycle,setMusicScene} from '../../features/music';
+const World3D=lazy(()=>import('../../legacyWorld/World3D').then(m=>({default:m.World3D}))); 
 import {DailyTextReader} from '../../daily/DailyTextReader';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {Capacitor} from '@capacitor/core';
@@ -14,7 +18,7 @@ import {NotificationInbox} from '../../notifications/NotificationInbox';
 import {isSoundEnabled,playSound} from '../../features/sounds';
 import {useFamilyCloud} from '../../lib/useFamilyCloud';
 import {CloudSignIn,CloudTasks,CloudShop,CloudSpiritual} from './CloudPanels';
-import {World3D} from '../../legacyWorld/World3D';
+
 import {WORLD_01_OBJECTS,WORLD_01_END} from '../../legacyWorld/world01';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './MyWorld.css';
@@ -198,6 +202,8 @@ export const GeneratedComponent = () => {
   useEffect(()=>{try{localStorage.setItem(SAVE_KEY,JSON.stringify({day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals}))}catch{}},[day,chores,templates,coins,xp,pending,pendingChores,building,chat,proposals]);
   useEffect(()=>{const timer=setInterval(()=>{const d=today();if(d!==day){setDay(d);setChores(templates.map(x=>({...x,done:x.repeat===false?chores.some(c=>c.id===x.id&&c.done):false})));setPendingChores([])}},30000);return()=>clearInterval(timer)},[day,templates,chores]);
   const connected=!!cloud.session&&!!cloud.role&&!!cloud.familyId;
+  useEffect(()=>attachMusicLifecycle(),[]);
+  useEffect(()=>{setMusicScene((tab==='spiritual'||tab==='school')?'reading':tab==='world'&&cloud.worldNumber===2?'treehouse':'meadow')},[tab,cloud.worldNumber]);
   const shownParent=connected?cloud.role==='parent':parent;
   const actualCoins=connected?cloud.balance:0;
   const actualXp=connected?cloud.worldPoints:0;
@@ -277,7 +283,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.4</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.0.0</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -293,7 +299,8 @@ export const GeneratedComponent = () => {
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
  <div className="mw-worldswitch"><button className={currentWorld===1?'active':''} onClick={()=>setPreviewWorld(1)}>🏡 Домик на поляне</button><button className={currentWorld===2?'active':''} disabled={cloud.worldNumber!==2} onClick={()=>setPreviewWorld(2)}>🌳 Домик на дереве {cloud.worldNumber!==2?'🔒':''}</button></div>
- <WorldSafe key={currentWorld} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound}><World3D points={pointsInWorld} worldNumber={currentWorld} soundEnabled={sound}/></WorldSafe>
+ <WorldSafe key={currentWorld+':'+(cloud.session?.user.id||'guest')} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound} userId={cloud.session?.user.id||'guest'}><Suspense fallback={<div className="mw-panel">🌳 Загружаем остров…</div>}><World3D points={pointsInWorld} worldNumber={currentWorld} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||'guest'} soundEnabled={sound}/></Suspense></WorldSafe>
+ {connected&&<IslandMoments cloud={cloud} worldNumber={currentWorld}/>}
  {!connected&&<button className="mw-primary" onClick={()=>setShowConnection(true)}>☁️ Подключить мои прежние достижения</button>}
  {connected&&<div className="mw-balance-summary"><span>⭐ Заработано: {cloud.worldPoints}</span><span>🪙 Баланс: {cloud.balance}</span><span>🎁 Наград: {cloud.rewards.length}</span></div>}
  <section className="mw-progress"><div className="mw-progress-head"><strong>⭐ Очки развития</strong><span>{pointsInWorld} / {WORLD_01_END}</span></div>

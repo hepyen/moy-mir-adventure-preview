@@ -36,7 +36,7 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
- const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;
+ const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
   const request=route.request(),url=new URL(request.url()), name=url.pathname.split('/').pop(),method=request.method();
   const resp=(data,object=false)=>route.fulfill({status:200,contentType:object?'application/vnd.pgrst.object+json':'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
@@ -53,22 +53,25 @@ async function run(role,browser){
    }
   }
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
-  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward,tasks7:2,daily7:5,spiritual7:spiritualAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
-  if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
+  if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
   let data=[];
   switch(name){
    case 'moymir_school_lessons':data=[{id:'a1111111-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,weekday:new Date(today+'T12:00:00').getDay(),lesson_order:1,subject:'Matemáticas',starts_at:'08:30:00',notes:''}];break;
    case 'moymir_school_homework':data=[{id:'a2222222-2222-4222-8222-222222222222',family_id:ids.family,child_id:ids.child,subject:'Matemáticas',description:'Повторить дроби',due_date:today,completed_at:null}];break;
    case 'moymir_school_preferences':data={school_enabled:false,school_remind_at:'07:30:00',homework_enabled:false,homework_remind_at:'18:30:00',verse_enabled:false,verse_remind_at:'08:00:00'};break;
+   case 'moymir_backpack_items':data=[{id:'b1111111-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,subject:'Matemáticas',item:'Тетрадь по математике'}];break;
+   case 'moymir_backpack_checks':data=backpackChecked?[{id:'a5555555-5555-4555-8555-555555555555',item_id:'b1111111-1111-4111-8111-111111111111',for_date:dateToday,checked_at:new Date().toISOString()}]:[];break;
+   case 'moymir_island_memories':data=[];break;
    case 'family_members': data=url.searchParams.get('role')==='eq.child'?[{user_id:ids.child}]:url.searchParams.has('user_id')?{family_id:ids.family,role}:[{user_id:ids.parent,role:'parent'},{user_id:ids.child,role:'child'}];break;
    case 'point_ledger': data=[{child_id:ids.child,delta:1700}];break;
    case 'daily_chore_templates': data=[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]}];break;
    case 'daily_chore_completions':data=[];break;
    case 'tasks':data=[{id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child},{id:'77777777-7777-4777-8777-777777777777',title:'Без исполнителя',points:10,assigned_child:null}];break;
    case 'task_submissions':data=[];break;
-   case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true}];break;
+   case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true},{id:'b2222222-2222-4222-8222-222222222222',title:'Неактивная награда',cost:200,active:false}];break;
    case 'reward_requests':data=[];break;
    case 'behavior_points':data=[];break;
    case 'spiritual_activity_records':data=spiritualAward?[{id:'a4444444-4444-4444-8444-444444444444',activity_date:dateToday,step_id:'daily-text',points:10}]:[];break;
@@ -91,6 +94,7 @@ async function run(role,browser){
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
  await page.getByRole('button',{name:/Дела/}).last().click();
  check('assigned task',await page.getByText('Сделать уроки').count()>0);
+ check('weekly overview from server',await page.getByText('Семейный отчёт за семь дней').count()>0||await page.getByText('Моя неделя').count()>0);
  check('unassigned hidden',await page.getByText('Без исполнителя').count()===0);
  if(role==='child'){
   check('proposal',await page.getByRole('heading',{name:/Предложить задание/}).count()>0);
@@ -106,6 +110,16 @@ async function run(role,browser){
    await advance.click();await page.waitForTimeout(450);
    check('advance persisted',counters.rpc.some(x=>x.name==='advance_my_world'));
    check('world2 available',await page.getByRole('button',{name:/Домик на дереве/}).isEnabled());
+   check('living island event',await page.getByRole('region',{name:'Приключение острова и семейный альбом'}).count()>0);
+   const tokens=page.locator('.island-moments-grid button');
+   const texts=await tokens.allTextContents();
+   const target=texts.includes('🌰')?'🌰':texts.includes('⭐')?'⭐':'🔵';
+   const ids=texts.map((x,i)=>x===target?i:-1).filter(i=>i>=0);
+   check('three collectible island targets',ids.length===3);
+   for(const i of ids)await tokens.nth(i).click();
+   await page.getByRole('button',{name:'Сохранить памятный значок'}).click();await page.waitForTimeout(180);
+   check('island memory saved via protected RPC',counters.rpc.some(x=>x.name==='moymir_collect_island_memory'));
+
   }
  }else{
   check('create task',await page.getByRole('heading',{name:/Добавить задание/}).count()>0);
@@ -117,19 +131,31 @@ async function run(role,browser){
   const create=page.getByPlaceholder('Например, почистить зубы вечером');await create.fill('Вынести мусор');
   await page.getByRole('button',{name:'Добавить ежедневное дело'}).click();await page.waitForTimeout(300);
   check('create daily RPC',counters.rpc.some(x=>x.name==='create_daily_chore'));
+  await page.getByRole('button',{name:'Изменить'}).first().click();
+  check('daily task editor',await page.locator('.mw-inline-editor').count()>0);
+  await page.locator('.mw-inline-editor').first().getByRole('button',{name:'Сохранить изменения'}).click();await page.waitForTimeout(160);
+  check('daily task update protected RPC',counters.rpc.some(x=>x.name==='manage_daily_chore'));
+
   check('discipline',await page.getByText('Дисциплинарные меры').count()>0);
+  await page.getByRole('button',{name:/Мир/}).last().click();
+  check('parent sees family quest',await page.getByText('Семейное приключение').count()>0);
  }
  await page.getByRole('button',{name:/Учёба/}).last().click();
  check('school tab',await page.getByRole('heading',{name:'Учёба'}).count()>0);
  check('school lesson',await page.getByText('Matemáticas',{exact:true}).count()>0);
  check('homework card',await page.getByText('Повторить дроби').count()>0);
  check('ask Miro',await page.getByRole('button',{name:/Миро/}).count()>0);
- if(role==='child'){await page.getByRole('button',{name:'Открыть Миро и спросить об уроках'}).click();await page.waitForTimeout(480);check('Miro opens from school tab',await page.getByRole('dialog',{name:/Миро/}).count()>0);check('study prompt filled',await page.getByRole('textbox',{name:'Вопрос Миро'}).inputValue().then(x=>x.includes('домашними заданиями')));await page.getByRole('button',{name:'Уменьшить Миро'}).click();await page.getByRole('button',{name:/Учёба/}).last().click()}
+ check('backpack panel appears',await page.getByRole('region',{name:'Рюкзак на следующий учебный день'}).count()>0);
+ if(role==='child'){await page.getByRole('button',{name:'Открыть Миро и спросить об уроках'}).click();await page.waitForTimeout(480);check('Miro opens from school tab',await page.getByRole('dialog',{name:/Миро/}).count()>0);check('study prompt filled',await page.getByRole('textbox',{name:'Вопрос Миро'}).inputValue().then(x=>x.includes('домашними заданиями')));const offlineRequests=[];page.on('request',r=>{if(r.url().includes('moymir2-miro-ai'))offlineRequests.push(r.url())});await page.getByRole('textbox',{name:'Вопрос Миро'}).fill('Что взять в рюкзак?');await page.getByRole('button',{name:'➤'}).click();await page.waitForTimeout(160);check('Miro local guidance without API',await page.getByText(/Открой раздел «📚 Учёба»/).count()>0&&offlineRequests.length===0);await page.getByRole('button',{name:'Уменьшить Миро'}).click();await page.getByRole('button',{name:/Учёба/}).last().click()}
 
  if(role==='parent'){
    await page.getByPlaceholder('Предмет, например: Matemáticas').fill('Español');
    await page.getByRole('button',{name:'Сохранить урок'}).click();await page.waitForTimeout(150);
    check('lesson saved through REST',counters.restWrites.some(x=>x.name==='moymir_school_lessons'));
+   await page.getByPlaceholder('Например, тетрадь по математике').fill('Транспортир');
+   await page.getByRole('button',{name:'Добавить принадлежность'}).click();await page.waitForTimeout(140);
+   check('parent saves backpack items',counters.restWrites.some(x=>x.name==='moymir_backpack_items'));
+
    await page.getByPlaceholder('Предмет',{exact:true}).fill('Biología');
    await page.getByPlaceholder('Что нужно выполнить: параграф, упражнения, страницы').fill('Повторить клетки');
    await page.getByRole('button',{name:'Сохранить домашнее задание'}).click();await page.waitForTimeout(140);
@@ -140,11 +166,20 @@ async function run(role,browser){
  }else{
    await page.getByRole('button',{name:'✓ Готово'}).click();await page.waitForTimeout(160);
    check('child may mark homework through RPC',counters.rpc.some(x=>x.name==='moymir_mark_homework'));
+   await page.getByRole('button',{name:'Сегодня'}).click();
+   const bag=page.locator('.backpack-item input[type=checkbox]');
+   if(await bag.count()){await bag.first().check();await page.waitForTimeout(160)}
+   check('child checks backpack via protected RPC',counters.rpc.some(x=>x.name==='moymir_check_backpack'));
+
  }
  await page.getByRole('button',{name:/Магазин/}).last().click();check('same rewards',await page.getByText('Семейное кино').count()>0);
+ if(role==='parent'){check('inactive reward visible to parent',await page.getByText('Неактивная награда').count()>0);await page.getByRole('button',{name:'✎ Изменить награду'}).first().click();check('reward editor',await page.getByRole('button',{name:'Сохранить награду'}).count()>0);await page.getByRole('button',{name:'Сохранить награду'}).click();await page.waitForTimeout(170);check('manage reward protected RPC',counters.rpc.some(x=>x.name==='manage_reward'))}else check('inactive reward hidden from child',await page.getByText('Неактивная награда').count()===0);
+
  if(role==='child'){await page.getByRole('button',{name:'Заказать'}).first().click();await page.waitForTimeout(180);check('reward request RPC',counters.rpc.some(x=>x.name==='request_reward'))}
  await page.getByRole('button',{name:/Духовный рост/}).last().click();
  check('spiritual tab',await page.getByText('Библейские занятия').count()>0);
+ check('weekly growth focus',await page.getByRole('region',{name:'Качество недели'}).count()>0);
+ if(role==='child'){await page.getByRole('button',{name:'Сохранить мой выбор'}).click();await page.waitForTimeout(160);check('growth focus saved privately',counters.restWrites.some(x=>x.name==='moymir_growth_focus'))}
  check('offline scripture reader',await page.getByRole('region',{name:'Календарь ежедневных библейских текстов'}).count()>0);
  if(role==='parent'){
   const picker=page.getByRole('textbox',{name:'Выбрать EPUB или ZIP с ежедневными текстами'});
@@ -208,6 +243,22 @@ async function run(role,browser){
 
 
  const chatInput=page.getByRole('textbox',{name:'Сообщение семье'});await chatInput.fill('Синтетическое тестовое сообщение');await page.getByRole('button',{name:'Отправить сообщение'}).click();await page.waitForTimeout(180);check('real chat send',counters.restPosts.includes('family_chat_messages'));
+ await page.getByRole('button',{name:'Открыть настройки'}).click();
+ check('original music picker',await page.getByRole('combobox',{name:'Выбрать фоновую мелодию'}).count()>0);
+ check('music volume control',await page.getByRole('slider',{name:'Громкость фоновой музыки'}).count()>0);
+ if(role==='parent'){
+  const mediaRequests=[];page.on('request',req=>{if(req.url().includes('/music/'))mediaRequests.push(req.url())});
+  await page.getByRole('button',{name:/Включить фоновую музыку/}).click();await page.waitForTimeout(550);
+  check('melodic MP3 instead of droning oscillator',mediaRequests.some(x=>x.includes('/music/meadow.mp3')),JSON.stringify(mediaRequests));
+  await page.getByRole('combobox',{name:'Выбрать фоновую мелодию'}).selectOption('treehouse');await page.waitForTimeout(340);
+  check('treehouse soundtrack requested',mediaRequests.some(x=>x.includes('/music/treehouse.mp3')));
+  await page.getByRole('combobox',{name:'Выбрать фоновую мелодию'}).selectOption('reading');await page.waitForTimeout(340);
+  check('reading soundtrack requested',mediaRequests.some(x=>x.includes('/music/reading.mp3')));
+  check('music setting retained',await page.evaluate(()=>localStorage.getItem('moymir28-bg-music')==='true'));
+  await page.getByRole('button',{name:/Выключить настоящую музыку/}).click();
+  check('music off',await page.evaluate(()=>localStorage.getItem('moymir28-bg-music')==='false'));
+ }
+ check('single-row six bottom tabs',await page.locator('.mw-bottom button').count()===6);
  check('no JS exceptions',counters.errors.length===0,counters.errors.join(' | '));
  await page.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-'+role+'-2.8.png'});
  }catch(e){console.log('TEST_EXCEPTION',role,e.message.slice(0,650));failures++}

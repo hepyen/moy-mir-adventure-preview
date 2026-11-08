@@ -1,3 +1,5 @@
+import {miroOfflineAnswer} from './miroOffline';
+import {setMusicDucked} from '../features/music';
 import {useEffect,useRef,useState} from 'react'
 import {createPortal} from 'react-dom'
 import './MiroRobot.css'
@@ -6,12 +8,14 @@ type Turn={role:'user'|'assistant';content:string}
 const ENDPOINT='https://ueqtitxbvsnqmbudwxwu.supabase.co/functions/v1/moymir2-miro-ai'
 const MAX_HISTORY=14
 const INITIAL:Turn={role:'assistant',content:'Привет! Я Миро, твой помощник. Можешь спросить меня о математике, испанском, английском, уроках или о нашем острове. Чем помочь?'}
-function savedHistory():Turn[]{try{const saved=JSON.parse(localStorage.getItem('moymir24-ai-chat')||'null');return Array.isArray(saved)&&saved.length?saved.slice(-MAX_HISTORY):[INITIAL]}catch{return [INITIAL]}}
-export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{worldPoints:number;spiritualPoints:number;soundEnabled?:boolean}){
+function savedHistory(userId:string):Turn[]{try{const saved=JSON.parse(localStorage.getItem('moymir30-ai-chat:'+userId)||'null');return Array.isArray(saved)&&saved.length?saved.slice(-MAX_HISTORY):[INITIAL]}catch{return [INITIAL]}}
+export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId='guest'}:{worldPoints:number;spiritualPoints:number;soundEnabled?:boolean;userId?:string}){
  const [expanded,setExpanded]=useState(false)
+ useEffect(()=>{setMusicDucked(expanded);return()=>setMusicDucked(false)},[expanded])
  const [face,setFace]=useState<'smile'|'wink'|'wow'>('smile')
  const [draft,setDraft]=useState('')
- const [history,setHistory]=useState<Turn[]>(savedHistory)
+ const [history,setHistory]=useState<Turn[]>(()=>savedHistory(userId))
+ const[historyOwner,setHistoryOwner]=useState(userId)
  const [busy,setBusy]=useState(false)
  const [error,setError]=useState('')
  const [message,setMessage]=useState<string|null>(null)
@@ -21,7 +25,8 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{world
  const previousWorld=useRef(worldPoints)
  const previousSpiritual=useRef(spiritualPoints)
  const sounds=useRef(0)
- useEffect(()=>{try{localStorage.setItem('moymir24-ai-chat',JSON.stringify(history.slice(-MAX_HISTORY)))}catch{};historyEnd.current?.scrollIntoView({behavior:'smooth',block:'end'})},[history])
+ useEffect(()=>{if(historyOwner!==userId){controller.current?.abort();setHistory(savedHistory(userId));setHistoryOwner(userId)}},[historyOwner,userId])
+ useEffect(()=>{if(historyOwner!==userId)return;try{localStorage.setItem('moymir30-ai-chat:'+userId,JSON.stringify(history.slice(-MAX_HISTORY)))}catch{};historyEnd.current?.parentElement?.scrollTo({top:historyEnd.current.parentElement.scrollHeight,behavior:'smooth'})},[history,historyOwner,userId])
  useEffect(()=>()=>{controller.current?.abort()},[])
  useEffect(()=>{const question=sessionStorage.getItem('moymir-miro-next-question');if(question){sessionStorage.removeItem('moymir-miro-next-question');setDraft(question);setExpanded(true)}},[])
  useEffect(()=>{if(worldPoints>previousWorld.current){setFace('wow');setMessage('Ура! Наш мир становится красивее! ✨')}previousWorld.current=worldPoints},[worldPoints])
@@ -33,6 +38,8 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{world
   if(!text||busy||text.length>1600)return
   const next:Turn[]=[...history,{role:'user' as const,content:text}].slice(-MAX_HISTORY)
   setHistory(next);setDraft('');setBusy(true);setError('');setFace('wow')
+  const local=miroOfflineAnswer(text);
+  if(local){setHistory([...next,{role:'assistant' as const,content:local}].slice(-MAX_HISTORY));setBusy(false);setFace('smile');return}
   const ac=new AbortController();controller.current=ac
   try{
    const response=await fetch(ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:next.filter(t=>t.role==='user'||t.role==='assistant').slice(-10)}),signal:ac.signal})
@@ -73,9 +80,9 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{world
   {error&&<div className="miro-ai-error" role="alert">{error}<button onClick={()=>void send(history.filter(x=>x.role==='user').at(-1)?.content||'')} disabled={busy}>Повторить</button></div>}
   <div ref={historyEnd}/>
   </div>
-  <div className="miro-ai-examples">{['Помоги с дробями','Объясни испанский глагол ser','Как учить английские слова?'].map(x=><button key={x} onClick={()=>void send(x)} disabled={busy}>{x}</button>)}</div>
+  <div className="miro-ai-examples">{['Что взять в рюкзак?','Какие уроки сегодня?','Где ежедневный стих?','Помоги с дробями'].map(x=><button key={x} onClick={()=>void send(x)} disabled={busy}>{x}</button>)}</div>
   <form className="miro-ai-compose" onSubmit={e=>{e.preventDefault();void send(draft)}}><textarea aria-label="Вопрос Миро" value={draft} maxLength={1600} rows={2} onChange={e=>setDraft(e.target.value)} placeholder="Спроси что угодно об уроках…"/><button type="submit" disabled={!draft.trim()||busy}>➤</button></form>
-  <div className="miro-ai-note"><span>Ответы даёт онлайн-нейросеть. Миро может ошибаться: проверяй решения.</span><button onClick={()=>{if(confirm('Очистить историю вопросов Миро?'))setHistory([INITIAL])}}>Очистить чат</button></div>
+  <div className="miro-ai-note"><span>Простые подсказки работают без интернета. Сложные ответы даёт онлайн-нейросеть. Миро может ошибаться: проверяй решения.</span><button onClick={()=>{if(confirm('Очистить историю вопросов Миро?'))setHistory([INITIAL])}}>Очистить чат</button></div>
   </section>
  </div>,document.body):null
  return <div className="miro-flight-zone" aria-label="Летающий робот Миро"><div className="miro-orbit">

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import type { Group } from 'three'
@@ -10,8 +10,11 @@ import { TREEHOUSE_STAGES } from './treehouseStages'
 import { DogActor } from './DogActor'
 
 function Block({position=[0,0,0],size=[1,1,1],color='#ffffff',round=0.07,rotation=[0,0,0]}:{position?:[number,number,number];size?:[number,number,number];color?:string;round?:number;rotation?:[number,number,number]}) {
- return <mesh position={position} rotation={rotation} castShadow receiveShadow>
-   <primitive object={new RoundedBoxGeometry(...size,3,Math.min(round,...size.map(x=>x/3)))} attach="geometry"/>
+ // Stable geometry per mesh: previous code created a new, undisposed primitive on each render.
+ const [w,h,d]=size;
+ const geometry=useMemo(()=>new RoundedBoxGeometry(w,h,d,3,Math.min(round,w/3,h/3,d/3)),[w,h,d,round]);
+ useEffect(()=>()=>geometry.dispose(),[geometry]);
+ return <mesh position={position} rotation={rotation} geometry={geometry} castShadow receiveShadow>
    <meshStandardMaterial color={color} roughness={0.72}/>
  </mesh>
 }
@@ -130,7 +133,7 @@ const TREEHOUSE_BUILD_ORDER=[0,27,...Array.from({length:26},(_,i)=>i+1),28,29]
 function WorldScene({points,worldNumber}:{points:number;worldNumber:number}) {
  const island=useRef<Group>(null)
  useFrame(({clock})=>{if(island.current)island.current.position.y=Math.sin(clock.elapsedTime*.7)*.045})
- return <><color attach="background" args={['#87ddf4']}/><ambientLight intensity={0.72}/><hemisphereLight args={['#e6f8ff','#75b86e',0.95]}/><directionalLight position={[-4,9,6]} intensity={2.15} castShadow shadow-mapSize={[1024,1024]}/>
+ return <><color attach="background" args={['#87ddf4']}/><ambientLight intensity={0.72}/><hemisphereLight args={['#e6f8ff','#75b86e',0.95]}/><directionalLight position={[-4,9,6]} intensity={2.15} castShadow shadow-mapSize={[512,512]}/>
  <group ref={island}>
   <Block position={[0,-.34,0]} size={[5.8,.67,4.5]} color="#9d623f" round={.39}/>
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
@@ -138,7 +141,7 @@ function WorldScene({points,worldNumber}:{points:number;worldNumber:number}) {
  </group>
  </>
 }
-export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean}) {
+export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest'}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string}) {
  const panelRef=useRef<HTMLDivElement>(null)
  async function toggleFullscreen() {
   const element=panelRef.current
@@ -148,7 +151,7 @@ export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=tru
  }
  const unlocked=unlockedWorldObjects(points)
  const next=nextWorldObject(points)
- return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран">⛶ На весь экран</button></div><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.5]} gl={{alpha:false,antialias:true}}><FocusCamera worldNumber={worldNumber}/><WorldScene points={points} worldNumber={worldNumber}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled}/></div>
+ return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран">⛶ На весь экран</button></div><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><FocusCamera worldNumber={worldNumber}/><WorldScene points={points} worldNumber={worldNumber}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
  <div className="world3d-bottom"><span>{worldNumber===1?'🏡 Домик на поляне':'🌳 Домик на дереве'} · {unlocked.length}/30 открыто</span><strong>{Math.min(points,WORLD_01_END)} / {WORLD_01_END} ✨</strong></div>
  <div className="world3d-track"><div style={{width:Math.min(100,points/WORLD_01_END*100)+'%'}}/></div>
  <p className="world3d-next">{next ? 'Следующее открытие: '+(worldNumber===1?next.title:TREEHOUSE_STAGES[unlocked.length])+' · '+next.at+' баллов' : '🎉 Мир завершён! Все элементы открыты.'}</p>
