@@ -51,7 +51,7 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
- const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;
+ const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
   const request=route.request(),url=new URL(request.url()), name=url.pathname.split('/').pop(),method=request.method();
   const resp=(data,object=false)=>route.fulfill({status:200,contentType:object?'application/vnd.pgrst.object+json':'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
@@ -68,7 +68,7 @@ async function run(role,browser){
    }
   }
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
-  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward,tasks7:2,daily7:5,spiritual7:spiritualAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
@@ -80,6 +80,8 @@ async function run(role,browser){
    case 'moymir_backpack_items':data=[{id:'b1111111-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,subject:'Matemáticas',item:'Тетрадь по математике'}];break;
    case 'moymir_backpack_checks':data=backpackChecked?[{id:'a5555555-5555-4555-8555-555555555555',item_id:'b1111111-1111-4111-8111-111111111111',for_date:dateToday,checked_at:new Date().toISOString()}]:[];break;
    case 'moymir_island_memories':data=[];break;
+   case 'moymir_growth_focus':data=growthChoice?{quality:growthChoice}:null;break;
+   case 'moymir_growth_daily':data=growthAward?[{activity_date:dateToday,quality:growthChoice,points:20}]:[];break;
    case 'family_members': data=url.searchParams.get('role')==='eq.child'?[{user_id:ids.child}]:url.searchParams.has('user_id')?{family_id:ids.family,role}:[{user_id:ids.parent,role:'parent'},{user_id:ids.child,role:'child'}];break;
    case 'point_ledger': data=[{child_id:ids.child,delta:1700}];break;
    case 'daily_chore_templates': data=[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]}];break;
@@ -89,7 +91,7 @@ async function run(role,browser){
    case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true},{id:'b2222222-2222-4222-8222-222222222222',title:'Неактивная награда',cost:200,active:false}];break;
    case 'reward_requests':data=[];break;
    case 'behavior_points':data=[];break;
-   case 'spiritual_activity_records':data=spiritualAward?[{id:'a4444444-4444-4444-8444-444444444444',activity_date:dateToday,step_id:'daily-text',points:10}]:[];break;
+   case 'spiritual_activity_records':data=[...(spiritualAward?[{id:'a4444444-4444-4444-8444-444444444444',activity_date:dateToday,step_id:'daily-text',points:10}]:[]),...(growthAward?[{id:'a6666666-6666-4666-8666-666666666666',activity_date:dateToday,step_id:'growth-focus',points:20}]:[])];break;
    case 'spiritual_point_requests':data=[];break;
    case 'child_task_proposals':data=[{id:'88888888-8888-4888-8888-888888888888',title:'Помыть велосипед',proposed_points:20,status:'pending'}];break;
    case 'child_world_progress':data=[{active_world:world}];break;
@@ -202,7 +204,38 @@ async function run(role,browser){
  await page.getByRole('button',{name:/Духовный рост/}).last().click();
  check('spiritual tab',await page.getByText('Библейские занятия').count()>0);
  check('weekly growth focus',await page.getByRole('region',{name:'Качество недели'}).count()>0);
- if(role==='child'){await page.getByRole('button',{name:'Сохранить мой выбор'}).click();await page.waitForTimeout(160);check('growth focus saved privately',counters.restWrites.some(x=>x.name==='moymir_growth_focus'))}
+ const growth=page.getByRole('region',{name:'Качество недели'});
+ check('all 7 qualities selectable for preview',await growth.locator('.growth-options button').count()===7);
+ check('no quality preselected',await growth.locator('.growth-options button[aria-pressed=true]').count()===0);
+ if(role==='child'){
+  await growth.getByRole('button',{name:/Доброта/}).click();
+  check('kindness preview works',await growth.getByText(/Забота, выраженная в поступках/).count()>0);
+  await growth.getByRole('button',{name:/Терпение/}).click();
+  check('child changes preview to patience',await growth.getByText(/Не торопить людей/).count()>0);
+  await growth.getByRole('button',{name:/Честность/}).click();
+  await growth.getByRole('button',{name:/Выбрать «Честность» на эту неделю/}).click();
+  await page.waitForTimeout(250);
+  check('choice saved through family-checked RPC',growthChoice==='honesty'&&counters.rpc.some(x=>x.name==='moymir_choose_weekly_quality'));
+  check('seven day task buttons',await growth.locator('.growth-day-nav button').count()===7);
+  check('daily task has Bible reference',await growth.locator('.growth-principle').innerText().then(x=>x.includes('Псалом')||x.includes('Эфесянам')||x.includes('Луки')||x.includes('Матфея')));
+  const currentDate=await growth.locator('.growth-daily-challenge .growth-day-heading').innerText();
+  const otherDay=(new Date(dateToday+'T12:00:00Z').getUTCDay()+6)%7===0?1:0;
+  await growth.locator('.growth-day-nav button').nth(otherDay).click();
+  check('cannot mark future or past day',await growth.getByRole('button',{name:/Я выполнил задание/}).count()===0);
+  const todayIndex=(new Date(dateToday+'T12:00:00Z').getUTCDay()+6)%7;
+  await growth.locator('.growth-day-nav button').nth(todayIndex).click();
+  await growth.getByRole('button',{name:/Я выполнил задание/}).click();await page.waitForTimeout(350);
+  check('20 spiritual points via protected RPC',growthAward===20&&counters.rpc.filter(x=>x.name==='moymir_complete_growth_day').length===1);
+  check('growth record awarded once',await growth.getByText(/Задание выполнено · \+20 баллов духовного роста/).count()>0);
+  check('done button disappears',await growth.getByRole('button',{name:/Я выполнил задание/}).count()===0);
+  check('same week locked after completion',await growth.getByRole('button',{name:/Доброта/}).isDisabled());
+  check('ordinary coins unchanged by virtue task',await page.locator('.mw-wallet').count()===0 || await page.getByText(/Баланс: 1700/).count()>0);
+ }else{
+  await growth.getByRole('button',{name:/Сочувствие/}).click();
+  check('parent can preview empathy',await growth.getByText(/Понимать чувства и нужды/).count()>0);
+  check('parent cannot award/choose for child',await growth.getByRole('button',{name:/Выбрать «/}).count()===0);
+ }
+
  check('offline scripture reader',await page.getByRole('region',{name:'Календарь ежедневных библейских текстов'}).count()>0);
  if(role==='parent'){
   const picker=page.getByRole('textbox',{name:'Выбрать EPUB или ZIP с ежедневными текстами'});
