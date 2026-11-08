@@ -19,3 +19,5 @@
 .mw-bottom button small{font-size:10px!important;line-height:1.1!important;white-space:normal!important}.mw-bottom button{min-height:57px!important}
 /* v3: Real melodic soundtrack controls */
 .mw-music-settings{display:flex;flex-direction:column;gap:10px;margin-top:9px}.mw-music-settings .mw-music-caption{font-size:11px;color:#7493a5;line-height:1.5;margin:0}.mw-music-label{display:flex;flex-direction:column;gap:5px;color:#4d7287;font-weight:700;font-size:11px}.mw-music-label select{border-radius:10px;padding:10px 11px;background:#fff;border:1px solid #dceaf1;color:#3a6074;max-width:100%}.mw-music-label input[type=range]{width:100%;accent-color:#25bd91}
+
+.mw-music-credits{border:1px solid #dfeaf1;border-radius:12px;background:#f7fafc;padding:10px;color:#678092;font-size:11px}.mw-music-credits summary{font-weight:800;cursor:pointer;color:#527d8c}.mw-music-credits p{font-size:10px;line-height:1.6;overflow-wrap:anywhere;margin:8px 0}

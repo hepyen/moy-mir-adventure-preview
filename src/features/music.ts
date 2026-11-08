@@ -1,4 +1,4 @@
-/** Three original instrumental arrangements; no continuous oscillator drones. */
+/** Licensed instrumental recordings by Scott Buckley (CC BY 4.0); attributions displayed in MusicControl. */
 export type MusicScene='meadow'|'treehouse'|'reading';
 export type MusicPreference='auto'|MusicScene;
 const ENABLED_KEY='moymir28-bg-music';

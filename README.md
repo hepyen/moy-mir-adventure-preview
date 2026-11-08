@@ -58,3 +58,7 @@ Android APK: `com.moymir.adventure`, versionCode 10, версия 2.8.0. Сбо�
 - **Сервер и безопасность:** база подсчитывает общие баллы по полной истории вместо усечения 1000 записей REST; исправлена проверка дат по `Europe/Madrid`, новые семейные таблицы защищены RLS. Фоновые запросы сокращены.
 
 Технический отчёт: `RELEASE_3.0.0.md`. Сборка, сценарии обеих ролей, 3 музыкальные дорожки, OTA, Android lint и npm audit успешно проверены. Испытания на физических телефонах остаются за пользователем, поскольку подключённого Android-устройства к сборочному компьютеру нет.
+
+## MyWorld 3.0.1 — professional licensed soundtrack
+
+Version 3.0.1 replaces the three rudimentary synthesised tunes from 3.0.0 with **full-length professionally composed recordings** by Scott Buckley, shared under the CC BY 4.0 licence: 'Ice Cream' (meadow), 'Echoes Of Home' (treehouse), 'Growing Up' (reading). In-app Settings → Music contains the full composer attribution and usage licence. A copy of all credits is in `MUSIC_LICENSES.md`. Tracks are embedded for offline playback and normalised to restrained volumes. No original Android app or family data was modified.
