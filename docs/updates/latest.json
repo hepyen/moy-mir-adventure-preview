@@ -1,13 +1,14 @@
 {
-  "version": "2.8.2",
-  "title": "Исправление семейного чата · Мой Мир 2.8.2",
+  "version": "2.9.0",
+  "title": "Мой Мир 2.9 — школа и ежедневный стих",
   "notes": [
-    "Поле ввода сообщений всегда видно",
-    "Исправлено отображение с открытой клавиатурой",
-    "Чат и отправка работают в родительском и детском аккаунтах"
+    "Новая вкладка «Учёба»: уроки по дням недели",
+    "Домашние задания и помощь Миро",
+    "Настройка утренних и вечерних напоминаний",
+    "Ежедневный текст из официальной библиотеки JW.ORG"
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.8.2/MOY_MIR_2.8.2_OTA.zip",
-  "sha256": "a25bb96d0c0c6911c754ba0aabf4816e4de6ca17b1cdd752fbd3626cb0daf53c",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.9.0/MOY_MIR_2.9.0_OTA.zip",
+  "sha256": "4087c9acfec7b97c646e622e64bdfb6f069f7bab084db435786330e6d0ab376b",
   "nativeBaseVersion": "2.7.0",
   "required": false
 }
