@@ -1,15 +1,13 @@
 {
-  "version": "2.9.1",
-  "title": "Мой Мир 2.9.1 — школа и ежедневный стих",
+  "version": "2.9.2",
+  "title": "Мой Мир 2.9.2 · нижнее меню в один ряд",
   "notes": [
-    "Расписание уроков по дням недели",
-    "Домашние задания и помощь Миро",
-    "Напоминания на телефоне Ильи",
-    "Текст дня из JW.ORG",
-    "Уведомление открывает нужную вкладку"
+    "Удалена дублирующая вкладка «Настройки»",
+    "Настройки открываются через шестерёнку справа вверху",
+    "Все шесть основных вкладок снова в один ряд"
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.9.1/MOY_MIR_2.9.1_OTA.zip",
-  "sha256": "4060807ad0b18aa7a250858f92863605318870c97c83249a0fdcad9fad886ae6",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v2.9.2/MOY_MIR_2.9.2_OTA.zip",
+  "sha256": "11afa63da29cec45cec3c450a2b044ff4ea90fbeed79b5dd66f6a4998ce0ea78",
   "nativeBaseVersion": "2.7.0",
   "required": false
 }
