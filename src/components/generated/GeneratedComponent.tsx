@@ -1,3 +1,5 @@
+import {LocalNotifications} from '@capacitor/local-notifications';
+import {Capacitor} from '@capacitor/core';
 import {DailyTextCard} from '../../school/DailyTextCard';
 import {SchoolHub,useSchoolNotificationSync} from '../../school/SchoolHub';
 import {useSchool} from '../../school/useSchool';
@@ -96,6 +98,18 @@ export const GeneratedComponent = () => {
  useChildPresence(cloud.role==='child'&&!!cloud.session,cloud.session?.user.id||'');
  const [showConnection,setShowConnection]=useState(false);
  const askMiro=(question:string)=>{try{sessionStorage.setItem('moymir-miro-next-question',question.slice(0,1400))}catch{}setTab('world')};
+ useEffect(()=>{
+  if(!Capacitor.isNativePlatform()||!Capacitor.isPluginAvailable('LocalNotifications'))return;
+  let active=true;
+  const subscription=LocalNotifications.addListener('localNotificationActionPerformed',event=>{
+   if(!active)return;
+   const section=event.notification.extra?.section;
+   if(section==='school'||section==='spiritual')setTab(section);
+   else if(section==='updates')setTab('settings');
+  }).catch(e=>console.warn('Reminders navigation unavailable',e));
+  return()=>{active=false;void subscription.then(listener=>{if(listener)return listener.remove()})};
+ },[]);
+
  useEffect(()=>{
   const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.section==='school')setTab('school');else if(data.section==='spiritual')setTab('spiritual');else if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
   window.addEventListener('moymir-notification-open',open);
@@ -263,7 +277,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.1</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
