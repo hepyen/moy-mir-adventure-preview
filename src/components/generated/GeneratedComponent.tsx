@@ -1,3 +1,6 @@
+import {DailyTextCard} from '../../school/DailyTextCard';
+import {SchoolHub,useSchoolNotificationSync} from '../../school/SchoolHub';
+import {useSchool} from '../../school/useSchool';
 import {WorldSafe} from './WorldSafe';
 import {MusicControl} from '../../features/MusicControl';
 import {FamilyChat} from '../../chat/FamilyChat';
@@ -13,7 +16,7 @@ import {World3D} from '../../legacyWorld/World3D';
 import {WORLD_01_OBJECTS,WORLD_01_END} from '../../legacyWorld/world01';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './MyWorld.css';
-type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual' | 'settings';
+type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual' | 'settings' | 'school';
 type Proposal={id:number;title:string;points:number;emoji:string;status:'pending'|'accepted'|'rejected'};
 type Chore = {
   id: number;
@@ -81,17 +84,20 @@ const prices = [{
   title: 'Украшение для острова',
   price: 70
 }];
-const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Духовный рост'], ['family', '💬', 'Семья'], ['settings', '⚙️', 'Настройки']];
+const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['school', '📚', 'Учёба'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Духовный рост'], ['family', '💬', 'Семья'], ['settings', '⚙️', 'Настройки']];
 const SAVE_KEY='moymir2-demo-2.4';
 const OLD_SAVE_KEY='moymir2-demo-2.1';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function readSave(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'null')}catch{return null}}
 export const GeneratedComponent = () => {
  const cloud=useFamilyCloud();
+ const school=useSchool(cloud.familyId,cloud.childId,!!cloud.role&&!!cloud.session&&!cloud.error);
+ const reminders=useSchoolNotificationSync(school,cloud);
  useChildPresence(cloud.role==='child'&&!!cloud.session,cloud.session?.user.id||'');
  const [showConnection,setShowConnection]=useState(false);
+ const askMiro=(question:string)=>{try{sessionStorage.setItem('moymir-miro-next-question',question.slice(0,1400))}catch{}setTab('world')};
  useEffect(()=>{
-  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
+  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.section==='school')setTab('school');else if(data.section==='spiritual')setTab('spiritual');else if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
   window.addEventListener('moymir-notification-open',open);
   return()=>window.removeEventListener('moymir-notification-open',open);
  },[]);
@@ -257,7 +263,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.8.2</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">2.9.0</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -283,13 +289,15 @@ export const GeneratedComponent = () => {
  {cloud.role==='child'?<button className="mw-primary" disabled={advancingWorld} onClick={()=>{setAdvancingWorld(true);setWorldAdvanceError('');void cloud.rpc('advance_my_world',{p_family:cloud.familyId}).then(()=>setPreviewWorld(2)).catch(e=>setWorldAdvanceError(e instanceof Error?e.message:'Ошибка перехода')).finally(()=>setAdvancingWorld(false))}}>{advancingWorld?'Открываем мир…':'🌳 Открыть второй мир'}</button>:<small>Переход подтверждается из аккаунта ребёнка.</small>}
  {worldAdvanceError&&<p role="alert" className="mw-cloud-error">{worldAdvanceError}</p>}</div>}
  {cloud.worldNumber===2&&currentWorld===1&&<button className="mw-primary" onClick={()=>setPreviewWorld(2)}>🌳 Вернуться ко второму миру</button>}
+ {connected&&<section className="mw-panel school-dashboard-link"><div><strong>🎒 Уроки сегодня</strong><p>{school.lessons.filter(x=>x.weekday===new Date().getDay()).sort((a,b)=>a.lesson_order-b.lesson_order).map(x=>x.subject).join(' · ')||'Добавьте расписание в разделе «Учёба»'}</p></div><button onClick={()=>setTab('school')}>Открыть</button></section>}
  <section className="mw-panel"><div className="mw-section-label">КАК РАЗВИВАТЬ МИР</div><p className="mw-task-explain">Каждое подтверждённое родителем задание приносит монеты и очки развития. Постройки возникают сами, в прежнем порядке. Трогай Миро на острове: он увеличится и поможет разобраться с уроками.</p><button className="mw-primary" onClick={()=>setTab('tasks')}>Посмотреть задания →</button></section>
  </>}
  {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'school' && (connected?<SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'shop' && (connected?<CloudShop cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'spiritual' && (connected?<CloudSpiritual cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'spiritual' && (connected?<><DailyTextCard onAskMiro={askMiro} onSchoolSettings={()=>setTab('school')}/><CloudSpiritual cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'family' && <><section className="mw-greeting"><div className="mw-eyebrow">НАШ СЕМЕЙНЫЙ ЧАТ</div><h1>Семья ❤️</h1><p>Сообщения доставляются всем участникам семьи.</p></section>{connected&&cloud.session?<FamilyChat familyId={cloud.familyId} userId={cloud.session.user.id}/>:<CloudSignIn cloud={cloud}/>}</>}
- {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, обновления и твой духовный рост.</p></section><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}
+ {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, обновления и твой духовный рост.</p></section><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>📚 Учёба и расписание</strong><p>Предметы, домашние задания и время напоминаний.</p><button onClick={()=>setTab('school')}>Открыть расписание</button></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}
 
  </div>
  <nav className="mw-bottom" aria-label="Навигация">{nav.map(([id, ico, label]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><span>{ico}</span><small>{label}</small>{id === 'shop' && pending.length > 0 && <i>{pending.length}</i>}</button>)}</nav>

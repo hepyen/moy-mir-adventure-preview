@@ -23,6 +23,7 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true}:{world
  const sounds=useRef(0)
  useEffect(()=>{try{localStorage.setItem('moymir24-ai-chat',JSON.stringify(history.slice(-MAX_HISTORY)))}catch{};historyEnd.current?.scrollIntoView({behavior:'smooth',block:'end'})},[history])
  useEffect(()=>()=>{controller.current?.abort()},[])
+ useEffect(()=>{const question=sessionStorage.getItem('moymir-miro-next-question');if(question){sessionStorage.removeItem('moymir-miro-next-question');setDraft(question);setExpanded(true)}},[])
  useEffect(()=>{if(worldPoints>previousWorld.current){setFace('wow');setMessage('Ура! Наш мир становится красивее! ✨')}previousWorld.current=worldPoints},[worldPoints])
  useEffect(()=>{if(spiritualPoints>previousSpiritual.current){setFace('smile');setMessage('Отлично! Ещё один хороший шаг! 🌱')}previousSpiritual.current=spiritualPoints},[spiritualPoints])
  function open(){playMiroChirp(sounds.current++,soundEnabled);setFace('wink');setExpanded(true);setMessage(null)}

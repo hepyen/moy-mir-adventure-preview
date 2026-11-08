@@ -8,7 +8,7 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
- const counters={rpc:[],restPosts:[],errors:[]}; let world=1;
+ const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
   const request=route.request(),url=new URL(request.url()), name=url.pathname.split('/').pop(),method=request.method();
   const resp=(data,object=false)=>route.fulfill({status:200,contentType:object?'application/vnd.pgrst.object+json':'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
@@ -16,8 +16,12 @@ async function run(role,browser){
   if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
+  if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
   let data=[];
   switch(name){
+   case 'moymir_school_lessons':data=[{id:'a1111111-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,weekday:new Date(today+'T12:00:00').getDay(),lesson_order:1,subject:'Matemáticas',starts_at:'08:30:00',notes:''}];break;
+   case 'moymir_school_homework':data=[{id:'a2222222-2222-4222-8222-222222222222',family_id:ids.family,child_id:ids.child,subject:'Matemáticas',description:'Повторить дроби',due_date:today,completed_at:null}];break;
+   case 'moymir_school_preferences':data={school_enabled:false,school_remind_at:'07:30:00',homework_enabled:false,homework_remind_at:'18:30:00',verse_enabled:false,verse_remind_at:'08:00:00'};break;
    case 'family_members': data=url.searchParams.get('role')==='eq.child'?[{user_id:ids.child}]:url.searchParams.has('user_id')?{family_id:ids.family,role}:[{user_id:ids.parent,role:'parent'},{user_id:ids.child,role:'child'}];break;
    case 'point_ledger': data=[{child_id:ids.child,delta:1700}];break;
    case 'daily_chore_templates': data=[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]}];break;
@@ -75,9 +79,31 @@ async function run(role,browser){
   check('create daily RPC',counters.rpc.some(x=>x.name==='create_daily_chore'));
   check('discipline',await page.getByText('Дисциплинарные меры').count()>0);
  }
+ await page.getByRole('button',{name:/Учёба/}).last().click();
+ check('school tab',await page.getByRole('heading',{name:'Учёба'}).count()>0);
+ check('school lesson',await page.getByText('Matemáticas',{exact:true}).count()>0);
+ check('homework card',await page.getByText('Повторить дроби').count()>0);
+ check('ask Miro',await page.getByRole('button',{name:/Миро/}).count()>0);
+ if(role==='child'){await page.getByRole('button',{name:'Открыть Миро и спросить об уроках'}).click();await page.waitForTimeout(480);check('Miro opens from school tab',await page.getByRole('dialog',{name:/Миро/}).count()>0);check('study prompt filled',await page.getByRole('textbox',{name:'Вопрос Миро'}).inputValue().then(x=>x.includes('домашними заданиями')));await page.getByRole('button',{name:'Уменьшить Миро'}).click();await page.getByRole('button',{name:/Учёба/}).last().click()}
+
+ if(role==='parent'){
+   await page.getByPlaceholder('Предмет, например: Matemáticas').fill('Español');
+   await page.getByRole('button',{name:'Сохранить урок'}).click();await page.waitForTimeout(150);
+   check('lesson saved through REST',counters.restWrites.some(x=>x.name==='moymir_school_lessons'));
+   await page.getByPlaceholder('Предмет',{exact:true}).fill('Biología');
+   await page.getByPlaceholder('Что нужно выполнить: параграф, упражнения, страницы').fill('Повторить клетки');
+   await page.getByRole('button',{name:'Сохранить домашнее задание'}).click();await page.waitForTimeout(140);
+   check('homework saved through REST',counters.restWrites.some(x=>x.name==='moymir_school_homework'));
+   await page.getByRole('button',{name:'Настроить'}).click();
+   await page.getByRole('button',{name:'Сохранить время напоминаний'}).click();await page.waitForTimeout(150);
+   check('reminder settings saved',counters.restWrites.some(x=>x.name==='moymir_school_preferences'));
+ }else{
+   await page.getByRole('button',{name:'✓ Готово'}).click();await page.waitForTimeout(160);
+   check('child may mark homework through RPC',counters.rpc.some(x=>x.name==='moymir_mark_homework'));
+ }
  await page.getByRole('button',{name:/Магазин/}).last().click();check('same rewards',await page.getByText('Семейное кино').count()>0);
  if(role==='child'){await page.getByRole('button',{name:'Заказать'}).first().click();await page.waitForTimeout(180);check('reward request RPC',counters.rpc.some(x=>x.name==='request_reward'))}
- await page.getByRole('button',{name:/Духовный рост/}).last().click();check('spiritual tab',await page.getByText('Библейские занятия').count()>0);
+ await page.getByRole('button',{name:/Духовный рост/}).last().click();check('spiritual tab',await page.getByText('Библейские занятия').count()>0);check('daily verse official link',await page.getByRole('button',{name:'Открыть стих и комментарий'}).count()>0);
  await page.getByRole('button',{name:/Семья/}).last().click();check('real chat',await page.locator('.family-chat').count()===1);
  const field=page.getByRole('textbox',{name:'Сообщение семье'});
  check('composer present',await field.count()===1);
