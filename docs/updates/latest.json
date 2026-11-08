@@ -1,16 +1,16 @@
 {
-  "version": "3.0.1",
-  "title": "Мой Мир 3.0.1 · Настоящая красивая музыка",
+  "version": "3.0.2",
+  "title": "Мой Мир 3.0.2 · Horario escolar en español",
   "notes": [
-    "Полностью заменили неудачные искусственные мелодии",
-    "Поляна: Ice Cream (Scott Buckley)",
-    "Домик на дереве: Echoes of Home (Scott Buckley)",
-    "Учёба и чтение: Growing Up (Scott Buckley)",
-    "Музыка доступна офлайн, авторство и лицензия в настройках",
-    "Все новые функции версии 3.0.0 сохранены"
+    "В семейную базу внесены 30 уроков Ильи",
+    "Расписание: lunes, martes, miércoles, jueves, viernes",
+    "Названия всех уроков на испанском языке",
+    "Recreo 12:00–12:30 отдельно от шести уроков",
+    "Рюкзак на завтра подбирает предметы из реального расписания",
+    "Семейные баллы, домашние задания и музыка не затронуты"
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v3.0.1/MOY_MIR_3.0.1_OTA.zip",
-  "sha256": "384304be5a981148b11d80c27accc70a051c1cf1e6729df97406dac686dafb7e",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v3.0.2/MOY_MIR_3.0.2_OTA.zip",
+  "sha256": "dd9546badc461be97b75fbfc9772f7657657ef9ff4ff23d0b54a4b6c61abda6e",
   "nativeBaseVersion": "2.7.0",
   "required": false
 }
