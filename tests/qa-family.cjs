@@ -32,6 +32,21 @@ async function syntheticArchive(){
  return zip.generateAsync({type:'nodebuffer'});
 }
 const dateToday=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+
+// Synthetic test copy of the 30 classes extracted from the user's school timetable.
+const schoolMatrix={
+ 1:['Biología y Geología','Música','Matemáticas','Inglés','Lengua','Educación Física'],
+ 2:['Geografía e Historia','Biología y Geología','Música','Matemáticas','Inglés','Lengua'],
+ 3:['Atención Educativa','Geografía e Historia','Tutoría','Biología y Geología','Plástica','Francés'],
+ 4:['Educación Física','Inglés','Francés','Matemáticas','Lengua','Computación y Robótica'],
+ 5:['Matemáticas','Educación Física','Geografía e Historia','Lengua','Inglés','Computación y Robótica']
+};
+const classHours=['08:00','09:00','10:00','11:00','12:30','13:30'];
+const syntheticLessons=Object.entries(schoolMatrix).flatMap(([day,subjects])=>subjects.map((subject,i)=>({
+ id:'a1111111-1111-4111-8111-'+String(Number(day)*100+i).padStart(12,'0'),
+ family_id:ids.family,child_id:ids.child,weekday:Number(day),lesson_order:i+1,subject,starts_at:classHours[i]+':00',notes:''
+})));
+
 async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
@@ -59,7 +74,7 @@ async function run(role,browser){
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
   let data=[];
   switch(name){
-   case 'moymir_school_lessons':data=[{id:'a1111111-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,weekday:new Date(today+'T12:00:00').getDay(),lesson_order:1,subject:'Matemáticas',starts_at:'08:30:00',notes:''}];break;
+   case 'moymir_school_lessons':data=syntheticLessons;break;
    case 'moymir_school_homework':data=[{id:'a2222222-2222-4222-8222-222222222222',family_id:ids.family,child_id:ids.child,subject:'Matemáticas',description:'Повторить дроби',due_date:today,completed_at:null}];break;
    case 'moymir_school_preferences':data={school_enabled:false,school_remind_at:'07:30:00',homework_enabled:false,homework_remind_at:'18:30:00',verse_enabled:false,verse_remind_at:'08:00:00'};break;
    case 'moymir_backpack_items':data=[{id:'b1111111-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,subject:'Matemáticas',item:'Тетрадь по математике'}];break;
@@ -143,6 +158,14 @@ async function run(role,browser){
  await page.getByRole('button',{name:/Учёба/}).last().click();
  check('school tab',await page.getByRole('heading',{name:'Учёба'}).count()>0);
  check('school lesson',await page.getByText('Matemáticas',{exact:true}).count()>0);
+ check('Spanish timetable heading',await page.getByRole('heading',{name:/Horario escolar/}).count()>0);
+ check('weekdays shown in Spanish',await page.getByRole('button',{name:'Lun',exact:true}).count()===1&&await page.getByRole('button',{name:'Mié',exact:true}).count()===1);
+ await page.getByRole('button',{name:'Lun',exact:true}).click();
+ check('Monday six classes',await page.getByText('Lunes · 6 clases').count()>0);
+ check('recess between classes',await page.getByText('12:00–12:30').count()>0);
+ await page.getByRole('button',{name:'Vie',exact:true}).click();
+ check('Friday ends with robotics',await page.getByText('Computación y Robótica',{exact:true}).count()>0);
+ await page.getByRole('button',{name:'Lun',exact:true}).click();
  check('homework card',await page.getByText('Повторить дроби').count()>0);
  check('ask Miro',await page.getByRole('button',{name:/Миро/}).count()>0);
  check('backpack panel appears',await page.getByRole('region',{name:'Рюкзак на следующий учебный день'}).count()>0);
@@ -166,7 +189,7 @@ async function run(role,browser){
  }else{
    await page.getByRole('button',{name:'✓ Готово'}).click();await page.waitForTimeout(160);
    check('child may mark homework through RPC',counters.rpc.some(x=>x.name==='moymir_mark_homework'));
-   await page.getByRole('button',{name:'Сегодня'}).click();
+   await page.getByRole('button',{name:'Следующий учебный день'}).click();
    const bag=page.locator('.backpack-item input[type=checkbox]');
    if(await bag.count()){await bag.first().check();await page.waitForTimeout(160)}
    check('child checks backpack via protected RPC',counters.rpc.some(x=>x.name==='moymir_check_backpack'));

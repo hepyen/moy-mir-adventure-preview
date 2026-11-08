@@ -1,5 +1,5 @@
 import {BackpackAssistant} from './BackpackAssistant';
-import {useEffect,useMemo,useState} from 'react';
+import {Fragment,useEffect,useMemo,useState} from 'react';
 import type {useFamilyCloud} from '../lib/useFamilyCloud';
 import type {SchoolPrefs} from './useSchool';
 import {useSchool} from './useSchool';
@@ -7,8 +7,8 @@ import {askReminderPermission,getReminderStatus,syncReminders} from './reminders
 import './SchoolHub.css';
 type Cloud=ReturnType<typeof useFamilyCloud>;
 type School=ReturnType<typeof useSchool>;
-const DAYS=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
-const WEEK=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+const DAYS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const WEEK=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 function localDay(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).formatToParts(new Date());const obj=Object.fromEntries(p.map(x=>[x.type,x.value]));return {iso:`${obj.year}-${obj.month}-${obj.day}`,weekday:new Date(`${obj.year}-${obj.month}-${obj.day}T12:00:00`).getDay()}}
 function deadlineDate(add:number){const d=new Date();d.setDate(d.getDate()+add);return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
 export function useSchoolNotificationSync(school:School,cloud:Cloud){
@@ -34,7 +34,7 @@ export function useSchoolNotificationSync(school:School,cloud:Cloud){
 }
 export function SchoolHub({cloud,school,reminders,onAskMiro}:{cloud:Cloud;school:School;reminders:ReturnType<typeof useSchoolNotificationSync>;onAskMiro:(question:string)=>void}){
  const today=localDay();
- const[parentDay,setParentDay]=useState(today.weekday),[slot,setSlot]=useState('1'),[subject,setSubject]=useState(''),[starts,setStarts]=useState(''),[note,setNote]=useState('');
+ const[parentDay,setParentDay]=useState(today.weekday>=1&&today.weekday<=5?today.weekday:1),[slot,setSlot]=useState('1'),[subject,setSubject]=useState(''),[starts,setStarts]=useState(''),[note,setNote]=useState('');
  const[hwSubject,setHwSubject]=useState(''),[hwDescription,setHwDescription]=useState(''),[due,setDue]=useState(deadlineDate(1));
  const[error,setError]=useState(''),[busy,setBusy]=useState(false),[showPrefs,setShowPrefs]=useState(false);
  const[prefsDraft,setPrefsDraft]=useState<SchoolPrefs>(school.prefs);
@@ -47,11 +47,11 @@ export function SchoolHub({cloud,school,reminders,onAskMiro}:{cloud:Cloud;school
  async function action(work:()=>Promise<unknown>){setBusy(true);setError('');try{await work();setNotice('Сохранено ✓')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить')}finally{setBusy(false)}}
  return <>
  <section className="mw-greeting"><div className="mw-eyebrow">МОЯ ШКОЛА</div><h1>📚 Учёба</h1><p>Уроки, домашние задания и помощь Миро. Расписание заполняется вручную и сохраняется для обоих аккаунтов.</p></section>
- <div className="school-today"><div><span>СЕГОДНЯ · {DAYS[today.weekday]}</span><strong>{todayLessons.length?`${todayLessons.length} уроков`:'Уроков пока нет'}</strong></div><div className="school-chip">🎒</div></div>
- <section className="mw-panel school-card"><div className="school-heading"><h3>🗓️ Расписание уроков</h3><button onClick={()=>void school.refresh()}>↻</button></div>
- <div className="school-days">{WEEK.map((d,i)=><button key={i} className={parentDay===i?'chosen':''} onClick={()=>setParentDay(i)}>{d}</button>)}</div>
- <p className="school-daytitle">{DAYS[parentDay]} · {selected.length?`${selected.length} уроков`:'пока пусто'}</p>
- {selected.length?selected.map(x=><div className="school-line" key={x.id}><span className="school-number">{x.lesson_order}</span><div><strong>{x.subject}</strong><small>{x.starts_at?x.starts_at+' · ':''}{x.notes}</small></div>{cloud.role==='parent'&&<button className="school-danger" onClick={()=>void action(()=>school.deleteLesson(x.id))}>Удалить</button>}</div>):<p className="school-empty">На этот день предметы ещё не введены. Ничего не придумано автоматически.</p>}
+ <div className="school-today"><div><span>HOY · {DAYS[today.weekday]}</span><strong>{todayLessons.length?`${todayLessons.length} clases`:'No hay clases hoy'}</strong></div><div className="school-chip">🎒</div></div>
+ <section className="mw-panel school-card"><div className="school-heading"><h3>🗓️ Horario escolar</h3><button aria-label="Actualizar horario" title="Actualizar horario" onClick={()=>void school.refresh()}>↻</button></div>
+ <div className="school-days">{WEEK.slice(1,6).map((d,i)=><button key={i+1} className={parentDay===i+1?'chosen':''} onClick={()=>setParentDay(i+1)}>{d}</button>)}</div>
+ <p className="school-daytitle">{DAYS[parentDay]} · {selected.length?`${selected.length} clases`:'Sin clases'}</p>
+ {selected.length?selected.map(x=><Fragment key={x.id}><div className="school-line"><span className="school-number">{x.lesson_order}</span><div><strong>{x.subject}</strong><small>{x.starts_at?x.starts_at+' · ':''}{x.notes}</small></div>{cloud.role==='parent'&&<button className="school-danger" onClick={()=>void action(()=>school.deleteLesson(x.id))}>Удалить</button>}</div>{x.lesson_order===4&&selected.some(l=>l.starts_at==='12:30')&&<div className="school-recess" aria-label="Recreo de 12:00 a 12:30"><span>☀️ Recreo</span><small>12:00–12:30</small></div>}</Fragment>):<p className="school-empty">No hay clases programadas para este día.</p>}
  {cloud.role==='parent'&&<form className="school-entry" onSubmit={e=>{e.preventDefault();void action(async()=>{await school.writeLesson({weekday:parentDay,lesson_order:Number(slot),subject:subject.trim(),starts_at:starts||null,notes:note});setSubject('');setNote('')})}}>
   <strong>Добавить урок</strong><div className="school-form-row"><label>№ урока<select value={slot} onChange={e=>setSlot(e.target.value)}>{Array.from({length:12},(_,i)=><option value={i+1} key={i}>{i+1}</option>)}</select></label><label>Начало (необязательно)<input type="time" value={starts} onChange={e=>setStarts(e.target.value)}/></label></div>
   <input required maxLength={80} placeholder="Предмет, например: Matemáticas" value={subject} onChange={e=>setSubject(e.target.value)}/><input maxLength={280} placeholder="Класс или заметка (необязательно)" value={note} onChange={e=>setNote(e.target.value)}/><button disabled={busy} type="submit">Сохранить урок</button>

@@ -62,3 +62,7 @@ Android APK: `com.moymir.adventure`, versionCode 10, версия 2.8.0. Сбо�
 ## MyWorld 3.0.1 — professional licensed soundtrack
 
 Version 3.0.1 replaces the three rudimentary synthesised tunes from 3.0.0 with **full-length professionally composed recordings** by Scott Buckley, shared under the CC BY 4.0 licence: 'Ice Cream' (meadow), 'Echoes Of Home' (treehouse), 'Growing Up' (reading). In-app Settings → Music contains the full composer attribution and usage licence. A copy of all credits is in `MUSIC_LICENSES.md`. Tracks are embedded for offline playback and normalised to restrained volumes. No original Android app or family data was modified.
+
+## 3.0.2 · Horario escolar de Ilia (en español)
+
+The family's school timetable was imported directly into private Supabase tables: **30 lessons, Monday–Friday, six each day**, with Spanish subject names and explicit start/end times. The timetable UI shows **Horario escolar**, five Spanish weekday tabs, six classes per day and a distinct **Recreo 12:00–12:30** between fourth and fifth lessons (not counted as a lesson or a backpack subject). The timetable refreshes from the same family database used by the parent and child, and school backpack subjects derive directly from the saved classes. All existing homework, push-notification preferences and family progress remain unchanged. See `RELEASE_3.0.2.md` for validation.

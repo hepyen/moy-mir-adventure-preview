@@ -4,3 +4,6 @@
 
 /* Six primary tabs; settings remain only at the upper-right gear. */
 .mw-bottom{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;grid-template-rows:1fr!important;overflow-x:hidden!important;flex-wrap:nowrap!important}.mw-bottom button{min-width:0!important;max-width:100%!important;padding-left:1px!important;padding-right:1px!important}.mw-bottom button small{font-size:9px!important;line-height:1.12!important;white-space:normal!important}
+
+/* Horario escolar en español; only five teaching days, with a distinct 30-minute recess. */
+.school-days{grid-template-columns:repeat(5,minmax(0,1fr))}.school-recess{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:5px 0;padding:10px 12px;border-radius:12px;background:#fff3d8;border:1px solid #f6e0ac;color:#94723a;font-size:12px;font-weight:800}.school-recess small{font-size:11px;color:#a38859}
