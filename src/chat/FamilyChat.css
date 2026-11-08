@@ -11,3 +11,32 @@
 .family-chat-form button{padding:12px 17px;border:0;border-radius:12px;background:#47ad7b;color:#0b3020;font-weight:750;cursor:pointer}
 .family-chat-form button:disabled{opacity:.5;cursor:default}.family-chat-error{color:#ffd2d2;padding:0 14px}
 @media(max-width:480px){.family-chat-feed{min-height:270px}.family-chat-message{max-width:95%}.family-chat-form button{padding:10px}}
+
+/* Embedded mobile screen: the composer must stay visible, even with a long conversation. */
+.mw-family-screen{display:flex!important;flex-direction:column!important;overflow:hidden!important;min-height:0!important;padding-bottom:8px!important;}
+.mw-family-screen>.mw-greeting{flex:0 0 auto!important;margin-bottom:7px!important;}
+.mw-family-screen>.family-chat{flex:1 1 auto!important;display:flex!important;flex-direction:column!important;min-height:0!important;min-width:0!important;width:100%!important;max-width:100%!important;margin:4px 0 0!important;overflow:hidden!important;}
+.mw-family-screen .family-chat-header{flex:0 0 auto;padding:10px 12px!important;}
+.mw-family-screen .family-chat-header h2{font-size:15px!important;}
+.mw-family-screen .family-chat-header p{font-size:10px!important;}
+.mw-family-screen .family-chat-feed{height:auto!important;max-height:none!important;min-height:0!important;flex:1 1 auto!important;overflow-y:auto!important;overscroll-behavior:contain;padding:11px!important;}
+.mw-family-screen .family-chat-form{flex:0 0 auto!important;position:relative;z-index:4;min-height:64px;padding:9px!important;padding-bottom:max(9px,env(safe-area-inset-bottom))!important;align-items:center!important;}
+.mw-family-screen .family-chat-form input{min-width:0;min-height:44px;font-size:16px!important;flex:1 1 auto!important;}
+.mw-family-screen .family-chat-form button{min-width:78px;min-height:44px;padding:8px!important;flex:0 0 auto;}
+.mw-family-screen .family-chat-error{font-size:11px;margin:4px 10px;}
+@media(max-height:680px){.mw-family-screen>.mw-greeting{display:none;}.mw-family-screen .family-chat-header p{display:none}.mw-family-screen .family-chat-header{padding:7px 10px!important}}
+/* Android soft keyboard shrinks the visual viewport. Keep the input above it. */
+@media(max-width:480px){
+ .mw-phone:has(.mw-family-screen){height:100dvh!important;min-height:0!important;}
+ .mw-phone:has(.mw-family-screen)>.mw-bottom{flex:0 0 auto;}
+ .mw-family-screen{min-height:0!important;}
+}
+@media(max-height:600px){
+ .mw-phone:has(.mw-family-screen)>.mw-hero-profile{display:none;}
+ .mw-phone:has(.mw-family-screen)>.mw-tabs-top{display:none;}
+ .mw-phone:has(.mw-family-screen)>.mw-cloud-syncbar{padding:4px 10px;}
+ .mw-phone:has(.mw-family-screen)>.mw-top{padding:6px 12px;}
+ .mw-phone:has(.mw-family-screen) .mw-scroll{padding-top:6px;}
+ .mw-family-screen .family-chat-header{padding:6px 10px!important;}
+ .mw-family-screen .family-chat-form{min-height:54px!important;padding:6px!important;}
+}

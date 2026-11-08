@@ -79,6 +79,18 @@ async function run(role,browser){
  if(role==='child'){await page.getByRole('button',{name:'Заказать'}).first().click();await page.waitForTimeout(180);check('reward request RPC',counters.rpc.some(x=>x.name==='request_reward'))}
  await page.getByRole('button',{name:/Духовный рост/}).last().click();check('spiritual tab',await page.getByText('Библейские занятия').count()>0);
  await page.getByRole('button',{name:/Семья/}).last().click();check('real chat',await page.locator('.family-chat').count()===1);
+ const field=page.getByRole('textbox',{name:'Сообщение семье'});
+ check('composer present',await field.count()===1);
+ const metric=await field.evaluate(el=>{const r=el.getBoundingClientRect(),shell=document.querySelector('.mw-phone')?.getBoundingClientRect(),nav=document.querySelector('.mw-bottom')?.getBoundingClientRect();return {top:r.top,bottom:r.bottom,navTop:nav?.top,shellBottom:shell?.bottom,height:r.height}});
+ check('composer visible above tab bar',metric.top>=0&&metric.bottom<=(metric.navTop??0)+1&&metric.height>=38,JSON.stringify(metric));
+ await page.setViewportSize({width:390,height:490});await page.waitForTimeout(110);
+ const compact=await field.evaluate(el=>{const r=el.getBoundingClientRect(),nav=document.querySelector('.mw-bottom')?.getBoundingClientRect();return {top:r.top,bottom:r.bottom,navTop:nav?.top,height:r.height}});
+ check('composer visible with mobile keyboard',compact.top>=0&&compact.bottom<=(compact.navTop??0)+1&&compact.height>=38,JSON.stringify(compact));
+ await field.focus();await page.waitForTimeout(80);
+ const focused=await field.evaluate(el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom}});
+ check('composer stays visible on focus',focused.top>=0&&focused.bottom<=490,JSON.stringify(focused));
+
+
  const chatInput=page.getByRole('textbox',{name:'Сообщение семье'});await chatInput.fill('Синтетическое тестовое сообщение');await page.getByRole('button',{name:'Отправить сообщение'}).click();await page.waitForTimeout(180);check('real chat send',counters.restPosts.includes('family_chat_messages'));
  check('no JS exceptions',counters.errors.length===0,counters.errors.join(' | '));
  await page.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-'+role+'-2.8.png'});

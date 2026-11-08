@@ -14,6 +14,7 @@ export function FamilyChat({familyId,userId}:{familyId:string;userId:string}){
  const [sending,setSending]=useState(false)
  const [connected,setConnected]=useState(false)
  const bottom=useRef<HTMLDivElement>(null)
+ const editorRef=useRef<HTMLInputElement>(null)
  const load=useCallback(async()=>{
   if(!supabase)return
   const {data,error}=await supabase.from('family_chat_messages')
@@ -43,7 +44,8 @@ export function FamilyChat({familyId,userId}:{familyId:string;userId:string}){
   window.addEventListener('focus',onFocus)
   return()=>{active=false;window.clearInterval(timer);window.removeEventListener('focus',onFocus);void client.removeChannel(channel)}
  },[familyId,load,userId])
- useEffect(()=>{bottom.current?.scrollIntoView({behavior:'smooth',block:'end'})},[messages.length])
+ useEffect(()=>{const feed=bottom.current?.parentElement;if(feed)feed.scrollTop=feed.scrollHeight},[messages.length])
+ const focusEditor=()=>{const field=editorRef.current;if(!field)return;window.setTimeout(()=>{field.scrollIntoView({block:'nearest',behavior:'instant'})},90)}
  const sender=(id:string)=>id===userId?'Вы':names[id]||(members.find(x=>x.user_id===id)?.role==='parent'?'Родитель':'Ребёнок')
  async function send(e:React.FormEvent){
   e.preventDefault()
@@ -68,7 +70,7 @@ export function FamilyChat({familyId,userId}:{familyId:string;userId:string}){
   </div>
   {error&&<p className="family-chat-error" role="alert">{error}</p>}
   <form className="family-chat-form" onSubmit={e=>void send(e)}>
-   <input aria-label="Сообщение семье" placeholder="Написать сообщение…" value={draft} maxLength={1000} onChange={e=>setDraft(e.target.value)}/>
+   <input ref={editorRef} onFocus={focusEditor} enterKeyHint="send" autoComplete="off" aria-label="Сообщение семье" placeholder="Написать сообщение…" value={draft} maxLength={1000} onChange={e=>setDraft(e.target.value)}/>
    <button type="submit" disabled={sending||!draft.trim()} aria-label="Отправить сообщение">Отправить</button>
   </form>
  </section>
