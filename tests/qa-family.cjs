@@ -36,7 +36,7 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
- const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;
+ const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
   const request=route.request(),url=new URL(request.url()), name=url.pathname.split('/').pop(),method=request.method();
   const resp=(data,object=false)=>route.fulfill({status:200,contentType:object?'application/vnd.pgrst.object+json':'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify(data)});
@@ -53,7 +53,7 @@ async function run(role,browser){
    }
   }
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
-  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
@@ -71,7 +71,7 @@ async function run(role,browser){
    case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true}];break;
    case 'reward_requests':data=[];break;
    case 'behavior_points':data=[];break;
-   case 'spiritual_activity_records':data=[];break;
+   case 'spiritual_activity_records':data=spiritualAward?[{id:'a4444444-4444-4444-8444-444444444444',activity_date:dateToday,step_id:'daily-text',points:10}]:[];break;
    case 'spiritual_point_requests':data=[];break;
    case 'child_task_proposals':data=[{id:'88888888-8888-4888-8888-888888888888',title:'Помыть велосипед',proposed_points:20,status:'pending'}];break;
    case 'child_world_progress':data=[{active_world:world}];break;
@@ -165,12 +165,32 @@ async function run(role,browser){
   await page.waitForTimeout(1800);
   check('child downloads private scripture library',await page.getByText('СИНТЕТИЧЕСКИЙ ТЕКСТ '+dateToday).count()>0);
   check('offline scripture date picker',await page.getByRole('textbox',{name:'Выбрать дату ежедневного текста'}).count()>0);
+  await page.locator('.daily-content').scrollIntoViewIfNeeded();
+  await page.locator('.daily-content').click({position:{x:20,y:35}});
+  await page.waitForTimeout(1600);
+  const partial=await page.evaluate(([u,d])=>JSON.parse(localStorage.getItem(`moymir-read-v1:${u}:${d}`)||'null'),[uid,dateToday]);
+  check('reading timer records real active time',!!partial&&partial.seconds>=1,JSON.stringify(partial));
+  check('daily completion disabled before reading',await page.locator('.daily-finish-reading').isDisabled());
+  check('old one-click action removed',await page.locator('.mw-chore').filter({hasText:'Прочитать ежедневный стих'}).getByRole('button',{name:'Отметить'}).count()===0);
   check('family identity cached for offline use',await page.evaluate(uid=>!!localStorage.getItem('moymir-family-offline-'+uid),uid));
   await page.context().setOffline(true);
   await page.locator('.mw-cloud-syncbar button').first().click();
   await page.waitForTimeout(900);
   check('daily text remains readable offline',await page.getByText('СИНТЕТИЧЕСКИЙ ТЕКСТ '+dateToday).count()>0);
   await page.context().setOffline(false);
+  await page.evaluate(([u,d])=>localStorage.setItem(`moymir-read-v1:${u}:${d}`,JSON.stringify({seconds:60,depth:1,interactions:4})),[uid,dateToday]);
+  await page.getByRole('button',{name:/Учёба/}).last().click();
+  await page.getByRole('button',{name:/Духовный рост/}).last().click();
+  await page.waitForTimeout(400);
+  check('resume reading unlocks completion',await page.locator('.daily-finish-reading').isEnabled());
+  await page.locator('.daily-finish-reading').click();await page.getByText(/Сегодня прочитано · \+10/).waitFor({state:'visible',timeout:6000});
+
+  check('protected server award only once',counters.rpc.filter(x=>x.name==='finish_daily_text_reading').length===1);
+  check('ten spiritual points awarded',spiritualAward===10);
+  check('completed reward displayed',await page.getByText(/Сегодня прочитано · \+10/).count()>0);
+  check('claim button removed after award',await page.locator('.daily-finish-reading').count()===0);
+  check('coins unchanged',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
+
 
  }
 

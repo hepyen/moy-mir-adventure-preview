@@ -3,7 +3,7 @@ export type SpiritualStep={id:string;title:string;points:number;icon:string;rhyt
 export type SpiritualRecord={date:string;stepId:string;state:StepStatus;points:number}
 export const spiritualSteps:SpiritualStep[]=[
 {id:'bible',title:'Почитать Библию',points:10,icon:'📖',rhythm:'daily'},
-{id:'daily-text',title:'Прочитать ежедневный стих',points:5,icon:'🌤️',rhythm:'daily'},
+{id:'daily-text',title:'Прочитать ежедневный стих',points:10,icon:'🌤️',rhythm:'daily'},
 {id:'bedtime-prayer',title:'Помолиться перед сном',points:5,icon:'🙏',rhythm:'daily'},
 {id:'meeting-prep',title:'Подготовиться к встрече собрания',points:15,icon:'📝',rhythm:'when-possible'},
 {id:'meeting-attend',title:'Побывать на встрече собрания',points:10,icon:'🏛️',rhythm:'when-possible'},
