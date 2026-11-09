@@ -39,3 +39,5 @@
 @keyframes miroAlarmFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-13px) rotate(2deg)}}
 @keyframes miroAlarmSun{from{transform:translateY(4px) scale(.94)}to{transform:translateY(-9px) scale(1.05)}}
 @media(prefers-reduced-motion:reduce){.miro-alarm-panel *{animation:none!important}}
+
+.miro-alarm-warning strong{display:block;font-size:13px;margin-bottom:5px}.miro-alarm-warning p{margin:4px 0 10px}.miro-alarm-warning button{background:#248f78;color:white;border:0;border-radius:12px;padding:12px;font-size:12px;font-weight:900;width:100%}
