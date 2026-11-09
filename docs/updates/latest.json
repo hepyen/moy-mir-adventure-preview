@@ -11,6 +11,6 @@
   "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v3.2.0/MOY_MIR_3.2.0_OTA.zip",
   "sha256": "fbf4c497ef0eb6e690e52a4297fca3d90e4c5da447039a9230cb0673db21a607",
   "nativeBaseVersion": "2.7.0",
-  "apkUrl": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v3.2.0/MOY_MIR_3.2.0_TEST.apk",
+  "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/MOY_MIR_3.2.0_TEST.apk",
   "required": false
 }

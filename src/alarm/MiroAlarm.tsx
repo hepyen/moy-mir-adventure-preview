@@ -31,7 +31,7 @@ const soundFile=(tone:string)=>import.meta.env.BASE_URL+'alarm/'+tone+'.mp3';
 const fmtTime=(h:number,m:number)=>String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 const native=Capacitor.isNativePlatform()&&Capacitor.isPluginAvailable('MiroAlarm');
 const LEGACY_NATIVE=Capacitor.isNativePlatform()&&!native;
-const APK_URL='https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v3.2.0/MOY_MIR_3.2.0_TEST.apk';
+const APK_URL='https://hepyen.github.io/moy-mir-adventure-preview/downloads/MOY_MIR_3.2.0_TEST.apk';
 
 export function MiroAlarmPanel({parent=false}:{parent?:boolean}){
  const [settings,setSettings]=useState<AlarmState>(DEFAULT);
