@@ -1,0 +1,41 @@
+.miro-alarm-panel{margin:14px 0 20px;border:1px solid #cae6e8;border-radius:22px;overflow:hidden;background:#fff;box-shadow:0 10px 28px #2c65761a;color:#1b4558}
+.miro-alarm-heading{display:flex;gap:10px;align-items:center;padding:17px 15px 14px;background:#f2fcf9}
+.miro-alarm-clock-icon{font-size:32px}
+.miro-alarm-heading span{font-size:10px;font-weight:900;letter-spacing:.08em;color:#26a994}
+.miro-alarm-heading h2{font-size:19px;line-height:1.2;margin:4px 0;color:#225471}
+.miro-alarm-heading p{font-size:11px;line-height:1.5;color:#6c8a9a;margin:0}
+.miro-alarm-scene{position:relative;overflow:hidden;min-height:320px;padding:23px 17px 22px;text-align:center;background:linear-gradient(180deg,#326f9e 0%,#7fc5d5 48%,#ffe0a6 100%);color:#194660;display:flex;flex-direction:column;align-items:center;justify-content:center;isolation:isolate}
+.miro-alarm-sun{position:absolute;right:14%;top:18%;font-size:75px;color:#ffde82;filter:drop-shadow(0 0 30px #ffe58b);z-index:-1;animation:miroAlarmSun 6s ease-in-out infinite alternate}
+.miro-alarm-cloud{position:absolute;color:#fff9;z-index:-1;user-select:none}.miro-alarm-cloud.one{left:7%;top:20%;font-size:42px}.miro-alarm-cloud.two{right:12%;top:37%;font-size:27px}
+.miro-alarm-stars{font-size:14px;color:#fffae6;letter-spacing:14px}
+.miro-alarm-time{font-size:52px;font-weight:950;color:white;text-shadow:0 3px 12px #174c7370;font-variant-numeric:tabular-nums;line-height:1.12;margin:8px 0}
+.miro-alarm-avatar{width:132px;height:132px;object-fit:contain;filter:drop-shadow(0 9px 9px #155a7859);animation:miroAlarmFloat 3s ease-in-out infinite}
+.miro-alarm-avatar.waking{animation-duration:1.7s}
+.miro-alarm-scene strong{font-size:21px;color:#143b5a;text-shadow:0 1px 1px #fff5;margin:4px 0}
+.miro-alarm-scene p{margin:5px 0 14px;color:#315d70;font-size:13px;line-height:1.5;max-width:265px}
+.miro-alarm-preview,.miro-alarm-scene-actions button{border:0;background:#fff;color:#167e81;padding:12px 14px;border-radius:14px;font-size:12px;font-weight:900;box-shadow:0 4px 11px #265b6b28}
+.miro-alarm-scene-actions{display:flex;justify-content:center;gap:8px}.miro-alarm-scene-actions button:last-child{background:#23ac8a;color:white}
+.miro-alarm-form{display:flex;flex-direction:column;gap:14px;padding:17px}
+.miro-alarm-switch{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.miro-alarm-switch span{display:flex;flex-direction:column;gap:4px}
+.miro-alarm-switch b{font-size:14px}.miro-alarm-switch small{color:#6e94a4;font-size:11px}
+.miro-alarm-switch input{width:24px;height:24px;accent-color:#1bad91}
+.miro-alarm-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.miro-alarm-row label,.miro-alarm-field{font-size:12px;font-weight:800;display:flex;flex-direction:column;gap:6px}
+.miro-alarm-row input,.miro-alarm-row select,.miro-alarm-field select{min-width:0;width:100%;font-size:14px;padding:11px;border-radius:12px;border:1px solid #cfebeb;background:#f8fdfb;color:#294e63}
+.miro-alarm-week>span{font-size:12px;font-weight:800}.miro-alarm-week>div{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-top:9px}
+.miro-alarm-week button{min-width:0;border:1px solid #d5e9ed;background:#eef4f6;border-radius:11px;padding:10px 0;color:#698795;font-size:11px;font-weight:800}
+.miro-alarm-week button.selected{background:#2ab99d;color:#fff;border-color:#2ab99d}
+.miro-alarm-field small{font-size:10px;font-weight:400;color:#7899a2}
+.miro-alarm-check{display:flex;gap:9px;align-items:center;font-size:12px;color:#345f72}.miro-alarm-check input{accent-color:#26b99a;width:17px;height:17px}
+.miro-alarm-permissions{display:flex;flex-direction:column;gap:6px}.miro-alarm-permissions button{background:#fff2cc;color:#8e621f;border:1px solid #ffe0a0;border-radius:11px;padding:11px;font-size:12px;font-weight:800;text-align:left}
+.miro-alarm-note,.miro-alarm-warning,.miro-alarm-next,.miro-alarm-error,.miro-alarm-success{padding:10px 12px;border-radius:10px;font-size:11px;line-height:1.5;margin:0}
+.miro-alarm-note{background:#f2f7fb;color:#678494}.miro-alarm-warning{background:#fff4df;color:#96662e}.miro-alarm-next{background:#e8fbef;color:#247c65}.miro-alarm-error{background:#ffe8e8;color:#a23939}.miro-alarm-success{background:#e2faed;color:#258268}
+.miro-alarm-buttons{display:flex;flex-wrap:wrap;gap:8px}
+.miro-alarm-buttons button{flex:1;background:#21ad91;border:0;color:white;border-radius:13px;padding:12px;font-size:12px;font-weight:900}
+.miro-alarm-buttons button+button{background:#e5f4f5;color:#357787}
+.miro-alarm-buttons button:disabled{opacity:.55}
+.miro-alarm-footnote{font-size:10px;line-height:1.55;color:#7d96a1;margin:0;padding:0 16px 16px}
+@keyframes miroAlarmFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-13px) rotate(2deg)}}
+@keyframes miroAlarmSun{from{transform:translateY(4px) scale(.94)}to{transform:translateY(-9px) scale(1.05)}}
+@media(prefers-reduced-motion:reduce){.miro-alarm-panel *{animation:none!important}}

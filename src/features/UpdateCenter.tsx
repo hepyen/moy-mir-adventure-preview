@@ -5,8 +5,8 @@ import {Browser} from '@capacitor/browser';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {playSound} from './sounds';
 import './system.css';
-const APP_VERSION='3.1.0';
-const BASE_VERSION='2.7.0';
+const APP_VERSION='3.2.0';
+const BASE_VERSION='3.2.0';
 const MANIFEST='https://hepyen.github.io/moy-mir-adventure-preview/updates/latest.json';
 type Manifest={version:string;title:string;notes:string[];url:string;sha256:string;nativeBaseVersion:string;required?:boolean;apkUrl?:string};
 function newer(a:string,b:string){const x=a.split('.').map(Number),y=b.split('.').map(Number);return x.some((n,i)=>n>y[i]&&x.slice(0,i).every((v,j)=>v===y[j]))}
@@ -43,6 +43,7 @@ export function UpdateCenter(){
    const r=await fetch(MANIFEST+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(10000)});
    if(!r.ok)throw Error('Сервер обновлений пока не отвечает');
    const payload=await r.json();
+   if(typeof payload?.version==='string'&&/^\d+\.\d+\.\d+$/.test(payload.version)&&!newer(payload.version,APP_VERSION)){setAvailable(null);if(manual)setStatus('Установлена актуальная версия ✓');return}
    if(!valid(payload))throw Error('Некорректный файл обновлений');
    if(newer(payload.version,APP_VERSION)){setAvailable(payload);setStatus('');void notifyUpdate(payload);if(!localStorage.getItem('moymir-update-seen-'+payload.version)){playSound('notification');localStorage.setItem('moymir-update-seen-'+payload.version,'true')}}
    else{setAvailable(null);if(manual)setStatus('Установлена актуальная версия ✓')}

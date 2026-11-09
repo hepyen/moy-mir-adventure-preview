@@ -363,6 +363,17 @@ async function run(role,browser){
 
  const chatInput=page.getByRole('textbox',{name:'Сообщение семье'});await chatInput.fill('Синтетическое тестовое сообщение');await page.getByRole('button',{name:'Отправить сообщение'}).click();await page.waitForTimeout(180);check('real chat send',counters.restPosts.includes('family_chat_messages'));
  await page.getByRole('button',{name:'Открыть настройки'}).click();
+ const alarm=page.locator('.miro-alarm-panel');
+ check('Miro wakeup settings visible',await alarm.count()===1);
+ check('alarm only has web preview in browser',await alarm.getByText(/В браузере доступен только предпросмотр/).count()===1);
+ check('Miro alarm original tracks',await alarm.locator('select').last().locator('option').count()===3);
+ check('alarm scheduling disabled without Android module',await alarm.getByRole('button',{name:'Сохранить будильник'}).isDisabled());
+ check('alarm time controls owned by parent',role==='parent'?await alarm.locator('input[type=time]').isEnabled():await alarm.locator('input[type=time]').isDisabled());
+ await alarm.getByRole('button',{name:/Посмотреть и послушать/}).click();
+ check('Miro animation opened',await alarm.locator('.miro-alarm-avatar.waking').count()===1);
+ check('awake and snooze controls exist',await alarm.getByRole('button',{name:/Я проснулся!/}).count()===1&&await alarm.getByRole('button',{name:/Ещё 5 мин/}).count()===1);
+ await alarm.getByRole('button',{name:/Я проснулся!/}).click();
+ check('awake greeting displayed',await alarm.getByText(/Новый день начался/).count()===1);
  check('original music picker',await page.getByRole('combobox',{name:'Выбрать фоновую мелодию'}).count()>0);
  check('music volume control',await page.getByRole('slider',{name:'Громкость фоновой музыки'}).count()>0);
  if(role==='parent'){
