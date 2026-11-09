@@ -388,6 +388,55 @@ async function run(role,browser){
   await page.getByRole('button',{name:/Выключить настоящую музыку/}).click();
   check('music off',await page.evaluate(()=>localStorage.getItem('moymir28-bg-music')==='false'));
  }
+
+ // My Health is reached from settings without adding a seventh bottom tab.
+ await page.locator('.mw-settings-tile').filter({hasText:'Моё здоровье'}).getByRole('button').click();
+ const health=page.locator('.h-health');
+ check('My Health opens from settings',await health.count()===1);
+ check('health screen opens from top',await page.locator('.mw-scroll').evaluate(el=>el.scrollTop<5));
+
+ check('Miro avatar shared with world',await health.locator('.h-miro svg').count()===1);
+ check('sleep times on dashboard',await health.getByText('21:00').count()>0&&await health.getByText('06:45').count()>0);
+ check('five health habits visible',await health.locator('.h-habit').count()===5);
+ await health.getByRole('checkbox',{name:'Подвигался утром'}).check();
+ check('habit saved on this device',await page.evaluate(id=>JSON.parse(localStorage.getItem('moymir-health-local-v1:'+id)||'{}').habits?.[new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())]?.includes('morning'),ids.child));
+ check('nutrition does not award coins',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
+ await health.locator('.h-navigation button').filter({hasText:'Зарядка'}).click();
+ check('seven gentle movements visible',await health.locator('.h-exercise-list button').count()===7);
+ await health.getByRole('button',{name:/Начать \/ продолжить/}).click();
+ await page.waitForTimeout(1170);
+ check('exercise timer actually runs',await health.locator('.h-timer').innerText().then(x=>x!=='00:40'));
+ await health.getByRole('button',{name:/Пауза/}).click();
+ await health.locator('.h-navigation button').filter({hasText:'Еда'}).click();
+ check('7-day family menu',await health.locator('.h-week button').count()===7);
+ check('four meal slots',await health.locator('.h-meal').count()===4);
+ if(role==='parent'){
+  await health.getByRole('button',{name:/Изменить меню/}).click();
+  await health.getByRole('textbox',{name:'🌤️ Завтрак'}).fill('Овсянка и яблоко для теста');
+  check('parent menu editing saved locally',await page.evaluate(id=>JSON.parse(localStorage.getItem('moymir-health-local-v1:'+id)||'{}').meals.some(m=>m.breakfast==='Овсянка и яблоко для теста'),ids.child));
+ }else{
+  check('child cannot edit family meal plan',await health.getByRole('button',{name:/Изменить меню/}).count()===0);
+ }
+ await health.locator('.h-navigation button').filter({hasText:'Сон'}).click();
+ check('sleep plan has bedtime wind-down',await health.getByText(/Заканчиваем игры/).count()===1);
+ check('child sleep controls restricted',role==='child'?await health.locator('input[type=time]').count()===0:await health.locator('input[type=time]').count()===2);
+ if(role==='parent'){
+  await health.locator('.h-navigation button').filter({hasText:'Родителю'}).click();
+  check('private measurements in parent UI',await health.getByText(/Рост и вес необязательны/).count()===1);
+  await health.getByPlaceholder('Например, 151').fill('151.5');
+  await health.getByPlaceholder('Например, 48').fill('48');
+  await health.getByRole('button',{name:'Сохранить измерение'}).click();
+  check('measurement saved locally',await health.getByText(/151.5 см · 48 кг/).count()===1);
+  check('measurements not posted to Supabase',!counters.restWrites.some(x=>x.name.includes('health')));
+ }else{
+  check('child has no parent health tab',await health.getByRole('button',{name:/Родителю/}).count()===0);
+  check('child cannot see weight or height',await health.getByText('Вес, кг').count()===0&&await health.getByText('Рост, см').count()===0);
+ }
+ await page.getByRole('button',{name:'Открыть настройки'}).click();
+ await page.locator('.mw-settings-tile').filter({hasText:'Моё здоровье'}).getByRole('button').click();
+ check('health habits survive navigation',await page.locator('.h-health').getByRole('checkbox',{name:'Подвигался утром'}).isChecked());
+ await page.locator('.h-health').screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-health-'+role+'-3.4.png'});
+
  check('single-row six bottom tabs',await page.locator('.mw-bottom button').count()===6);
  check('no JS exceptions',counters.errors.length===0,counters.errors.join(' | '));
  await page.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-'+role+'-2.8.png'});

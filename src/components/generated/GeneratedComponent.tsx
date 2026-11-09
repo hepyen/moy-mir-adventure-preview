@@ -2,6 +2,7 @@ import {useIslandStory} from '../../legacyWorld/useIslandStory';
 import {IslandStory} from '../../legacyWorld/IslandStory';
 import {PlayTimeBank} from '../../playtime/PlayTimeBank';
 import {MiroAlarmPanel,syncMiroAlarmLessons} from '../../alarm/MiroAlarm';
+import {HealthHub} from '../../health/HealthHub';
 import {updateMiroDayContext} from '../../day/miroContext';
 import {MyDay} from '../../day/MyDay';
 import {IslandMoments} from '../../legacyWorld/IslandMoments';
@@ -28,7 +29,7 @@ import {CloudSignIn,CloudTasks,CloudShop,CloudSpiritual} from './CloudPanels';
 import {WORLD_01_OBJECTS,WORLD_01_END} from '../../legacyWorld/world01';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './MyWorld.css';
-type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual' | 'settings' | 'school';
+type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual' | 'settings' | 'school' | 'health';
 type Proposal={id:number;title:string;points:number;emoji:string;status:'pending'|'accepted'|'rejected'};
 type Chore = {
   id: number;
@@ -119,14 +120,14 @@ export const GeneratedComponent = () => {
   const subscription=LocalNotifications.addListener('localNotificationActionPerformed',event=>{
    if(!active)return;
    const section=event.notification.extra?.section;
-   if(section==='school'||section==='spiritual'||section==='shop')setTab(section);
+   if(section==='school'||section==='spiritual'||section==='shop'||section==='health')setTab(section);
    else if(section==='updates')setTab('settings');
   }).catch(e=>console.warn('Reminders navigation unavailable',e));
   return()=>{active=false;void subscription.then(listener=>{if(listener)return listener.remove()})};
  },[]);
 
  useEffect(()=>{
-  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.section==='school')setTab('school');else if(data.section==='spiritual')setTab('spiritual');else if(data.section==='shop')setTab('shop');else if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
+  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.section==='health')setTab('health');else if(data.section==='school')setTab('school');else if(data.section==='spiritual')setTab('spiritual');else if(data.section==='shop')setTab('shop');else if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
   window.addEventListener('moymir-notification-open',open);
   return()=>window.removeEventListener('moymir-notification-open',open);
  },[]);
@@ -135,6 +136,9 @@ export const GeneratedComponent = () => {
   const [day,setDay]=useState(today());
 
   const [tab, setTab] = useState<Tab>('world');
+  const scrollScreen=useRef<HTMLDivElement>(null);
+  useEffect(()=>{if(scrollScreen.current)scrollScreen.current.scrollTop=0},[tab]);
+
   const [previewWorld,setPreviewWorld]=useState<1|2>(1);
   const [worldAdvanceError,setWorldAdvanceError]=useState('');
   const [advancingWorld,setAdvancingWorld]=useState(false);
@@ -312,7 +316,7 @@ export const GeneratedComponent = () => {
   return <main className="mw-root">
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.3.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.4.0</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -321,13 +325,14 @@ export const GeneratedComponent = () => {
  <button className={shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else if(cloud.role==='child')setShowConnection(true);else setTab('tasks')}}>👨‍👩‍👦 Родители</button>
  <SoundControl onChange={setSound}/>
  </div>
- <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div> <div className={tab==='family'&&connected?'mw-scroll mw-family-screen':'mw-scroll'}>
+ <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div> <div ref={scrollScreen} className={tab==='family'&&connected?'mw-scroll mw-family-screen':'mw-scroll'}>
  <div className="mw-system-stack" style={{display:tab==='settings'?'flex':'none'}}><UpdateCenter/>{connected&&cloud.session&&<><NotificationInbox userId={cloud.session.user.id} familyId={cloud.familyId}/><PushCenter userId={cloud.session.user.id}/></>}</div>
  {showConnection&&(connected?<section className="mw-panel mw-cloud-account"><h3>Семейный аккаунт</h3><p>{cloud.session?.user.email}</p><button onClick={()=>{void cloud.logout();setShowConnection(false)}}>Выйти</button><button onClick={()=>setShowConnection(false)}>Закрыть</button></section>:tab==='world'?<CloudSignIn cloud={cloud}/>:null)}
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
  {connected&&<MyDay cloud={cloud} school={school} onGo={setTab} onAskMiro={askMiro}/>}
+ <button className="mw-health-shortcut" type="button" onClick={()=>setTab('health')}><span className="mw-health-heart">💚</span><span><strong>Моё здоровье</strong><small>Сон · зарядка с Миро · здоровое меню</small></span><b>Открыть →</b></button>
  <div className="mw-worldswitch"><button className={currentWorld===1?'active':''} onClick={()=>setPreviewWorld(1)}>🏡 Домик на поляне</button><button className={currentWorld===2?'active':''} disabled={cloud.worldNumber!==2} onClick={()=>setPreviewWorld(2)}>🌳 Домик на дереве {cloud.worldNumber!==2?'🔒':''}</button></div>
  <WorldSafe key={currentWorld+':'+(cloud.session?.user.id||'guest')} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound} userId={cloud.session?.user.id||'guest'}><Suspense fallback={<div className="mw-panel">🌳 Загружаем остров…</div>}><World3D points={pointsInWorld} worldNumber={currentWorld} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||'guest'} soundEnabled={sound} adventureCount={story.total}/></Suspense></WorldSafe>
  {connected&&<IslandStory cloud={cloud} story={story}/>}
@@ -345,11 +350,12 @@ export const GeneratedComponent = () => {
  <section className="mw-panel"><div className="mw-section-label">КАК РАЗВИВАТЬ МИР</div><p className="mw-task-explain">Каждое подтверждённое родителем задание приносит монеты и очки развития. Постройки возникают сами, в прежнем порядке. Трогай Миро на острове: он увеличится и поможет разобраться с уроками.</p><button className="mw-primary" onClick={()=>setTab('tasks')}>Посмотреть задания →</button></section>
  </>}
  {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'health' && <HealthHub parent={shownParent} childId={cloud.childId||'local-ilya'}/>}
  {tab === 'school' && (connected?<SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'shop' && (connected?<><CloudShop cloud={cloud}/><PlayTimeBank cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'spiritual' && (connected?<><DailyTextReader cloud={cloud} onAskMiro={askMiro} onSchoolSettings={()=>setTab('school')}/><CloudSpiritual cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'family' && <><section className="mw-greeting"><div className="mw-eyebrow">НАШ СЕМЕЙНЫЙ ЧАТ</div><h1>Семья ❤️</h1><p>Сообщения доставляются всем участникам семьи.</p></section>{connected&&cloud.session?<FamilyChat familyId={cloud.familyId} userId={cloud.session.user.id}/>:<CloudSignIn cloud={cloud}/>}</>}
- {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, будильник и духовный рост.</p></section><MiroAlarmPanel parent={shownParent} lessons={school.lessons}/><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>📚 Учёба и расписание</strong><p>Предметы, домашние задания и время напоминаний.</p><button onClick={()=>setTab('school')}>Открыть расписание</button></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}
+ {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, будильник и духовный рост.</p></section><MiroAlarmPanel parent={shownParent} lessons={school.lessons}/><div className="mw-settings-tile"><strong>💚 Моё здоровье</strong><p>Сон, зарядка, недельное меню и полезные привычки. Рост и вес доступны только родителю.</p><button onClick={()=>setTab('health')}>Открыть «Моё здоровье»</button></div><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>📚 Учёба и расписание</strong><p>Предметы, домашние задания и время напоминаний.</p><button onClick={()=>setTab('school')}>Открыть расписание</button></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}
 
  </div>
  <nav className="mw-bottom" aria-label="Навигация">{nav.map(([id, ico, label]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><span>{ico}</span><small>{label}</small>{id === 'shop' && pending.length > 0 && <i>{pending.length}</i>}</button>)}</nav>
