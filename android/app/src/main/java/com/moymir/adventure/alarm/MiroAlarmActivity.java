@@ -71,11 +71,19 @@ public class MiroAlarmActivity extends Activity {
         floatAnimation.setDuration(2200);floatAnimation.setRepeatCount(ValueAnimator.INFINITE);floatAnimation.start();
         TextView greeting=text("Доброе утро, Илья!",25,0xff133c55,true);
         content.addView(greeting,lp(-1,px(52)));
-        speech=text("Пи-пи! Это Миро. Солнце уже проснулось, а ты?",16,0xff264a59,false);
+        final String[] morningMessages=MiroAlarmMessages.displayMessages(this);
+        speech=text(morningMessages[0],16,0xff264a59,false);
         speech.setPadding(px(14),px(8),px(14),px(14));
-        content.addView(speech,lp(-1,px(92)));
-        handler.postDelayed(()->{if(!responded)speech.setText("Я уже открыл шторы! Давай начнём хороший день!");},10500);
-        handler.postDelayed(()->{if(!responded)speech.setText("Илья, я здесь! Нажми «Я проснулся», когда встанешь.");},32000);
+        content.addView(speech,lp(-1,px(135)));
+        handler.postDelayed(new Runnable(){
+            int phrase=0;
+            @Override public void run(){
+                if(responded)return;
+                phrase=(phrase+1)%morningMessages.length;
+                speech.setText(morningMessages[phrase]);
+                handler.postDelayed(this,12500);
+            }
+        },12500);
         int snooze=MiroAlarmScheduler.prefs(this).getInt("snooze",5);
         if(snooze>0){
             Button later=button("💤  Ещё "+snooze+" минут",0xffedf9ff,0xff1f5b7c);

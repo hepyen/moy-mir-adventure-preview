@@ -18,6 +18,8 @@ import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.content.pm.ServiceInfo;
+import java.util.ArrayList;
+import java.util.List;
 import androidx.core.app.NotificationCompat;
 import com.moymir.adventure.R;
 
@@ -26,10 +28,44 @@ public class MiroAlarmService extends Service {
     private static final int NOTIFICATION=7410;
     private final Handler handler=new Handler(Looper.getMainLooper());
     private MediaPlayer player, greeting;
+    private final List<Integer> pendingSpeech=new ArrayList<>();
+    private int promptIndex=0;
     private Vibrator vibrator;
     private long begun;
     private boolean gradual;
     private boolean speaking=false;
+    private final Runnable nextPrompt=new Runnable(){
+        @Override public void run(){
+            if(player==null)return;
+            pendingSpeech.clear();
+            pendingSpeech.addAll(MiroAlarmMessages.voiceSequence(MiroAlarmService.this,promptIndex++));
+            speaking=true;
+            playNextVoice();
+        }
+    };
+    private void playNextVoice(){
+        if(player==null)return;
+        if(pendingSpeech.isEmpty()){
+            speaking=false;
+            handler.postDelayed(nextPrompt,9200);
+            return;
+        }
+        int id=pendingSpeech.remove(0);
+        try{
+            greeting=makePlayer(id,false);
+            greeting.setVolume(1f,1f);
+            greeting.setOnCompletionListener(mp->{
+                mp.release();
+                if(greeting==mp)greeting=null;
+                handler.postDelayed(()->playNextVoice(),230);
+            });
+            greeting.start();
+        }catch(Exception e){
+            android.util.Log.w("MiroAlarm","Offline speech clip missing",e);
+            if(greeting!=null){try{greeting.release();}catch(Exception ignored){}greeting=null;}
+            handler.postDelayed(()->playNextVoice(),200);
+        }
+    }
     private final Runnable ramp=new Runnable(){
         @Override public void run(){
             if(player==null)return;
@@ -59,17 +95,7 @@ public class MiroAlarmService extends Service {
             player.start();
             handler.post(ramp);
         }catch(Exception e){android.util.Log.e("MiroAlarm","Audio player failed",e);}
-        if(p.getBoolean("voice",true)){
-            handler.postDelayed(()->{
-                if(player==null)return;
-                try {
-                    greeting=makePlayer(R.raw.miro_alarm_greeting,false);
-                    speaking=true;player.setVolume(0.24f,0.24f);
-                    greeting.start();
-                    greeting.setOnCompletionListener(mp->{mp.release();if(greeting==mp)greeting=null;speaking=false;});
-                }catch(Exception e){android.util.Log.w("MiroAlarm","Greeting unavailable",e);speaking=false;}
-            },10500);
-        }
+        if(p.getBoolean("voice",true))handler.postDelayed(nextPrompt,5100);
         if(p.getBoolean("vibrate",true)){
             vibrator=(Vibrator)getSystemService(Context.VIBRATOR_SERVICE);
             if(vibrator!=null && vibrator.hasVibrator()){
@@ -105,7 +131,7 @@ public class MiroAlarmService extends Service {
         NotificationCompat.Builder b=new NotificationCompat.Builder(this,CHANNEL)
           .setSmallIcon(R.mipmap.ic_launcher)
           .setContentTitle("☀️ Миро будит Илью")
-          .setContentText("Доброе утро, Илья! Пора просыпаться.")
+          .setContentText("Илья, вставай! Пора просыпаться. Новый день уже начался.")
           .setCategory(NotificationCompat.CATEGORY_ALARM)
           .setPriority(NotificationCompat.PRIORITY_MAX)
           .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -119,6 +145,7 @@ public class MiroAlarmService extends Service {
     }
     @Override public void onDestroy(){
         handler.removeCallbacksAndMessages(null);
+        pendingSpeech.clear();speaking=false;
         if(vibrator!=null)vibrator.cancel();
         if(greeting!=null){try{greeting.stop();}catch(Exception ignored){}greeting.release();greeting=null;}
         if(player!=null){try{player.stop();}catch(Exception ignored){}player.release();player=null;}

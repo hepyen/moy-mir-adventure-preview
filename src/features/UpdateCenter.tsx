@@ -5,8 +5,8 @@ import {Browser} from '@capacitor/browser';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {playSound} from './sounds';
 import './system.css';
-const APP_VERSION='3.2.1';
-const BASE_VERSION='2.7.0';
+const APP_VERSION='3.3.0';
+const BASE_VERSION='3.3.0';
 const MANIFEST='https://hepyen.github.io/moy-mir-adventure-preview/updates/latest.json';
 type Manifest={version:string;title:string;notes:string[];url:string;sha256:string;nativeBaseVersion:string;required?:boolean;apkUrl?:string};
 function newer(a:string,b:string){const x=a.split('.').map(Number),y=b.split('.').map(Number);return x.some((n,i)=>n>y[i]&&x.slice(0,i).every((v,j)=>v===y[j]))}

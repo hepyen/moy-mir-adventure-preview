@@ -9,6 +9,9 @@ import android.os.Build;
 import android.provider.Settings;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
+import com.getcapacitor.JSArray;
+import org.json.JSONObject;
+import org.json.JSONArray;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -22,6 +25,7 @@ public class MiroAlarmPlugin extends Plugin {
     private JSObject status(){
         android.content.SharedPreferences p=MiroAlarmScheduler.prefs(getContext());
         JSObject s=new JSObject();
+        s.put("featureVersion",3300);
         s.put("enabled",p.getBoolean("enabled",false));
         s.put("hour",p.getInt("hour",7));s.put("minute",p.getInt("minute",0));
         s.put("days",p.getInt("days",31));s.put("tone",p.getString("tone","sunrise"));
@@ -36,6 +40,30 @@ public class MiroAlarmPlugin extends Plugin {
         return s;
     }
     @PluginMethod public void getState(PluginCall call){call.resolve(status());}
+    @PluginMethod public void syncLessons(PluginCall call){
+        JSArray lessons=call.getArray("lessons");
+        if(lessons==null||lessons.length()>100){call.reject("Некорректное школьное расписание");return;}
+        try{
+            JSONObject byDay=new JSONObject();
+            for(int d=0;d<7;d++)byDay.put(Integer.toString(d),new JSONArray());
+            for(int i=0;i<lessons.length();i++){
+                JSONObject item=lessons.getJSONObject(i);
+                int day=item.optInt("weekday",-1);
+                String subject=item.optString("subject","").trim();
+                if(day<0||day>6||subject.isEmpty()||subject.length()>100)continue;
+                JSONArray dayLessons=byDay.getJSONArray(Integer.toString(day));
+                if(dayLessons.length()<12)dayLessons.put(subject);
+            }
+            String schedule=byDay.toString();
+            android.content.SharedPreferences prefs=MiroAlarmScheduler.prefs(getContext());
+            if(!schedule.equals(prefs.getString("lessons_week",""))){
+                prefs.edit().putString("lessons_week",schedule).putLong("lessons_updated",System.currentTimeMillis()).apply();
+            }
+            JSObject result=new JSObject();result.put("saved",true);
+            result.put("today",MiroAlarmMessages.lessonSummary(getContext()));
+            call.resolve(result);
+        }catch(Exception e){call.reject("Не получилось сохранить уроки для будильника",e);}
+    }
     @PluginMethod public void save(PluginCall call){
         int hour=call.getInt("hour",7),minute=call.getInt("minute",0);
         int days=call.getInt("days",31),snooze=call.getInt("snooze",5);
