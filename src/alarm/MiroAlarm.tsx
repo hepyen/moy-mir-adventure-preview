@@ -31,7 +31,7 @@ const soundFile=(tone:string)=>import.meta.env.BASE_URL+'alarm/'+tone+'.mp3';
 const fmtTime=(h:number,m:number)=>String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 const native=Capacitor.isNativePlatform()&&Capacitor.isPluginAvailable('MiroAlarm');
 const LEGACY_NATIVE=Capacitor.isNativePlatform()&&!native;
-const APK_URL='https://hepyen.github.io/moy-mir-adventure-preview/downloads/MOY_MIR_3.2.0_TEST.apk';
+const APK_URL='https://hepyen.github.io/moy-mir-adventure-preview/downloads/MOY_MIR_3.2.1_TEST.apk';
 
 export function MiroAlarmPanel({parent=false}:{parent?:boolean}){
  const [settings,setSettings]=useState<AlarmState>(DEFAULT);
@@ -107,7 +107,7 @@ export function MiroAlarmPanel({parent=false}:{parent?:boolean}){
    <label className="miro-alarm-check"><input type="checkbox" checked={settings.voice} onChange={e=>edit('voice',e.target.checked)} disabled={!parent}/> Голосовое приветствие Миро</label>
    <label className="miro-alarm-check"><input type="checkbox" checked={settings.vibrate} onChange={e=>edit('vibrate',e.target.checked)} disabled={!parent}/> Вибрация при пробуждении</label>
    {!parent&&<p className="miro-alarm-note">Изменить расписание может родитель в своём профиле на устройстве Ильи. Ты можешь посмотреть анимацию.</p>}
-   {LEGACY_NATIVE&&<div className="miro-alarm-warning"><strong>Нужен Android APK 3.2.0</strong><p>Обновление интерфейса получено, но на телефоне пока нет системного модуля будильника. Установи APK поверх текущего «Моего мира», не удаляя приложение.</p><button type="button" onClick={()=>void Browser.open({url:APK_URL}).catch(e=>setError(String(e)))}>⬇ Установить будильник Миро (APK)</button></div>}
+   {LEGACY_NATIVE&&<div className="miro-alarm-warning"><strong>Нужен Android APK 3.2.1</strong><p>Обновление интерфейса получено, но на телефоне пока нет системного модуля будильника. Установи APK поверх текущего «Моего мира», не удаляя приложение.</p><button type="button" onClick={()=>void Browser.open({url:APK_URL}).catch(e=>setError(String(e)))}>⬇ Установить будильник Миро (APK)</button></div>}
    {!Capacitor.isNativePlatform()&&<p className="miro-alarm-warning">В браузере доступен только предпросмотр. Реальный будильник работает в Android APK.</p>}
    {native&&<div className="miro-alarm-permissions">
       {!settings.exactAllowed&&<button type="button" disabled={busy} onClick={()=>void nativeAction(()=>plugin.requestExactAlarm())}>Разрешить точные сигналы Android</button>}
