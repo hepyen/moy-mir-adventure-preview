@@ -5,6 +5,7 @@ const ids={parent:'11111111-1111-4111-8111-111111111111',child:'22222222-2222-42
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function makeJWT(id){const payload=Buffer.from(JSON.stringify({sub:id,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+7200})).toString('base64url');return 'eyJhbGciOiJIUzI1NiJ9.'+payload+'.synthetic'}
 let failures=0;
+let growthMeasurements=[];let growthSerial=0;
 const privateDaily=new Map();
 async function syntheticEpub(){
  const zip=new JSZip();
@@ -82,6 +83,33 @@ async function run(role,browser){
     if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
+  if(name==='moymir_health_measurements'){
+    if(method==='GET')return resp(growthMeasurements);
+    if(method==='POST'){
+     const incoming=request.postDataJSON();
+     const item=Array.isArray(incoming)?incoming[0]:incoming;
+     const record={id:'c9999999-9999-4999-8999-'+String(++growthSerial).padStart(12,'0'),
+       family_id:item.family_id,child_id:item.child_id,client_ref:item.client_ref,
+       measured_on:item.measured_on,height_cm:item.height_cm,weight_kg:item.weight_kg};
+     const old=growthMeasurements.find(x=>x.client_ref===record.client_ref);
+     if(!old)growthMeasurements.push(record);
+     counters.restWrites.push({name,method,record});
+     return resp(old||record,request.headers()['accept']?.includes('vnd.pgrst.object')||false);
+    }
+    if(method==='PATCH'){
+     const id=url.searchParams.get('id')?.replace('eq.','');
+     const change=request.postDataJSON();
+     growthMeasurements=growthMeasurements.map(x=>x.id===id?{...x,...change}:x);
+     counters.restWrites.push({name,method});
+     return resp(growthMeasurements.find(x=>x.id===id),request.headers()['accept']?.includes('vnd.pgrst.object')||false);
+    }
+    if(method==='DELETE'){
+     const id=url.searchParams.get('id')?.replace('eq.','');
+     growthMeasurements=growthMeasurements.filter(x=>x.id!==id);
+     counters.restWrites.push({name,method});
+     return resp([]);
+    }
+  }
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
   let data=[];
@@ -391,6 +419,13 @@ async function run(role,browser){
   check('music off',await page.evaluate(()=>localStorage.getItem('moymir28-bg-music')==='false'));
  }
 
+ // A previous parent-only local journal must remain migratable.
+ if(role==='parent')await page.evaluate(id=>{
+  const key='moymir-health-local-v1:'+id;
+  const data=JSON.parse(localStorage.getItem(key)||'{}');
+  data.measurements=[{id:'legacy-test-001',date:'2026-08-01',height:148.5,weight:47}];
+  localStorage.setItem(key,JSON.stringify(data));
+ },ids.child);
  // My Health is reached from settings without adding a seventh bottom tab.
  await page.locator('.mw-settings-tile').filter({hasText:'Моё здоровье'}).getByRole('button').click();
  const health=page.locator('.h-health');
@@ -451,16 +486,52 @@ async function run(role,browser){
  check('child sleep controls restricted',role==='child'?await health.locator('input[type=time]').count()===0:await health.locator('input[type=time]').count()===2);
  if(role==='parent'){
   await health.locator('.h-navigation button').filter({hasText:'Родителю'}).click();
-  check('private measurements in parent UI',await health.getByText(/Рост и вес необязательны/).count()===1);
-  await health.getByPlaceholder('Например, 151').fill('151.5');
-  await health.getByPlaceholder('Например, 48').fill('48');
-  await health.getByRole('button',{name:'Сохранить измерение'}).click();
-  check('measurement saved locally',await health.getByText(/151.5 см · 48 кг/).count()===1);
-  check('measurements not posted to Supabase',!counters.restWrites.some(x=>x.name.includes('health')));
+  check('parent health role preserved',await health.getByRole('button',{name:/Открыть семейный дневник/}).count()===1);
  }else{
   check('child has no parent health tab',await health.getByRole('button',{name:/Родителю/}).count()===0);
-  check('child cannot see weight or height',await health.getByText('Вес, кг').count()===0&&await health.getByText('Рост, см').count()===0);
  }
+ await health.locator('.h-navigation button').filter({hasText:'Я расту'}).click();
+ const growthJournal=health.getByRole('region',{name:'Мой дневник роста'});
+ check('growth journal visible in both roles',await growthJournal.count()===1);
+ check('growth has date, height and weight inputs',await growthJournal.locator('.h-growth-form input').count()===3);
+ check('two separate charts available',await growthJournal.locator('.h-growth-plot').count()===2);
+ if(role==='parent'){
+  check('legacy measurements found',await growthJournal.getByText(/старых записей из родительского журнала/).count()===1);
+  await growthJournal.getByRole('button',{name:/Перенести в семейный дневник/}).click();
+  await growthJournal.getByText(/Перенесено прежних измерений/).waitFor({timeout:5000});
+  check('legacy parent measurement migrated to family',growthMeasurements.some(m=>m.measured_on==='2026-08-01'));
+ }else{
+  await growthJournal.getByText('148,5 см · 47 кг').waitFor({state:'visible',timeout:6000});
+  check('child sees previous measurements from parent',await growthJournal.getByText('148,5 см · 47 кг').count()===1);
+ }
+ const form=growthJournal.locator('.h-growth-form');
+ await form.locator('input[type=date]').fill(role==='parent'?'2026-09-01':dateToday);
+ await form.locator('input[type=number]').first().fill(role==='parent'?'150.5':'153.5');
+ await form.locator('input[type=number]').last().fill(role==='parent'?'48':'50');
+ await growthJournal.getByRole('button',{name:'Сохранить измерение'}).click();
+ await page.waitForTimeout(200);
+ check('measurements saved through family RLS table',counters.restWrites.some(x=>x.name==='moymir_health_measurements'&&x.method==='POST'));
+ check('history rendered',await growthJournal.locator('.h-growth-history').count()>=2);
+ check('growth graph contains real points',await growthJournal.locator('.h-growth-plot svg circle').count()>=2);
+ const currentRef=growthJournal.locator('.h-growth-history').first();
+ await currentRef.getByRole('button',{name:/Исправить измерение/}).click();
+ await form.locator('input[type=number]').first().fill('154.5');
+ await growthJournal.getByRole('button',{name:'Сохранить исправление'}).click();
+ await page.waitForTimeout(180);
+ check('record correction writes to protected table',counters.restWrites.some(x=>x.name==='moymir_health_measurements'&&x.method==='PATCH'));
+ check('corrected height visible in history',await growthJournal.getByText(/154,5 см/).count()>0);
+ await page.setViewportSize({width:320,height:720});
+ check('growth graphs and form fit small Android screen',await growthJournal.evaluate(el=>el.scrollWidth<=el.clientWidth+1),await growthJournal.evaluate(el=>'scroll='+el.scrollWidth+',client='+el.clientWidth));
+ await growthJournal.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-health-stage2-growth-'+role+'.png'});
+ await page.setViewportSize({width:390,height:790});
+
+ page.once('dialog',d=>d.accept());
+ await growthJournal.locator('.h-growth-history').first().getByRole('button',{name:/Удалить измерение/}).click();
+ await page.waitForTimeout(130);
+ check('delete operation guarded by server',counters.restWrites.some(x=>x.name==='moymir_health_measurements'&&x.method==='DELETE'));
+ check('weight not involved in rewards',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
+ await health.locator('.h-navigation button').filter({hasText:'Сегодня'}).click();
+ check('child and parent have growth shortcut',await health.getByRole('button',{name:/Я расту!/}).count()===1);
  await page.getByRole('button',{name:'Открыть настройки'}).click();
  await page.locator('.mw-settings-tile').filter({hasText:'Моё здоровье'}).getByRole('button').click();
  check('health habits survive navigation',await page.locator('.h-health').getByRole('checkbox',{name:'Подвигался утром'}).isChecked());

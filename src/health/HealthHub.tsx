@@ -2,6 +2,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {Capacitor} from '@capacitor/core';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {MiroAvatar} from '../legacyWorld/MiroAvatar';
+import {GrowthJournal} from './GrowthJournal';
 import './HealthHub.css';
 
 type Meal={breakfast:string;lunch:string;dinner:string;snack:string};
@@ -10,7 +11,7 @@ type HealthData={
   habits:Record<string,string[]>;mood:Record<string,string>;meals:Meal[];
   bed:string;wake:string;measurements:Measurement[];reminders:boolean;notes:string
 };
-type HealthSection='today'|'exercise'|'food'|'sleep'|'parent';
+type HealthSection='today'|'growth'|'exercise'|'food'|'sleep'|'parent';
 type HealthTheme='day'|'night'|'auto';
 function savedTheme(key:string):HealthTheme{try{const found=localStorage.getItem(key);return found==='day'||found==='night'||found==='auto'?found:'auto'}catch{return 'auto'}}
 const WEEK=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
@@ -92,7 +93,7 @@ async function setupReminders(bed:string,wake:string){
   extra:{section:'health'}
  }))});
 }
-export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childId?:string}){
+export function HealthHub({parent=false,childId='local',familyId}:{parent?:boolean;childId?:string;familyId?:string}){
  const key='moymir-health-local-v1:'+childId;
  const [entry,setEntry]=useState<{key:string;data:HealthData}>(()=>({key,data:read(key)}));
  const state=entry.key===key?entry.data:read(key);
@@ -129,8 +130,6 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
  const [secondsLeft,setSecondsLeft]=useState(ROUTINE[0].seconds);
  const [running,setRunning]=useState(false);
  const [completed,setCompleted]=useState(false);
- const [measureHeight,setMeasureHeight]=useState('');
- const [measureWeight,setMeasureWeight]=useState('');
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
  const today=dateMadrid();
@@ -175,13 +174,6 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
   }catch(e){setNotice(e instanceof Error?e.message:'Не удалось изменить напоминания')}
   finally{setBusy(false)}
  }
- function addMeasurement(){
-  if(!parent)return;
-  const h=Number(measureHeight.replace(',','.')),w=Number(measureWeight.replace(',','.'));
-  if(!Number.isFinite(h)||h<90||h>210||!Number.isFinite(w)||w<15||w>200){setNotice('Проверьте рост (90–210 см) и вес (15–200 кг).');return}
-  save(s=>({...s,measurements:[...s.measurements,{id:String(Date.now()),date:today,height:h,weight:w}].slice(-30)}));
-  setMeasureHeight('');setMeasureWeight('');
- }
  function nextExercise(){
   if(exerciseStep===ROUTINE.length-1){setRunning(false);setCompleted(true);setSecondsLeft(0);return}
   const n=exerciseStep+1;setExerciseStep(n);setSecondsLeft(ROUTINE[n].seconds);
@@ -221,7 +213,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
     <div className="h-miro" aria-label="Миро из мира на поляне"><MiroAvatar face="smile"/><span className="h-miro-orbit" aria-hidden="true">✧</span></div>
    </header>
    <div className="h-navigation" aria-label="Разделы здоровья">
-    {([['today','☀️ Сегодня'],['exercise','🤸 Зарядка'],['food','🥗 Еда'],['sleep','🌙 Сон'],...(parent?[['parent','👨‍👩‍👦 Родителю']]:[])] as [HealthSection,string][]).map(([id,label])=>
+    {([['today','☀️ Сегодня'],['growth','📏 Я расту'],['exercise','🤸 Зарядка'],['food','🥗 Еда'],['sleep','🌙 Сон'],...(parent?[['parent','👨‍👩‍👦 Родителю']]:[])] as [HealthSection,string][]).map(([id,label])=>
      <button key={id} className={section===id?'current':''} onClick={()=>{setSection(id);setNotice('')}}>{label}</button>)}
    </div>
 
@@ -230,6 +222,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
      <div className="h-status-sleep"><span className="h-status-icon" aria-hidden="true">🌙</span><small>Уложиться спать</small><strong>{state.bed}</strong><span>Спокойный вечер с {windDown}</span></div>
      <div className="h-status-wake"><span className="h-status-icon" aria-hidden="true">☀️</span><small>Проснуться</small><strong>{state.wake}</strong><span>Потом зарядка {Math.round(exerciseTotal/60)} минут</span></div>
     </div>
+    <button type="button" className="h-growth-shortcut" onClick={()=>setSection('growth')}><span>📏</span><span><strong>Я расту!</strong><small>Мой рост, вес и история измерений</small></span><b>Открыть →</b></button>
     <section className="h-card">
      <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🌱</span><h2>Мои добрые привычки</h2></div>
      <p>Отмечай то, что получилось. Пропуски не отнимают баллы, и завтра можно начать снова.</p>
@@ -252,6 +245,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
     <div className="h-action-row"><button onClick={()=>setSection('exercise')}>🤸 Начать зарядку</button><button onClick={()=>setSection('food')}>🥗 Меню на сегодня</button></div>
    </>}
 
+   {section==='growth'&&<GrowthJournal childId={childId} familyId={familyId} parent={parent} legacy={state.measurements}/>}
    {section==='exercise'&&<section className="h-card">
     <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🤸</span><h2>Зарядка с Миро</h2></div>
     <p>Семь спокойных движений, примерно 7 минут. Начинай в своём темпе, без прыжков и перегрузки.</p>
@@ -313,14 +307,9 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
 
    {section==='parent'&&parent&&<section className="h-card">
     <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">👨‍👩‍👦</span><h2>Кабинет родителя</h2></div>
-    <p>Рост и вес необязательны. Данные видны только в родительском разделе интерфейса и сохраняются локально на этом устройстве, без отправки в семейный чат или облако.</p>
-    <p className="h-caution">У детей взрослые нормы ИМТ не подходят. Не используйте эту историю для самостоятельного диагноза, ограничения питания или постановки цели похудеть. Оценку роста и массы тела проводит педиатр.</p>
-    <div className="h-measure-entry">
-     <label>Рост, см<input type="number" min="90" max="210" step=".1" placeholder="Например, 151" value={measureHeight} onChange={e=>setMeasureHeight(e.target.value)}/></label>
-     <label>Вес, кг<input type="number" min="15" max="200" step=".1" placeholder="Например, 48" value={measureWeight} onChange={e=>setMeasureWeight(e.target.value)}/></label>
-    </div>
-    <button className="h-subtle-button" onClick={addMeasurement}>Сохранить измерение</button>
-    {state.measurements.length>0&&<div className="h-measure-list">{[...state.measurements].reverse().map(m=><div key={m.id}><span>{m.date.split('-').reverse().join('.')} · {m.height} см · {m.weight} кг</span><button aria-label="Удалить измерение" onClick={()=>{if(window.confirm('Удалить запись измерения?'))save(s=>({...s,measurements:s.measurements.filter(x=>x.id!==m.id)}))}}>✕</button></div>)}</div>}
+    <p>Рост и вес теперь можно вводить в общем семейном дневнике «Я расту!». Родитель и ребёнок видят те же измерения после синхронизации.</p>
+    <button type="button" className="h-subtle-button" onClick={()=>setSection('growth')}>📏 Открыть семейный дневник измерений</button>
+    <p className="h-caution">У детей взрослые нормы ИМТ не подходят. Не используйте измерения для самостоятельного диагноза, ограничения питания или постановки цели похудеть. Оценку роста и массы тела проводит педиатр.</p>
     <label className="h-parent-note">Заметки для семьи или педиатра<textarea maxLength={700} rows={3} value={state.notes} onChange={e=>save(s=>({...s,notes:e.target.value}))} placeholder="Аллергии, ограничения нагрузок, рекомендации врача"/></label>
     <small className="h-muted">Замечания и измерения хранятся только в памяти этого устройства. Удаление приложения или его данных может стереть записи. Это локальный журнал, не медицинская карта.</small>
    </section>}
