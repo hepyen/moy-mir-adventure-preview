@@ -24,9 +24,9 @@ try{
  const response=await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'networkidle',timeout:30000});
  await page.waitForTimeout(1500);
  const root=await page.locator('#root').innerText();
- if(response.status()!==200||!root.includes('МОЙ МИР')||!root.includes('3.4.0')||errors.length||missing.length)throw Error(JSON.stringify({code:response.status(),root:root.slice(0,300),errors,missing}));
- console.log('PASS: Android-root build mobile browser opened My World 3.4.0, UI rendered, no JS errors, no missing assets');
- await page.screenshot({path:'docs/qa-android-3.4.0.png'});
+ if(response.status()!==200||!root.includes('МОЙ МИР')||!root.includes('3.5.0')||errors.length||missing.length)throw Error(JSON.stringify({code:response.status(),root:root.slice(0,300),errors,missing}));
+ console.log('PASS: Android-root build mobile browser opened My World 3.5.0, UI rendered, no JS errors, no missing assets');
+ await page.screenshot({path:'docs/qa-android-3.5.0.png'});
  await context.close();
 }finally{
  if(browser)await browser.close();

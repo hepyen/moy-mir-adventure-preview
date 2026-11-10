@@ -11,6 +11,8 @@ type HealthData={
   bed:string;wake:string;measurements:Measurement[];reminders:boolean;notes:string
 };
 type HealthSection='today'|'exercise'|'food'|'sleep'|'parent';
+type HealthTheme='day'|'night'|'auto';
+function savedTheme(key:string):HealthTheme{try{const found=localStorage.getItem(key);return found==='day'||found==='night'||found==='auto'?found:'auto'}catch{return 'auto'}}
 const WEEK=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
 const SHORT=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const BASE_MEALS:Meal[]=[
@@ -94,6 +96,23 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
  const key='moymir-health-local-v1:'+childId;
  const [entry,setEntry]=useState<{key:string;data:HealthData}>(()=>({key,data:read(key)}));
  const state=entry.key===key?entry.data:read(key);
+ const themeKey='moymir-health-theme-v1:'+childId;
+ const [themeEntry,setThemeEntry]=useState<{key:string;mode:HealthTheme}>(()=>({key:themeKey,mode:savedTheme(themeKey)}));
+ const theme=themeEntry.key===themeKey?themeEntry.mode:savedTheme(themeKey);
+ const [systemDark,setSystemDark]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
+ useEffect(()=>{
+  const m=window.matchMedia('(prefers-color-scheme: dark)');
+  const update=()=>setSystemDark(m.matches);
+  update();m.addEventListener('change',update);
+  return()=>m.removeEventListener('change',update);
+ },[]);
+ const actualTheme=theme==='auto'?(systemDark?'night':'day'):theme;
+ function chooseTheme(value:HealthTheme){
+  setThemeEntry({key:themeKey,mode:value});
+  try{localStorage.setItem(themeKey,value)}catch{setNotice('Не получилось сохранить тему; выбор будет действовать до перезапуска.')}
+ }
+ const localHour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',hourCycle:'h23'}).format(new Date()));
+ const greeting=localHour<11?'Доброе утро!':localHour<17?'Хорошего дня!':'Добрый вечер!';
  const [,setClockTick]=useState(0);
  useEffect(()=>{
   const update=()=>setClockTick(n=>n+1);
@@ -177,14 +196,29 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
  useEffect(()=>{if(running&&secondsLeft===0)nextExercise()},[secondsLeft,running]);
  function startExercise(){if(completed){setExerciseStep(0);setSecondsLeft(ROUTINE[0].seconds);setCompleted(false)}setRunning(true)}
  const safeNote='При боли, головокружении или неприятных ощущениях остановись. Прыжки не нужны. После травмы ноги нагрузку согласуйте с врачом.';
- return <div className="h-health">
+ return <div className={'h-health h-theme-'+actualTheme} data-theme={actualTheme} data-theme-choice={theme}>
+   <div className="h-theme-switcher" role="group" aria-label="Тема оформления Моего здоровья">
+     <span className="h-theme-label"><span aria-hidden="true">🎨</span> Оформление</span>
+     <div className="h-theme-options">
+      {([['day','☀️','День'],['night','🌙','Ночь'],['auto','✦','Авто']] as const).map(([value,ico,name])=>
+       <button key={value} type="button" aria-label={'Тема: '+name} aria-pressed={theme===value} className={theme===value?'selected':''} onClick={()=>chooseTheme(value)}><span aria-hidden="true">{ico}</span>{name}</button>)}
+     </div>
+   </div>
    <header className="h-hero">
-    <div className="h-hero-copy">
-     <span>МОЙ МИР · ЗДОРОВЬЕ</span>
-     <h1>Мой здоровый день 💚</h1>
-     <p>Миро помогает заботиться о себе. Сон, вкусная еда, движение и отдых.</p>
+    <div className="h-sky-art" aria-hidden="true">
+     <div className="h-orb"/>
+     <div className="h-cloud h-cloud-a"/><div className="h-cloud h-cloud-b"/>
+     <div className="h-star h-star-one">✦</div><div className="h-star h-star-two">✧</div><div className="h-star h-star-three">✦</div>
+     <div className="h-hill h-hill-back"/><div className="h-hill h-hill-front"/>
+     <div className="h-flower h-flower-one">✿</div><div className="h-flower h-flower-two">✿</div><div className="h-firefly h-firefly-a"/><div className="h-firefly h-firefly-b"/>
     </div>
-    <div className="h-miro" aria-label="Миро из мира на поляне"><MiroAvatar face="smile"/></div>
+    <div className="h-hero-copy">
+     <span>✦ МОЙ МИР · ЗДОРОВЬЕ</span>
+     <h1>Мой здоровый день</h1>
+     <p>{greeting} Я рядом, Илья! Выбирай, чем займёмся сегодня: сон, вкусная еда или движение.</p>
+     <div className="h-hero-chip">{actualTheme==='night'?'🌙 Время для спокойных дел':'🌿 Каждый день по-своему хорош'}</div>
+    </div>
+    <div className="h-miro" aria-label="Миро из мира на поляне"><MiroAvatar face="smile"/><span className="h-miro-orbit" aria-hidden="true">✧</span></div>
    </header>
    <div className="h-navigation" aria-label="Разделы здоровья">
     {([['today','☀️ Сегодня'],['exercise','🤸 Зарядка'],['food','🥗 Еда'],['sleep','🌙 Сон'],...(parent?[['parent','👨‍👩‍👦 Родителю']]:[])] as [HealthSection,string][]).map(([id,label])=>
@@ -193,11 +227,11 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
 
    {section==='today'&&<>
     <div className="h-status-grid">
-     <div><small>Уложиться спать</small><strong>{state.bed}</strong><span>Спокойный вечер с {windDown}</span></div>
-     <div><small>Проснуться</small><strong>{state.wake}</strong><span>Потом зарядка {Math.round(exerciseTotal/60)} минут</span></div>
+     <div className="h-status-sleep"><span className="h-status-icon" aria-hidden="true">🌙</span><small>Уложиться спать</small><strong>{state.bed}</strong><span>Спокойный вечер с {windDown}</span></div>
+     <div className="h-status-wake"><span className="h-status-icon" aria-hidden="true">☀️</span><small>Проснуться</small><strong>{state.wake}</strong><span>Потом зарядка {Math.round(exerciseTotal/60)} минут</span></div>
     </div>
     <section className="h-card">
-     <h2>Мои добрые привычки</h2>
+     <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🌱</span><h2>Мои добрые привычки</h2></div>
      <p>Отмечай то, что получилось. Пропуски не отнимают баллы, и завтра можно начать снова.</p>
      {HABITS.map(h=><label className={'h-habit '+(done.includes(h.id)?'h-habit-done':'')} key={h.id}>
        <span className="h-habit-icon">{h.icon}</span>
@@ -208,7 +242,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
      <small className="h-muted">Сегодня отмечено {progress} из {HABITS.length}. Ни одной привычке не присуждается оценка.</small>
     </section>
     <section className="h-card">
-     <h2>Как ты себя чувствуешь?</h2>
+     <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">💛</span><h2>Как ты себя чувствуешь?</h2></div>
      <div className="h-mood">
       {([['good','😊 Бодро'],['ok','🙂 Обычно'],['rest','😴 Нужен отдых']] as const).map(([code,label])=>
        <button className={state.mood[today]===code?'chosen':''} key={code} onClick={()=>save(s=>({...s,mood:{...s.mood,[today]:code}}))}>{label}</button>)}
@@ -219,7 +253,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
    </>}
 
    {section==='exercise'&&<section className="h-card">
-    <h2>Зарядка с Миро</h2>
+    <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🤸</span><h2>Зарядка с Миро</h2></div>
     <p>Семь спокойных движений, примерно 7 минут. Начинай в своём темпе, без прыжков и перегрузки.</p>
     <div className="h-exercise-stage">
      <span className="h-exercise-icon">{completed?'🌟':ROUTINE[exerciseStep].icon}</span>
@@ -237,7 +271,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
    </section>}
 
    {section==='food'&&<section className="h-card">
-    <h2>Наше меню на неделю</h2>
+    <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🥗</span><h2>Наше меню на неделю</h2></div>
     <p>Обычная семейная еда, без диет, подсчёта калорий и запретов. Можно заменять блюда и добавлять перекус, когда голоден.</p>
     <div className="h-week">{SHORT.map((d,i)=><button className={selectedDay===i?'active':''} key={d} onClick={()=>setSelectedDay(i)}>{d}</button>)}</div>
     <h3 className="h-day-name">{WEEK[selectedDay]}</h3>
@@ -255,7 +289,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
    </section>}
 
    {section==='sleep'&&<section className="h-card">
-    <h2>Спокойный сон</h2>
+    <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🌙</span><h2>Спокойный сон</h2></div>
     <p>В 12 лет обычно требуется 9–12 часов сна за сутки. Режим можно изменить вместе с родителем.</p>
     <div className="h-status-grid">
      <div><small>Ложиться спать</small><strong>{state.bed}</strong></div>
@@ -278,7 +312,7 @@ export function HealthHub({parent=false,childId='local'}:{parent?:boolean;childI
    </section>}
 
    {section==='parent'&&parent&&<section className="h-card">
-    <h2>Кабинет родителя</h2>
+    <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">👨‍👩‍👦</span><h2>Кабинет родителя</h2></div>
     <p>Рост и вес необязательны. Данные видны только в родительском разделе интерфейса и сохраняются локально на этом устройстве, без отправки в семейный чат или облако.</p>
     <p className="h-caution">У детей взрослые нормы ИМТ не подходят. Не используйте эту историю для самостоятельного диагноза, ограничения питания или постановки цели похудеть. Оценку роста и массы тела проводит педиатр.</p>
     <div className="h-measure-entry">

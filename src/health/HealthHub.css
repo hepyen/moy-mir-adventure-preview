@@ -82,3 +82,131 @@
 @keyframes h-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 @media(max-width:350px){.h-hero{padding:15px 11px}.h-miro{width:84px;flex-basis:84px}.h-hero h1{font-size:22px}.h-action-row{flex-direction:column}.h-status-grid strong{font-size:24px}}
 @media(prefers-reduced-motion:reduce){.h-miro{animation:none!important}}
+
+/* 3.5.0 · Stage 1: isolated day/night garden design. Theme never changes other app tabs. */
+.h-health{
+ --h-bg:linear-gradient(168deg,#e7fff2 0%,#e1f7fe 40%,#f8f3ff 78%,#fff8eb 100%);
+ --h-card:#fffefa;--h-ink:#205169;--h-heading:#155a70;--h-muted:#567a8a;--h-border:#cae9df;
+ --h-soft:#ecf9f7;--h-soft-2:#eaf6ff;--h-control:#e7f8f3;--h-control-text:#1b8578;
+ --h-field:#fcfffe;--h-track:#e5f4ee;--h-accent:#16a68e;--h-shadow:#2a7c8c22;
+ position:relative;padding:10px 10px 25px;border-radius:25px;
+ background:var(--h-bg);color:var(--h-ink);transition:background .4s,color .4s;
+ border:1px solid var(--h-border);isolation:isolate
+}
+.h-health.h-theme-night{
+ --h-bg:linear-gradient(158deg,#0b203e 0%,#142c50 46%,#202c4d 80%,#1b3152 100%);
+ --h-card:#192f4d;--h-ink:#ebf8ff;--h-heading:#f6faff;--h-muted:#c2d7e9;--h-border:#385879;
+ --h-soft:#1f3c59;--h-soft-2:#263f63;--h-control:#244767;--h-control-text:#d1fcf3;
+ --h-field:#1a3654;--h-track:#2c5366;--h-accent:#6de5c8;--h-shadow:#040d2280
+}
+.h-health .h-theme-switcher{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:3px 2px 13px}
+.h-health .h-theme-label{display:flex;gap:5px;align-items:center;font-size:11px;font-weight:900;color:var(--h-heading);white-space:nowrap}
+.h-health .h-theme-options{display:flex;background:var(--h-soft);border:1px solid var(--h-border);padding:3px;border-radius:15px;gap:2px}
+.h-health .h-theme-options button{border:0;background:transparent;color:var(--h-muted);padding:8px 8px;font:850 10px/1.1 system-ui;border-radius:11px;display:flex;gap:4px;align-items:center;justify-content:center;min-height:32px}
+.h-health .h-theme-options button.selected{background:var(--h-accent);color:#082e39;box-shadow:0 3px 8px var(--h-shadow)}
+.h-health .h-theme-options button:focus-visible,.h-health .h-navigation button:focus-visible,.h-health .h-action-row button:focus-visible{outline:3px solid #ffa74f;outline-offset:2px}
+.h-health .h-hero{position:relative;isolation:isolate;min-height:220px;padding:22px 14px 45px;margin-bottom:13px;
+ background:linear-gradient(145deg,#8de8e7 0%,#baf8d7 47%,#e9f9bd 100%);border:1px solid #9dddc9;
+ box-shadow:0 10px 25px #46ab9f2a;border-radius:22px;transition:background .45s,border-color .45s,box-shadow .45s}
+.h-health.h-theme-night .h-hero{background:linear-gradient(144deg,#18396e,#284b80 55%,#37647c 100%);
+ border-color:#446f96;box-shadow:0 12px 30px #06162e77}
+.h-health .h-sky-art{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.h-health .h-orb{position:absolute;right:17%;top:13px;width:65px;height:65px;border-radius:50%;
+ background:#ffeba7;box-shadow:0 0 0 12px #fff7b333,0 0 44px #fff2b59e;transition:all .5s}
+.h-health.h-theme-night .h-orb{background:#f1f7e3;box-shadow:0 0 0 11px #f6fbe316,0 0 34px #e8fdff9c;
+ right:12%;top:19px;width:53px;height:53px}
+.h-health.h-theme-night .h-orb:after{content:"";position:absolute;left:14px;top:-8px;width:52px;height:52px;background:#214374;border-radius:50%}
+.h-health .h-cloud{position:absolute;width:74px;height:20px;background:#ffffffc5;border-radius:90px;filter:blur(.5px)}
+.h-health .h-cloud:before,.h-health .h-cloud:after{content:"";position:absolute;background:inherit;border-radius:100%;width:34px;height:33px;top:-16px;left:15px}
+.h-health .h-cloud:after{width:27px;height:24px;left:43px;top:-9px}
+.h-health .h-cloud-a{top:61px;right:-8px;opacity:.9;animation:h-cloud-drift 10s ease-in-out infinite alternate}
+.h-health .h-cloud-b{top:94px;left:36%;transform:scale(.65);opacity:.55;animation:h-cloud-drift 13s ease-in-out infinite alternate-reverse}
+.h-health.h-theme-night .h-cloud{opacity:.12}
+.h-health .h-hill{position:absolute;width:130%;height:80px;bottom:-42px;left:-11%;border-radius:50% 50% 0 0;transform:rotate(-2deg)}
+.h-health .h-hill-back{bottom:-27px;left:22%;background:#9ddc8f}
+.h-health .h-hill-front{background:#69bd90}
+.h-health.h-theme-night .h-hill-back{background:#2a6672}
+.h-health.h-theme-night .h-hill-front{background:#245b64}
+.h-health .h-flower{position:absolute;bottom:5px;color:#fff5c2;font-size:17px;opacity:.95}
+.h-health .h-flower-one{left:16%}.h-health .h-flower-two{left:58%;bottom:11px;color:#ffdfb4}
+.h-health .h-star{position:absolute;color:#fff9dd;font-size:22px;opacity:0;transition:opacity .45s;animation:h-twinkle 3.5s ease-in-out infinite}
+.h-health .h-star-one{right:31%;top:13%}.h-health .h-star-two{right:9%;top:47%;animation-delay:1.4s}.h-health .h-star-three{left:39%;top:14%;font-size:11px;animation-delay:.6s}
+.h-health.h-theme-night .h-star{opacity:.9}
+.h-health .h-firefly{position:absolute;width:6px;height:6px;border-radius:50%;opacity:0;background:#eeffaf;box-shadow:0 0 14px 4px #dcffc2;animation:h-fly 4s ease-in-out infinite}
+.h-health .h-firefly-a{right:22%;bottom:45px}.h-health .h-firefly-b{left:39%;bottom:30px;animation-delay:1.9s}
+.h-health.h-theme-night .h-firefly{opacity:.9}
+.h-health .h-hero-copy{max-width:65%}
+.h-health .h-hero-copy>span{color:#176b73;font-size:9.5px;letter-spacing:.08em}
+.h-health .h-hero h1{font-size:27px;line-height:1.02;color:#124c60;text-wrap:balance;margin:11px 0}
+.h-health .h-hero p{font-size:11px;max-width:199px;line-height:1.55;color:#286b75}
+.h-health .h-hero-chip{display:inline-block;margin-top:12px;font-size:9px;font-weight:850;line-height:1.4;
+ border:1px solid #ffffff80;color:#195c60;background:#ffffffe1;padding:7px 9px;border-radius:18px}
+.h-health.h-theme-night .h-hero-copy>span{color:#9cefd9}
+.h-health.h-theme-night .h-hero h1{color:#fff}
+.h-health.h-theme-night .h-hero p{color:#d6ecf5}
+.h-health.h-theme-night .h-hero-chip{color:#d8f8fa;background:#0c285caa;border-color:#79c6d977}
+.h-health .h-miro{position:absolute;right:8px;top:74px;width:116px;animation:h-bob 3s ease-in-out infinite;filter:drop-shadow(0 12px 10px #237d8170)}
+.h-health.h-theme-night .h-miro{filter:drop-shadow(0 0 14px #80eaff80)}
+.h-health .h-miro-orbit{position:absolute;right:-3px;top:-5px;color:#fff9b1;font-size:24px;animation:h-twinkle 2.5s ease-in-out infinite}
+.h-health .h-navigation{margin:1px -2px 16px;padding:2px 2px 7px;gap:7px}
+.h-health .h-navigation button{font-size:11px;padding:11px 12px;border:1px solid var(--h-border);background:var(--h-soft-2);color:var(--h-heading);border-radius:13px}
+.h-health .h-navigation button.current{border-color:var(--h-accent);background:var(--h-accent);color:#092e35;box-shadow:0 3px 8px var(--h-shadow)}
+.h-health .h-status-grid>div{position:relative;min-height:147px;padding:15px;border:1px solid #c3e8dc;
+ background:linear-gradient(140deg,#dcfff0 0%,#f8fff4 100%);border-radius:19px;box-shadow:0 4px 12px var(--h-shadow)}
+.h-health .h-status-grid>div:nth-child(2){background:linear-gradient(140deg,#e7f1ff,#fff9e7);border-color:#d2e4f3}
+.h-health.h-theme-night .h-status-grid>div{background:linear-gradient(145deg,#1e3a60,#214d61);border-color:#416e82}
+.h-health.h-theme-night .h-status-grid>div:nth-child(2){background:linear-gradient(145deg,#243d66,#34445c);border-color:#536987}
+.h-health .h-status-icon{align-self:flex-end;font-size:21px;line-height:1}
+.h-health .h-status-grid small{color:var(--h-muted);font-size:11px;font-weight:750}
+.h-health .h-status-grid strong{color:var(--h-heading);font-size:28px}
+.h-health .h-status-grid span:not(.h-status-icon){color:var(--h-muted)}
+.h-health .h-card{background:var(--h-card);border:1px solid var(--h-border);box-shadow:0 5px 17px var(--h-shadow);border-radius:20px;transition:background .4s,border-color .4s}
+.h-health .h-card-heading{display:flex;gap:9px;align-items:center;margin-bottom:10px}
+.h-health .h-card-heading h2{color:var(--h-heading);margin:0;font-size:18px}
+.h-health .h-card-icon{width:37px;height:37px;display:grid;place-items:center;background:var(--h-soft);border-radius:13px;font-size:22px;flex:0 0 37px}
+.h-health .h-card>p,.h-health .h-muted{color:var(--h-muted)}
+.h-health .h-habit{border-bottom-color:var(--h-border)}
+.h-health .h-habit-icon{background:var(--h-soft)}
+.h-health .h-habit-done .h-habit-icon{background:var(--h-soft-2)}
+.h-health .h-habit-text strong{color:var(--h-heading)}
+.h-health .h-habit-text small{color:var(--h-muted)}
+.h-health .h-habit input{accent-color:var(--h-accent)}
+.h-health .h-progress{background:var(--h-track)}
+.h-health .h-mood button,.h-health .h-week button,.h-health .h-exercise-list button{color:var(--h-heading);background:var(--h-soft);border-color:var(--h-border)}
+.h-health .h-mood button.chosen,.h-health .h-week button.active,.h-health .h-exercise-list button.active{color:#0d493a;background:#a9eed5;border-color:#54c9a3}
+.h-health .h-action-row button,.h-health .h-sleep-edit>button{background:var(--h-accent);color:#073b3f}
+.h-health .h-action-row button.h-secondary,.h-health .h-subtle-button{background:var(--h-control);color:var(--h-control-text)}
+.h-health .h-exercise-stage{background:linear-gradient(135deg,#d9f7e4,#d9eeff);border:1px solid var(--h-border)}
+.h-health.h-theme-night .h-exercise-stage{background:linear-gradient(135deg,#244e67,#283e6f)}
+.h-health .h-exercise-stage h3,.h-health .h-card h3,.h-health .h-day-name{color:var(--h-heading)}
+.h-health .h-exercise-stage small,.h-health .h-exercise-stage p,.h-health .h-timer,.h-health .h-meal p,.h-health .h-shopping,.h-health .h-shopping p,.h-health .h-timeline span{color:var(--h-muted)}
+.h-health .h-meal,.h-health .h-timeline div,.h-health .h-measure-list,.h-health .h-measure-list>div{border-color:var(--h-border)}
+.h-health .h-meal strong,.h-health .h-timeline strong{color:var(--h-accent)}
+.h-health .h-water,.h-health .h-shopping,.h-health .h-sleep-total,.h-health .h-positive,.h-health .h-notice{background:var(--h-soft);color:var(--h-heading)!important}
+.h-health .h-sleep-total strong{color:var(--h-heading)}
+.h-health .h-caution{color:#84551c!important;background:#fff3db;border-color:#ffdda3}
+.h-health.h-theme-night .h-caution{color:#ffe9bc!important;background:#4d3c37;border-color:#92745d}
+.h-health .h-meal textarea,.h-health .h-parent-note textarea,.h-health .h-measure-entry input,.h-health .h-sleep-edit input{background:var(--h-field);color:var(--h-ink);border-color:var(--h-border);color-scheme:light}
+.h-health.h-theme-night .h-meal textarea,.h-health.h-theme-night .h-parent-note textarea,.h-health.h-theme-night .h-measure-entry input,.h-health.h-theme-night .h-sleep-edit input{color-scheme:dark}
+.h-health .h-measure-entry label,.h-health .h-sleep-edit label,.h-health .h-parent-note{color:var(--h-heading)}
+.h-health .h-measure-list button{background:var(--h-soft);color:var(--h-muted)}
+.h-health .h-sources{color:var(--h-muted)}
+.h-health .h-sources a{color:var(--h-accent);text-underline-offset:2px}
+.h-health button{transition:background-color .25s,color .25s,border-color .25s,transform .2s}
+.h-health button:active{transform:scale(.97)}
+@keyframes h-twinkle{0%,100%{transform:scale(.9);filter:brightness(.8)}50%{transform:scale(1.18);filter:brightness(1.35)}}
+@keyframes h-fly{0%,100%{transform:translate(0,0)}35%{transform:translate(8px,-12px)}70%{transform:translate(-5px,-5px)}}
+@keyframes h-cloud-drift{from{translate:-9px 0}to{translate:15px 0}}
+@media(max-width:365px){
+ .h-health{padding:8px 7px 22px}
+ .h-health .h-theme-label{font-size:10px}
+ .h-health .h-theme-options button{font-size:9px;padding:8px 5px}
+ .h-health .h-hero{padding:18px 11px 38px;min-height:210px}
+ .h-health .h-hero h1{font-size:24px}
+ .h-health .h-miro{width:91px;top:85px;right:1px}
+ .h-health .h-status-grid>div{padding:12px}
+ .h-health .h-status-grid strong{font-size:25px}
+}
+@media(prefers-reduced-motion:reduce){
+ .h-health *, .h-health *::before,.h-health *::after{animation:none!important;transition:none!important}
+}
