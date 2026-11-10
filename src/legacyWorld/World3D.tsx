@@ -149,10 +149,10 @@ function AdventureDecor({count,onDiscover}:{count:number;onDiscover:(label:strin
   </group>}
  </group>
 }
-function WorldScene({points,worldNumber,adventureCount,onDiscover}:{points:number;worldNumber:number;adventureCount:number;onDiscover:(label:string)=>void}) {
+function WorldScene({points,worldNumber,adventureCount,onDiscover,theme='day'}:{points:number;worldNumber:number;adventureCount:number;onDiscover:(label:string)=>void;theme?:'day'|'night'}) {
  const island=useRef<Group>(null)
  useFrame(({clock})=>{if(island.current)island.current.position.y=Math.sin(clock.elapsedTime*.7)*.045})
- return <><color attach="background" args={['#87ddf4']}/><ambientLight intensity={0.72}/><hemisphereLight args={['#e6f8ff','#75b86e',0.95]}/><directionalLight position={[-4,9,6]} intensity={2.15} castShadow shadow-mapSize={[512,512]}/>
+ return <><color attach="background" args={[theme==='night'?'#11294c':'#87ddf4']}/><ambientLight intensity={theme==='night'?0.6:0.72}/><hemisphereLight args={[theme==='night'?'#839ccf':'#e6f8ff',theme==='night'?'#335d64':'#75b86e',theme==='night'?0.68:0.95]}/><directionalLight position={[-4,9,6]} color={theme==='night'?'#c6daff':'#ffffff'} intensity={theme==='night'?1.2:2.15} castShadow shadow-mapSize={[512,512]}/>
  <group ref={island}>
   <Block position={[0,-.34,0]} size={[5.8,.67,4.5]} color="#9d623f" round={.39}/>
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
@@ -161,7 +161,7 @@ function WorldScene({points,worldNumber,adventureCount,onDiscover}:{points:numbe
  </group>
  </>
 }
-export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',adventureCount=0}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;adventureCount?:number}) {
+export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',adventureCount=0,theme='day'}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;adventureCount?:number;theme?:'day'|'night'}) {
  const panelRef=useRef<HTMLDivElement>(null)
  const[storyMessage,setStoryMessage]=useState('')
  async function toggleFullscreen() {
@@ -172,7 +172,7 @@ export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=tru
  }
  const unlocked=unlockedWorldObjects(points)
  const next=nextWorldObject(points)
- return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран">⛶ На весь экран</button></div><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><FocusCamera worldNumber={worldNumber}/><WorldScene points={points} worldNumber={worldNumber} adventureCount={adventureCount} onDiscover={setStoryMessage}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
+ return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран">⛶ На весь экран</button></div><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><FocusCamera worldNumber={worldNumber}/><WorldScene points={points} worldNumber={worldNumber} adventureCount={adventureCount} onDiscover={setStoryMessage} theme={theme}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
  {worldNumber===1&&adventureCount>0&&<div className="world3d-adventures"><strong>🌱 Постройки истории</strong><span>{adventureCount>=1?'🌻 Цветник':null}{adventureCount>=4?' · 📚 Читальный уголок':null}{adventureCount>=10?' · 🏮 Фонарик друзей':null}</span><button type="button" onClick={()=>setStoryMessage('За прохождение истории на полянке появились новые предметы. Нажми на них в 3D-мире!')}>Исследовать</button></div>}
  {storyMessage&&<div className="world3d-story-message" role="status">{storyMessage}<button onClick={()=>setStoryMessage('')} aria-label="Закрыть подсказку">×</button></div>}
  <div className="world3d-bottom"><span>{worldNumber===1?'🏡 Домик на поляне':'🌳 Домик на дереве'} · {unlocked.length}/30 открыто</span><strong>{Math.min(points,WORLD_01_END)} / {WORLD_01_END} ✨</strong></div>

@@ -9,8 +9,8 @@ export function MiroAvatar({face="smile"}:{face?:"smile"|"wink"|"wow"}){
      </defs>
      <ellipse cx="75" cy="152" rx="53" ry="19" fill="url(#miroGlow)" className="miro-beam"/>
      <path d="M42 76 Q32 92 41 122 Q55 144 75 145 Q103 142 112 121 Q119 95 106 76Z" fill="url(#miroWhite)" stroke="#b7e8fb" strokeWidth="2"/>
-     <path d="M36 85 Q18 80 18 99 Q18 117 36 120 L42 109Z" fill="url(#miroWhite)"/>
-     <path d="M114 85 Q132 80 132 99 Q132 117 114 120 L108 109Z" fill="url(#miroWhite)"/>
+     <path d="M36 85 Q18 80 18 99 Q18 117 36 120 L42 109Z" className="miro-arm-left" fill="url(#miroWhite)"/>
+     <path d="M114 85 Q132 80 132 99 Q132 117 114 120 L108 109Z" className="miro-arm-right" fill="url(#miroWhite)"/>
      <path d="M25 46 Q25 16 74 15 Q123 16 125 47 Q130 73 104 86 Q76 99 47 86 Q19 72 25 46Z" fill="url(#miroWhite)" stroke="#b4dff5" strokeWidth="2.5"/>
      <path d="M32 48 Q33 30 73 29 Q111 30 117 49 Q120 72 95 78 Q74 85 52 77 Q29 70 32 48Z" fill="url(#miroFace)"/>
      <g className="miro-eyes" fill="none" stroke="#66f4ed" strokeWidth="5.5" strokeLinecap="round">

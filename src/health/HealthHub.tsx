@@ -1,8 +1,10 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useState} from 'react';
 import {Capacitor} from '@capacitor/core';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {MiroAvatar} from '../legacyWorld/MiroAvatar';
 import {GrowthJournal} from './GrowthJournal';
+import {ExerciseAdventure} from './ExerciseAdventure';
+import {AppThemeSwitch,type ThemeChoice} from '../theme/useAppTheme';
 import './HealthHub.css';
 
 type Meal={breakfast:string;lunch:string;dinner:string;snack:string};
@@ -12,8 +14,6 @@ type HealthData={
   bed:string;wake:string;measurements:Measurement[];reminders:boolean;notes:string
 };
 type HealthSection='today'|'growth'|'exercise'|'food'|'sleep'|'parent';
-type HealthTheme='day'|'night'|'auto';
-function savedTheme(key:string):HealthTheme{try{const found=localStorage.getItem(key);return found==='day'||found==='night'||found==='auto'?found:'auto'}catch{return 'auto'}}
 const WEEK=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
 const SHORT=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 const BASE_MEALS:Meal[]=[
@@ -31,15 +31,6 @@ const HABITS=[
  {id:'water',icon:'💧',label:'В течение дня пил воду',help:'Пей, когда хочется пить, и после активности'},
  {id:'movement',icon:'🌳',label:'Погулял или активно поиграл',help:'Прогулка, мяч, велосипед, танцы'},
  {id:'evening',icon:'🌙',label:'Спокойно готовился ко сну',help:'Убрал экран и завершил вечерние дела'}
-];
-const ROUTINE=[
- {title:'Проснись и потянись',seconds:40,icon:'🌤️',tip:'Мягко потяни руки вверх, спокойно подыши. Не тянись через боль.'},
- {title:'Круги плечами',seconds:60,icon:'🙆',tip:'Плечи вперёд и назад, медленно и без напряжения.'},
- {title:'Разминка рук',seconds:60,icon:'👐',tip:'Плавно подними и опусти руки, раскрой плечи.'},
- {title:'Шагаем на месте',seconds:90,icon:'🚶',tip:'Лёгкий темп. Если болит стопа или голеностоп, делай движения сидя.'},
- {title:'Встаём со стула',seconds:60,icon:'🪑',tip:'Медленно сядь и встань несколько раз. При боли можно пропустить.'},
- {title:'Потянись в стороны',seconds:60,icon:'🌿',tip:'Вытяни руки вверх и осторожно потянись в стороны, без резких наклонов.'},
- {title:'Спокойное дыхание',seconds:50,icon:'🌈',tip:'Расслабь руки, сделай несколько обычных неторопливых вдохов.'}
 ];
 const GROCERY=[
  'Овощи и зелень','Фрукты и ягоды','Картофель','Яйца','Молоко и натуральный йогурт','Сыр или творог',
@@ -93,25 +84,11 @@ async function setupReminders(bed:string,wake:string){
   extra:{section:'health'}
  }))});
 }
-export function HealthHub({parent=false,childId='local',familyId}:{parent?:boolean;childId?:string;familyId?:string}){
+export function HealthHub({parent=false,childId='local',familyId,themeMode,themeResolved,onThemeChange}:{parent?:boolean;childId?:string;familyId?:string;themeMode:ThemeChoice;themeResolved:'day'|'night';onThemeChange:(value:ThemeChoice)=>void}){
  const key='moymir-health-local-v1:'+childId;
  const [entry,setEntry]=useState<{key:string;data:HealthData}>(()=>({key,data:read(key)}));
  const state=entry.key===key?entry.data:read(key);
- const themeKey='moymir-health-theme-v1:'+childId;
- const [themeEntry,setThemeEntry]=useState<{key:string;mode:HealthTheme}>(()=>({key:themeKey,mode:savedTheme(themeKey)}));
- const theme=themeEntry.key===themeKey?themeEntry.mode:savedTheme(themeKey);
- const [systemDark,setSystemDark]=useState(()=>typeof window!=='undefined'&&window.matchMedia('(prefers-color-scheme: dark)').matches);
- useEffect(()=>{
-  const m=window.matchMedia('(prefers-color-scheme: dark)');
-  const update=()=>setSystemDark(m.matches);
-  update();m.addEventListener('change',update);
-  return()=>m.removeEventListener('change',update);
- },[]);
- const actualTheme=theme==='auto'?(systemDark?'night':'day'):theme;
- function chooseTheme(value:HealthTheme){
-  setThemeEntry({key:themeKey,mode:value});
-  try{localStorage.setItem(themeKey,value)}catch{setNotice('Не получилось сохранить тему; выбор будет действовать до перезапуска.')}
- }
+ const actualTheme=themeResolved;
  const localHour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',hourCycle:'h23'}).format(new Date()));
  const greeting=localHour<11?'Доброе утро!':localHour<17?'Хорошего дня!':'Добрый вечер!';
  const [,setClockTick]=useState(0);
@@ -126,10 +103,6 @@ export function HealthHub({parent=false,childId='local',familyId}:{parent?:boole
  const [selectedDay,setSelectedDay]=useState(madridWeekday);
  const [shopping,setShopping]=useState(false);
  const [mealEdit,setMealEdit]=useState(false);
- const [exerciseStep,setExerciseStep]=useState(0);
- const [secondsLeft,setSecondsLeft]=useState(ROUTINE[0].seconds);
- const [running,setRunning]=useState(false);
- const [completed,setCompleted]=useState(false);
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
  const today=dateMadrid();
@@ -138,7 +111,7 @@ export function HealthHub({parent=false,childId='local',familyId}:{parent?:boole
  const duration=sleepMinutes(state.bed,state.wake);
  const windDown=clockLabel((timeMinutes(state.bed)-45+1440)%1440);
  const progress=done.filter(id=>HABITS.some(h=>h.id===id)).length;
- const exerciseTotal=useMemo(()=>ROUTINE.reduce((n,s)=>n+s.seconds,0),[]);
+ const exerciseTotal=420;
  function save(modify:(old:HealthData)=>HealthData){
   const old=entry.key===key?entry.data:read(key);
   const updated=modify(old);
@@ -174,28 +147,8 @@ export function HealthHub({parent=false,childId='local',familyId}:{parent?:boole
   }catch(e){setNotice(e instanceof Error?e.message:'Не удалось изменить напоминания')}
   finally{setBusy(false)}
  }
- function nextExercise(){
-  if(exerciseStep===ROUTINE.length-1){setRunning(false);setCompleted(true);setSecondsLeft(0);return}
-  const n=exerciseStep+1;setExerciseStep(n);setSecondsLeft(ROUTINE[n].seconds);
- }
- useEffect(()=>{
-  if(!running)return;
-  const timer=window.setInterval(()=>{
-   setSecondsLeft(left=>left>1?left-1:0);
-  },1000);
-  return()=>window.clearInterval(timer);
- },[running]);
- useEffect(()=>{if(running&&secondsLeft===0)nextExercise()},[secondsLeft,running]);
- function startExercise(){if(completed){setExerciseStep(0);setSecondsLeft(ROUTINE[0].seconds);setCompleted(false)}setRunning(true)}
- const safeNote='При боли, головокружении или неприятных ощущениях остановись. Прыжки не нужны. После травмы ноги нагрузку согласуйте с врачом.';
- return <div className={'h-health h-theme-'+actualTheme} data-theme={actualTheme} data-theme-choice={theme}>
-   <div className="h-theme-switcher" role="group" aria-label="Тема оформления Моего здоровья">
-     <span className="h-theme-label"><span aria-hidden="true">🎨</span> Оформление</span>
-     <div className="h-theme-options">
-      {([['day','☀️','День'],['night','🌙','Ночь'],['auto','✦','Авто']] as const).map(([value,ico,name])=>
-       <button key={value} type="button" aria-label={'Тема: '+name} aria-pressed={theme===value} className={theme===value?'selected':''} onClick={()=>chooseTheme(value)}><span aria-hidden="true">{ico}</span>{name}</button>)}
-     </div>
-   </div>
+ return <div className={'h-health h-theme-'+actualTheme} data-theme={actualTheme} data-theme-choice={themeMode}>
+   <div className="h-theme-switcher"><AppThemeSwitch compact selection={themeMode} onChange={onThemeChange}/></div>
    <header className="h-hero">
     <div className="h-sky-art" aria-hidden="true">
      <div className="h-orb"/>
@@ -246,24 +199,7 @@ export function HealthHub({parent=false,childId='local',familyId}:{parent?:boole
    </>}
 
    {section==='growth'&&<GrowthJournal childId={childId} familyId={familyId} parent={parent} legacy={state.measurements}/>}
-   {section==='exercise'&&<section className="h-card">
-    <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🤸</span><h2>Зарядка с Миро</h2></div>
-    <p>Семь спокойных движений, примерно 7 минут. Начинай в своём темпе, без прыжков и перегрузки.</p>
-    <div className="h-exercise-stage">
-     <span className="h-exercise-icon">{completed?'🌟':ROUTINE[exerciseStep].icon}</span>
-     <small>Шаг {exerciseStep+1} из {ROUTINE.length}</small>
-     <h3>{completed?'Зарядка завершена!':ROUTINE[exerciseStep].title}</h3>
-     <strong className="h-timer">{String(Math.floor(secondsLeft/60)).padStart(2,'0')}:{String(secondsLeft%60).padStart(2,'0')}</strong>
-     <p>{completed?'Хорошее начало дня. Теперь можно спокойно позавтракать.':ROUTINE[exerciseStep].tip}</p>
-    </div>
-    <div className="h-action-row">
-     <button onClick={()=>{if(completed)startExercise();else if(running)setRunning(false);else startExercise()}}>{completed?'🔁 Повторить':running?'⏸ Пауза':'▶ Начать / продолжить'}</button>
-     <button className="h-secondary" onClick={()=>{setRunning(false);nextExercise()}} disabled={completed}>Следующее движение →</button>
-    </div>
-    <div className="h-exercise-list">{ROUTINE.map((step,i)=><button key={step.title} className={i===exerciseStep?'active':''} onClick={()=>{setRunning(false);setCompleted(false);setExerciseStep(i);setSecondsLeft(step.seconds)}}>{i+1}. {step.title} · {step.seconds} с</button>)}</div>
-    <p className="h-caution">{safeNote}</p>
-   </section>}
-
+   {section==='exercise'&&<ExerciseAdventure onComplete={()=>{if(!done.includes('morning'))markHabit('morning')}}/>}
    {section==='food'&&<section className="h-card">
     <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🥗</span><h2>Наше меню на неделю</h2></div>
     <p>Обычная семейная еда, без диет, подсчёта калорий и запретов. Можно заменять блюда и добавлять перекус, когда голоден.</p>

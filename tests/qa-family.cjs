@@ -432,7 +432,7 @@ async function run(role,browser){
  check('My Health opens from settings',await health.count()===1);
  check('health screen opens from top',await page.locator('.mw-scroll').evaluate(el=>el.scrollTop<5));
 
- const themeControls=health.getByRole('group',{name:'Тема оформления Моего здоровья'});
+ const themeControls=health.getByRole('group',{name:'Тема оформления всего приложения'});
  check('health has three theme options',await themeControls.getByRole('button').count()===3);
  await page.setViewportSize({width:390,height:790});
  await themeControls.getByRole('button',{name:'Тема: День'}).click();
@@ -442,9 +442,12 @@ async function run(role,browser){
  await themeControls.getByRole('button',{name:'Тема: Ночь'}).click();
  const nightBg=await health.locator('.h-hero').evaluate(el=>getComputedStyle(el).backgroundImage);
  check('health night mode selected',await health.getAttribute('data-theme')==='night');
+ check('night mode applied to whole application',await page.locator('.mw-root').getAttribute('data-app-theme')==='night');
+ await page.waitForTimeout(350);
+ check('global night mode darkens app header and nav',await page.locator('.mw-top').evaluate(el=>getComputedStyle(el).backgroundColor)==='rgb(23, 42, 68)'&&await page.locator('.mw-bottom').evaluate(el=>getComputedStyle(el).backgroundColor)==='rgb(23, 42, 68)');
  check('night and day have distinct rendered backgrounds',dayBg!==nightBg);
  check('dark theme text has readable contrast',await health.locator('.h-card-heading h2').first().evaluate(el=>getComputedStyle(el).color)==='rgb(246, 250, 255)');
- check('health theme saved locally',await page.evaluate(id=>localStorage.getItem('moymir-health-theme-v1:'+id)==='night',ids.child));
+ check('health theme saved locally',await page.evaluate(id=>localStorage.getItem('moymir-app-theme-v1')==='night',ids.child));
  await health.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-health-stage1-night-'+role+'.png'});
  await themeControls.getByRole('button',{name:'Тема: Авто'}).click();
  await page.emulateMedia({colorScheme:'dark'});
@@ -453,7 +456,7 @@ async function run(role,browser){
  await page.emulateMedia({colorScheme:'light'});
  await page.waitForFunction(()=>document.querySelector('.h-health')?.getAttribute('data-theme')==='day',{timeout:4000});
  check('automatic theme follows Android light preference',await health.getAttribute('data-theme')==='day');
- check('automatic theme is persisted',await page.evaluate(id=>localStorage.getItem('moymir-health-theme-v1:'+id)==='auto',ids.child));
+ check('automatic theme is persisted',await page.evaluate(id=>localStorage.getItem('moymir-app-theme-v1')==='auto',ids.child));
  await page.setViewportSize({width:320,height:700});
  check('theme fits compact Android screen',await health.evaluate(el=>el.scrollWidth<=el.clientWidth+1),await health.evaluate(el=>'scroll='+el.scrollWidth+',client='+el.clientWidth));
  await page.setViewportSize({width:390,height:790});
@@ -465,12 +468,43 @@ async function run(role,browser){
  await health.getByRole('checkbox',{name:'Подвигался утром'}).check();
  check('habit saved on this device',await page.evaluate(id=>JSON.parse(localStorage.getItem('moymir-health-local-v1:'+id)||'{}').habits?.[new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())]?.includes('morning'),ids.child));
  check('nutrition does not award coins',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
+
+ await health.getByRole('checkbox',{name:'Подвигался утром'}).uncheck();
  await health.locator('.h-navigation button').filter({hasText:'Зарядка'}).click();
- check('seven gentle movements visible',await health.locator('.h-exercise-list button').count()===7);
- await health.getByRole('button',{name:/Начать \/ продолжить/}).click();
- await page.waitForTimeout(1170);
- check('exercise timer actually runs',await health.locator('.h-timer').innerText().then(x=>x!=='00:40'));
- await health.getByRole('button',{name:/Пауза/}).click();
+ const exercise=health.getByRole('region',{name:'Зарядка с Миро'});
+ const audioRequests=[];page.on('request',req=>{if(req.url().includes('/health/')&&req.url().endsWith('.mp3'))audioRequests.push(req.url())});
+ check('animated game stage present',await exercise.locator('.ex-scene .ex-diagram svg').count()===1);
+ check('Miro is original shared robot',await exercise.locator('.ex-miro svg').count()===1);
+ check('seven exercise steps visible',await exercise.locator('.ex-track button').count()===7);
+ check('full warmup seven minutes',await exercise.getByTestId('exercise-timer').innerText()==='00:40');
+ await exercise.getByRole('button',{name:/Легче/}).click();
+ check('easier exercise option works',await exercise.getByTestId('exercise-timer').innerText()==='00:25');
+ await exercise.getByRole('button',{name:/Обычно/}).click();
+ await exercise.getByRole('button',{name:/Начать \/ продолжить/}).click();
+ await page.waitForTimeout(1450);
+ check('game timer actually counts down',await exercise.getByTestId('exercise-timer').innerText()!=='00:40');
+ check('movement figure animates when running',await exercise.locator('.ex-diagram.ex-animated').count()===1);
+ check('same Miro avatar moves arms',await exercise.locator('.ex-miro.ex-miro-active .miro-arm-left').evaluate(el=>getComputedStyle(el).animationName)!=='none');
+ check('offline music and voice requested',audioRequests.some(x=>x.includes('/health/morning.mp3'))&&audioRequests.some(x=>x.includes('/health/voice_intro.mp3')));
+ await exercise.getByRole('button',{name:/Пауза/}).click();
+ const pausedTimer=await exercise.getByTestId('exercise-timer').innerText();
+ await page.waitForTimeout(1100);
+ check('pause freezes exercise timer',await exercise.getByTestId('exercise-timer').innerText()===pausedTimer);
+ await exercise.getByRole('button',{name:/Пропустить шаг/}).click();
+ check('skip moves to next exercise',await exercise.getByText('Круги плечами').count()>0);
+ await exercise.getByRole('button',{name:/Мне нужен отдых/}).click();
+ check('rest stops workout',await exercise.getByText(/Сегодня можно отдохнуть/).count()===1);
+ for(let i=0;i<6;i++)await exercise.getByRole('button',{name:/Пропустить шаг/}).click();
+ check('celebration animation on completion',await exercise.locator('.ex-confetti').count()===1);
+ check('completion is gentle and optional',await exercise.getByText(/Зарядка закончена/).count()===1);
+ await health.locator('.h-navigation button').filter({hasText:'Сегодня'}).click();
+ check('skipping the entire workout never falsely awards health habit',!(await health.getByRole('checkbox',{name:'Подвигался утром'}).isChecked()));
+ await health.getByRole('checkbox',{name:'Подвигался утром'}).check();
+ await health.locator('.h-navigation button').filter({hasText:'Зарядка'}).click();
+ await page.setViewportSize({width:320,height:720});
+ check('exercise fits small Android screen',await exercise.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+ await exercise.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-health-stage3-'+role+'.png'});
+ await page.setViewportSize({width:390,height:790});
  await health.locator('.h-navigation button').filter({hasText:'Еда'}).click();
  check('7-day family menu',await health.locator('.h-week button').count()===7);
  check('four meal slots',await health.locator('.h-meal').count()===4);
@@ -536,10 +570,37 @@ async function run(role,browser){
  await page.locator('.mw-settings-tile').filter({hasText:'Моё здоровье'}).getByRole('button').click();
  check('health habits survive navigation',await page.locator('.h-health').getByRole('checkbox',{name:'Подвигался утром'}).isChecked());
  check('health saved automatic theme survives navigation',await page.locator('.h-health').getAttribute('data-theme-choice')==='auto');
+ // Whole-app theme must be switchable from settings, and visible in every top-level screen.
+ await page.getByRole('button',{name:'Открыть настройки'}).click();
+ const globalTheme=page.getByRole('group',{name:'Тема оформления всего приложения'});
+ check('full app theme switch available in Settings',await globalTheme.count()===1);
+ await globalTheme.getByRole('button',{name:'Тема: Ночь'}).click();
+ await page.waitForTimeout(350);
+ check('settings are dark after global theme switch',await page.locator('.mw-root').getAttribute('data-app-theme')==='night');
+ const darkTop=await page.locator('.mw-top').evaluate(el=>getComputedStyle(el).backgroundColor);
+ await page.getByRole('button',{name:/Дела/}).last().click();
+ check('dark theme covers tasks',await page.locator('.mw-root').getAttribute('data-app-theme')==='night'&&await page.locator('.mw-scroll').evaluate(el=>getComputedStyle(el).backgroundImage.includes('gradient')));
+ await page.getByRole('button',{name:/Учёба/}).last().click();
+ check('dark theme covers school',await page.locator('.mw-root').getAttribute('data-app-theme')==='night');
+ await page.getByRole('button',{name:/Магазин/}).last().click();
+ check('dark theme covers shop',await page.locator('.mw-root').getAttribute('data-app-theme')==='night');
+ await page.getByRole('button',{name:/Духовный рост/}).last().click();
+ check('dark theme covers spiritual growth',await page.locator('.mw-root').getAttribute('data-app-theme')==='night');
+ await page.getByRole('button',{name:/Семья/}).last().click();
+ check('dark theme covers family chat',await page.locator('.mw-root').getAttribute('data-app-theme')==='night');
+ await page.getByRole('button',{name:/Мир/}).last().click();
+ check('dark theme covers world and retains Miro',await page.locator('.mw-root').getAttribute('data-app-theme')==='night'&&await page.locator('.mw-hero-profile img').count()===1);
+ check('global theme changes no world points',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
+ await page.getByRole('button',{name:'Открыть настройки'}).click();
+ await page.getByRole('group',{name:'Тема оформления всего приложения'}).getByRole('button',{name:'Тема: Авто'}).click();
+ check('global theme settings survive within same session',await page.locator('.mw-root').getAttribute('data-app-theme-choice')==='auto'&&darkTop==='rgb(23, 42, 68)');
+ await page.locator('.mw-settings-tile').filter({hasText:'Моё здоровье'}).getByRole('button').click();
+
  await page.reload({waitUntil:'domcontentloaded'});
  await page.locator('.mw-health-shortcut').waitFor({state:'visible',timeout:10000});
  await page.locator('.mw-health-shortcut').click();
  check('health theme survives full app restart',await page.locator('.h-health').getAttribute('data-theme-choice')==='auto');
+ check('whole-app theme survives restart',await page.locator('.mw-root').getAttribute('data-app-theme-choice')==='auto');
  check('health habits survive app restart',await page.locator('.h-health').getByRole('checkbox',{name:'Подвигался утром'}).isChecked());
 
 

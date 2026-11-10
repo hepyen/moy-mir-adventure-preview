@@ -1,0 +1,58 @@
+/* Shared appearance for ALL tabs, including 3D, settings, school, chat and Health. */
+.mw-theme-switch{display:flex;flex-direction:column;gap:10px;width:100%}
+.mw-theme-switch>strong{font-size:14px;color:inherit}
+.mw-theme-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;background:#e8f5f4;border:1px solid #bbdcd5;padding:4px;border-radius:15px}
+.mw-theme-options button{border:0;border-radius:11px;min-width:0;background:transparent;padding:11px 4px;color:#547b83;font-size:12px;font-weight:850}
+.mw-theme-options button.selected{background:#21ac96;color:#fff;box-shadow:0 4px 12px #188d7550}
+.mw-theme-switch-compact .mw-theme-options{background:var(--h-soft);border-color:var(--h-border)}
+.mw-theme-switch-compact .mw-theme-options button{color:var(--h-muted);font-size:11px}
+.mw-theme-switch-compact .mw-theme-options button.selected{background:var(--h-accent);color:#073839}
+.mw-theme-options button:focus-visible{outline:3px solid #ffb85d;outline-offset:2px}
+.mw-theme-night{--app-dark-bg:#0c1930;--app-dark-screen:#13253d;--app-dark-panel:#1e3450;--app-dark-panel-alt:#273f59;--app-dark-field:#1b324f;--app-dark-text:#eff9ff;--app-dark-muted:#b5cfe1;--app-dark-border:#385474;--app-dark-bright:#8af1d5}
+.mw-root.mw-theme-night{background:#071327;color:var(--app-dark-text)}
+.mw-theme-night .mw-phone{background:var(--app-dark-screen);color:var(--app-dark-text);box-shadow:0 12px 70px #0008}
+.mw-theme-night :is(.mw-top,.mw-tabs-top,.mw-bottom){background:#172a44!important;color:var(--app-dark-text);border-color:var(--app-dark-border)!important}
+.mw-theme-night .mw-scroll{background:linear-gradient(180deg,#172943 0%,#0d1d34 80%)!important;color:var(--app-dark-text)}
+.mw-theme-night :is(.mw-greeting h1,.mw-greeting p,.mw-identity strong,.mw-identity span,.mw-hero-profile strong,.mw-hero-profile small,.mw-hero-profile span,.mw-section-heading h2,.mw-section-label,.mw-settings-tile strong){color:var(--app-dark-text)!important}
+.mw-theme-night :is(.mw-eyebrow,.mw-beta,.mw-section-label,.mw-star-counter){color:#aaf8dc!important}
+.mw-theme-night :is(.mw-greeting p,.mw-identity span,.mw-section-heading>span,.mw-music-caption,.mw-music-credits p){color:var(--app-dark-muted)!important}
+.mw-theme-night :is(.mw-settings-tile,.mw-panel,.mw-mission,.mw-progress,.mw-tasks-progress,.mw-chore,.mw-reward,.mw-chat,.mw-chat-msg,.mw-cloud-login,.mw-cloud-form,.mw-cloud-line,.mw-cloud-heading,.mw-cloud-account,
+  .myday,.myday-card,.myday-parent,.school-card,.school-today,.school-homework,.school-line,.school-empty,.school-dailytext,
+  .backpack-hub,.backpack-item,.backpack-parent-form,.backpack-empty,.backpack-cheer,
+  .family-chat,.family-chat-feed,.family-chat-header,.family-chat-message,.family-chat-message.own,
+  .playbank,.playbank-stats>div,.playbank-parent,.playbank-child,.playbank-limit,.playbank-approval,.playbank-history,
+  .daily-reader,.daily-content,.daily-import,.mw-update-center,.mw-push-center,.notification-panel,.notification-inbox,
+  .island-story,.island-story-chapter,.island-story-choices,.mw-note,.mw-music-credits,.mw-hero-profile){background:var(--app-dark-panel)!important;color:var(--app-dark-text)!important;border-color:var(--app-dark-border)!important;box-shadow:0 5px 18px #030d204d}
+.mw-theme-night :is(.mw-chat-msg p,.mw-cloud-form form,.myday-miro,.school-entry,.school-pref,.school-entry textarea,.school-number,.backpack-parent-form input,.family-chat-message p,.playbank-stats,.daily-not-loaded,.daily-commentary,.daily-reading-success,.mw-music-label select,
+  .mw-cloud-syncbar,.mw-balance-summary span,.mw-step,.mw-step.done,.mw-build,.mw-task-emoji,.mw-members span,.mw-worldswitch button,.mw-reward-icon,.mw-pin-card,.mw-settings-tile button,
+  .mw-theme-settings .mw-theme-options,.mw-health-shortcut,.mw-step-list,.mw-progress-track,.mw-task-track,.mw-task-explain,.mw-cloud-system,
+  .mw-system-stack .notification-item,.school-ask,.school-days button,.backpack-days button,.playbank-options button,.daily-year-tabs button,.daily-reader-date button,.mw-tab-top){background:var(--app-dark-panel-alt)!important;color:var(--app-dark-text)!important;border-color:var(--app-dark-border)!important}
+.mw-theme-night :is(.mw-cloud-syncbar,.mw-hero-profile){border-color:var(--app-dark-border)!important}
+.mw-theme-night :is(.mw-settings-tile p,.mw-panel p,.mw-mission p,.mw-progress p,.mw-chore small,.mw-task-body small,.mw-task-explain,.mw-miro p,.mw-cloud-login p,
+  .myday p,.myday-card-copy p,.school-card p,.school-line small,.school-homework p,.backpack-item small,.backpack-parent-form p,.family-chat-header p,.family-chat-message small,.playbank p,
+  .daily-content p,.daily-reader p,.mw-update-center p,.mw-push-center p,.island-story-chapter>p,.mw-music-credits p,.mw-settings-tile .mw-music-caption){color:var(--app-dark-muted)!important}
+.mw-theme-night :is(.mw-chat-msg p,.family-chat-message p){background:#2c4965!important;color:#f0fbff!important}
+.mw-theme-night :is(.mw-chat-msg.self p,.family-chat-message.own p){background:#28675f!important;color:#f0fffa!important}
+.mw-theme-night :is(input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select){background:var(--app-dark-field)!important;color:var(--app-dark-text)!important;border-color:#55728d!important;color-scheme:dark}
+.mw-theme-night :is(input,textarea,select)::placeholder{color:#9aafc4}
+.mw-theme-night :is(.mw-tabs-top button,.mw-bottom button,.mw-worldswitch button,.mw-step,.mw-task-right button:disabled,.mw-reward-foot button:disabled){background:#223b59;color:#c9dced}
+.mw-theme-night :is(.mw-tabs-top button.selected,.mw-bottom button.active,.mw-worldswitch button.active){background:#235d62!important;color:#aeffe2!important}
+.mw-theme-night :is(.mw-star-counter,.mw-coin){background:#37415a!important;color:#ffe8a5!important}
+.mw-theme-night :is(.mw-health-shortcut){background:linear-gradient(120deg,#26495b,#263c54)!important}
+.mw-theme-night :is(.mw-health-shortcut strong,.mw-health-shortcut small,.mw-health-shortcut b){color:#bcffde!important}
+.mw-theme-night :is(.mw-wallet,.mw-spirit-hero){background:linear-gradient(120deg,#22375d,#3b4268)!important;color:white!important}
+.mw-theme-night :is(.mw-primary,.mw-cloud-action button,.school-actions button,.mw-update-controls button,.mw-chat-input button){color:#f8fffe}
+.mw-theme-night .mw-world-fallback{background:radial-gradient(circle at 76% 14%,#dce9ff88,transparent 20%),linear-gradient(#132c50,#2d5275 51%,#24504d 53%,#1f5542)!important}
+.mw-theme-night .world3d-viewport{background:#142b4a!important}
+.mw-theme-night .world3d-panel{background:var(--app-dark-panel)!important;color:var(--app-dark-text)!important;border-color:var(--app-dark-border)!important}
+.mw-theme-night :is(.world3d-toolbar,.world3d-bottom,.world3d-next,.world3d-adventures,.world3d-loading){color:var(--app-dark-text)!important}
+.mw-theme-night .world3d-toolbar button{background:#365575!important;color:white!important}
+.mw-theme-night .mw-system-stack .notification-panel{background:var(--app-dark-panel)!important;color:var(--app-dark-text)!important}
+.mw-theme-night .mw-system-stack .notification-item p{color:var(--app-dark-muted)!important}
+.mw-theme-night .mw-pin-overlay{background:#020b1cc9!important}
+.mw-theme-night .mw-pin-card{background:var(--app-dark-panel)!important;color:var(--app-dark-text)!important}
+.mw-theme-night .mw-settings-tile .mw-theme-switch .mw-theme-options{background:#253f57!important}
+.mw-theme-night .mw-settings-tile .mw-theme-switch .mw-theme-options button.selected{background:#54caa9!important;color:#082d35!important}
+.mw-theme-night button:focus-visible,.mw-theme-night a:focus-visible{outline:3px solid #ffba60;outline-offset:2px}
+.mw-root,.mw-phone,.mw-top,.mw-bottom,.mw-scroll{transition:background-color .25s ease,color .25s ease,border-color .25s ease}
+@media(prefers-reduced-motion:reduce){.mw-root,.mw-phone,.mw-top,.mw-bottom,.mw-scroll{transition:none!important}}
