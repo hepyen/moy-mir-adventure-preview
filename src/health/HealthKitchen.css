@@ -1,0 +1,32 @@
+.h-kitchen{display:grid;gap:12px;color:var(--h-heading)}
+.h-kitchen-hero{border-radius:20px;background:linear-gradient(120deg,#ffe9b0,#e1f8d4);padding:19px;border:1px solid #eed8aa;color:#235f66}
+.h-theme-night .h-kitchen-hero{background:linear-gradient(120deg,#554464,#24565d);color:#efffff;border-color:#627384}
+.h-kitchen-hero>span{font-size:10px;font-weight:950;letter-spacing:.11em}.h-kitchen-hero h2{font-size:23px;margin:8px 0}.h-kitchen-hero p{font-size:11px;max-width:270px;line-height:1.6}
+.h-kitchen-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.h-kitchen-week button{padding:12px 1px;font-size:10px;font-weight:900;border-radius:10px;border:1px solid var(--h-border);background:var(--h-card);color:var(--h-heading)}
+.h-kitchen-week button.selected{background:var(--h-accent);color:#073c3d}
+.h-kitchen-day{font-size:18px;color:var(--h-heading);margin:4px 0 0}
+.h-food-card{background:var(--h-card);color:var(--h-heading);border:1px solid var(--h-border);border-radius:18px;overflow:hidden;box-shadow:0 4px 14px var(--h-shadow)}
+.h-food-art{display:block;width:100%;height:137px}
+.h-food-card-body{padding:13px}
+.h-food-card-body>strong{font-size:12px;color:var(--h-accent)}
+.h-food-card-body p{margin:8px 0 13px;font-size:14px;font-weight:800;line-height:1.4}
+.h-food-card-body textarea,.h-food-alternatives input,.h-food-allergy-entry input{width:100%;min-width:0;box-sizing:border-box;background:var(--h-field);color:var(--h-heading);border:1px solid var(--h-border);border-radius:10px;padding:10px;font-size:12px;font-family:inherit}
+.h-food-actions{display:flex;gap:8px}
+.h-food-actions button{flex:1;border:1px solid var(--h-border);border-radius:10px;background:var(--h-soft);color:var(--h-heading);font-weight:800;font-size:11px;padding:10px}
+.h-food-alternatives,.h-food-recipe{display:grid;gap:8px;background:var(--h-soft);padding:14px;border-top:1px solid var(--h-border)}
+.h-food-alternatives small,.h-food-recipe small{font-size:10px;color:var(--h-muted)}
+.h-food-alternatives>button{border:1px solid var(--h-border);background:var(--h-card);border-radius:10px;color:var(--h-heading);padding:9px;text-align:left;font-size:12px}
+.h-food-alternatives label{display:grid;gap:6px;font-size:11px;color:var(--h-muted)}
+.h-food-alternatives label button,.h-food-allergy-entry button{border:0;border-radius:10px;background:var(--h-accent);color:#093d3b;padding:10px;font-weight:900}
+.h-food-recipe strong{font-size:13px}.h-food-recipe p{font-size:12px;color:var(--h-heading);line-height:1.55;margin:0}
+.h-food-allergy-entry{display:flex;gap:7px;margin:8px 0 16px}.h-food-allergy-entry button{white-space:nowrap}
+.h-food-allergies{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0}
+.h-food-allergies button{border:1px solid var(--h-border);border-radius:11px;background:var(--h-soft);color:var(--h-heading);font-size:11px;padding:7px}
+.h-food-request{display:flex;align-items:center;gap:6px;border-top:1px solid var(--h-border);padding:9px 0}
+.h-food-request>span{flex:1;display:grid;gap:5px;font-size:10px;color:var(--h-muted)}.h-food-request strong{font-size:12px;color:var(--h-heading)}
+.h-food-request button{border:1px solid var(--h-border);background:var(--h-soft);color:var(--h-heading);border-radius:8px;padding:9px 6px;font-size:10px;font-weight:900}
+.h-food-shopping{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:12px}
+.h-food-shopping label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--h-heading)}.h-food-shopping input{accent-color:var(--h-accent)}
+.h-food-notice{font-size:11px;line-height:1.6;background:var(--h-soft);color:var(--h-heading);border:1px solid var(--h-border);border-radius:13px;padding:11px;margin:0}
+@media(max-width:350px){.h-food-shopping{grid-template-columns:1fr}}

@@ -4,6 +4,10 @@ import {LocalNotifications} from '@capacitor/local-notifications';
 import {MiroAvatar} from '../legacyWorld/MiroAvatar';
 import {GrowthJournal} from './GrowthJournal';
 import {ExerciseAdventure} from './ExerciseAdventure';
+import {HealthKitchen} from './HealthKitchen';
+import {SleepWell} from './SleepWell';
+import {HealthGarden} from './HealthGarden';
+import {useHealthFamily,type HealthPlan,type HealthDaily} from './useHealthFamily';
 import {AppThemeSwitch,type ThemeChoice} from '../theme/useAppTheme';
 import './HealthHub.css';
 
@@ -13,9 +17,7 @@ type HealthData={
   habits:Record<string,string[]>;mood:Record<string,string>;meals:Meal[];
   bed:string;wake:string;measurements:Measurement[];reminders:boolean;notes:string
 };
-type HealthSection='today'|'growth'|'exercise'|'food'|'sleep'|'parent';
-const WEEK=['Понедельник','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
-const SHORT=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+type HealthSection='today'|'growth'|'exercise'|'food'|'sleep'|'garden'|'parent';
 const BASE_MEALS:Meal[]=[
  {breakfast:'Овсянка с молоком и бананом',lunch:'Курица, рис и овощи',dinner:'Омлет, помидоры и хлеб',snack:'Фрукт или натуральный йогурт'},
  {breakfast:'Натуральный йогурт, фрукт и тост',lunch:'Чечевичный суп с овощами',dinner:'Запечённая рыба, картофель и салат',snack:'Бутерброд с сыром или фрукт'},
@@ -31,10 +33,6 @@ const HABITS=[
  {id:'water',icon:'💧',label:'В течение дня пил воду',help:'Пей, когда хочется пить, и после активности'},
  {id:'movement',icon:'🌳',label:'Погулял или активно поиграл',help:'Прогулка, мяч, велосипед, танцы'},
  {id:'evening',icon:'🌙',label:'Спокойно готовился ко сну',help:'Убрал экран и завершил вечерние дела'}
-];
-const GROCERY=[
- 'Овощи и зелень','Фрукты и ягоды','Картофель','Яйца','Молоко и натуральный йогурт','Сыр или творог',
- 'Курица и индейка','Рыба','Чечевица и нут','Рис и гречка','Овсяные хлопья','Макароны и цельнозерновой хлеб','Оливковое масло'
 ];
 function dateMadrid(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
 function madridWeekday(){const iso=dateMadrid();const d=new Date(iso+'T12:00:00Z').getUTCDay();return (d+6)%7}
@@ -84,10 +82,17 @@ async function setupReminders(bed:string,wake:string){
   extra:{section:'health'}
  }))});
 }
-export function HealthHub({parent=false,childId='local',familyId,themeMode,themeResolved,onThemeChange}:{parent?:boolean;childId?:string;familyId?:string;themeMode:ThemeChoice;themeResolved:'day'|'night';onThemeChange:(value:ThemeChoice)=>void}){
+export function HealthHub({parent=false,childId='local',familyId,themeMode,themeResolved,onThemeChange,onOpenSettings}:{parent?:boolean;childId?:string;familyId?:string;themeMode:ThemeChoice;themeResolved:'day'|'night';onThemeChange:(value:ThemeChoice)=>void;onOpenSettings?:()=>void}){
  const key='moymir-health-local-v1:'+childId;
  const [entry,setEntry]=useState<{key:string;data:HealthData}>(()=>({key,data:read(key)}));
  const state=entry.key===key?entry.data:read(key);
+ const cloud=useHealthFamily(familyId,childId,parent);
+ const plan:HealthPlan={
+  meals:cloud.plan?.meals?.length===7?cloud.plan.meals:state.meals,
+  bed:cloud.plan?.bed||state.bed,wake:cloud.plan?.wake||state.wake,
+  allergies:cloud.plan?.allergies||[],notes:''
+ };
+
  const actualTheme=themeResolved;
  const localHour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Madrid',hour:'2-digit',hourCycle:'h23'}).format(new Date()));
  const greeting=localHour<11?'Доброе утро!':localHour<17?'Хорошего дня!':'Добрый вечер!';
@@ -100,16 +105,13 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
   return()=>{window.clearInterval(interval);document.removeEventListener('visibilitychange',visible)};
  },[]);
  const [section,setSection]=useState<HealthSection>('today');
- const [selectedDay,setSelectedDay]=useState(madridWeekday);
- const [shopping,setShopping]=useState(false);
- const [mealEdit,setMealEdit]=useState(false);
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
  const today=dateMadrid();
- const done=Array.isArray(state.habits[today])?state.habits[today]:[];
- const currentMeal=state.meals[selectedDay];
- const duration=sleepMinutes(state.bed,state.wake);
- const windDown=clockLabel((timeMinutes(state.bed)-45+1440)%1440);
+ const daily:HealthDaily=cloud.today||{date:today,habits:Array.isArray(state.habits[today])?state.habits[today]:[],mood:state.mood[today]||'',energy:'',sleepQuality:''};
+ const done=daily.habits;
+ const duration=sleepMinutes(plan.bed,plan.wake);
+ const windDown=clockLabel((timeMinutes(plan.bed)-45+1440)%1440);
  const progress=done.filter(id=>HABITS.some(h=>h.id===id)).length;
  const exerciseTotal=420;
  function save(modify:(old:HealthData)=>HealthData){
@@ -118,32 +120,52 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
   try{localStorage.setItem(key,JSON.stringify(updated));setEntry({key,data:updated});setNotice('Сохранено на этом устройстве ✓')}
   catch{setNotice('Не удалось сохранить данные на устройстве. Проверь свободное место.')}
  }
- function markHabit(id:string){
-  save(s=>{
-   const current=Array.isArray(s.habits[today])?s.habits[today]:[];
-   const items=current.includes(id)?current.filter(x=>x!==id):[...current,id];
-   const copy={...s.habits,[today]:items};
-   const recent=Object.keys(copy).sort();
-   for(const old of recent.slice(0,-90))delete copy[old];
-   return {...s,habits:copy};
-  });
- }
- function changeMeal(field:keyof Meal,value:string){
+ useEffect(()=>{
+  if(!cloud.connected||!cloud.loaded||cloud.days.length||!Object.keys(state.habits).length)return;
+  const past=Object.keys(state.habits).sort().slice(-30);
+  for(const date of past){
+   const habits=Array.isArray(state.habits[date])?state.habits[date]:[];
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date>today||habits.length===0)continue;
+   cloud.updateDaily({date,habits,mood:state.mood[date]||'',energy:'',sleepQuality:''});
+  }
+ },[cloud.loaded,cloud.connected,cloud.days.length,key]);
+ useEffect(()=>{
+  if(!cloud.connected||!cloud.loaded||cloud.plan||!parent)return;
+  cloud.updatePlan({meals:state.meals,bed:state.bed,wake:state.wake,allergies:[],notes:''});
+ },[cloud.connected,cloud.loaded,!!cloud.plan,parent,key]);
+ useEffect(()=>{
+  if(!state.reminders||!cloud.plan||!Capacitor.isNativePlatform())return;
+  void LocalNotifications.checkPermissions().then(permission=>{
+   if(permission.display==='granted')return setupReminders(plan.bed,plan.wake);
+  }).catch(e=>console.warn('Health reminder reschedule',e));
+ },[plan.bed,plan.wake,!!cloud.plan,state.reminders]);
+ function savePlan(next:HealthPlan){
   if(!parent)return;
-  save(s=>({...s,meals:s.meals.map((meal,i)=>i===selectedDay?{...meal,[field]:value.slice(0,180)}:meal)}));
+  save(s=>({...s,meals:next.meals,bed:next.bed,wake:next.wake}));
+  cloud.updatePlan(next);
+ }
+ function saveDaily(next:HealthDaily){
+  cloud.updateDaily(next);
+  save(s=>({...s,habits:{...s.habits,[next.date]:next.habits},mood:{...s.mood,[next.date]:next.mood}}));
+ }
+ function markHabit(id:string){
+  const next=new Set(done);
+  if(next.has(id))next.delete(id);else next.add(id);
+  saveDaily({...daily,habits:[...next]});
  }
  function changeSleep(field:'bed'|'wake',value:string){
   if(!parent||!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return;
-  save(s=>({...s,[field]:value,reminders:false}));
-  setNotice('Режим обновлён. Если напоминания были включены, включите их снова после изменения времени.');
+  savePlan({...plan,[field]:value});
+  save(s=>({...s,reminders:false}));
+  setNotice('Режим обновлён. Если напоминания были включены, включи их заново на нужном телефоне.');
   void clearReminders().catch(()=>{});
  }
  async function toggleReminders(){
-  if(!parent||busy)return;
+  if(busy)return;
   setBusy(true);setNotice('');
   try{
    if(state.reminders){await clearReminders();save(s=>({...s,reminders:false}));}
-   else{await setupReminders(state.bed,state.wake);save(s=>({...s,reminders:true}));}
+   else{await setupReminders(plan.bed,plan.wake);save(s=>({...s,reminders:true}));}
   }catch(e){setNotice(e instanceof Error?e.message:'Не удалось изменить напоминания')}
   finally{setBusy(false)}
  }
@@ -166,14 +188,14 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
     <div className="h-miro" aria-label="Миро из мира на поляне"><MiroAvatar face="smile"/><span className="h-miro-orbit" aria-hidden="true">✧</span></div>
    </header>
    <div className="h-navigation" aria-label="Разделы здоровья">
-    {([['today','☀️ Сегодня'],['growth','📏 Я расту'],['exercise','🤸 Зарядка'],['food','🥗 Еда'],['sleep','🌙 Сон'],...(parent?[['parent','👨‍👩‍👦 Родителю']]:[])] as [HealthSection,string][]).map(([id,label])=>
+    {([['today','☀️ Сегодня'],['growth','📏 Я расту'],['exercise','🤸 Зарядка'],['food','🥗 Еда'],['sleep','🌙 Сон'],['garden','🌿 Сад здоровья'],...(parent?[['parent','👨‍👩‍👦 Родителю']]:[])] as [HealthSection,string][]).map(([id,label])=>
      <button key={id} className={section===id?'current':''} onClick={()=>{setSection(id);setNotice('')}}>{label}</button>)}
    </div>
 
    {section==='today'&&<>
     <div className="h-status-grid">
-     <div className="h-status-sleep"><span className="h-status-icon" aria-hidden="true">🌙</span><small>Уложиться спать</small><strong>{state.bed}</strong><span>Спокойный вечер с {windDown}</span></div>
-     <div className="h-status-wake"><span className="h-status-icon" aria-hidden="true">☀️</span><small>Проснуться</small><strong>{state.wake}</strong><span>Потом зарядка {Math.round(exerciseTotal/60)} минут</span></div>
+     <div className="h-status-sleep"><span className="h-status-icon" aria-hidden="true">🌙</span><small>Уложиться спать</small><strong>{plan.bed}</strong><span>Спокойный вечер с {windDown}</span></div>
+     <div className="h-status-wake"><span className="h-status-icon" aria-hidden="true">☀️</span><small>Проснуться</small><strong>{plan.wake}</strong><span>Потом зарядка {Math.round(exerciseTotal/60)} минут</span></div>
     </div>
     <button type="button" className="h-growth-shortcut" onClick={()=>setSection('growth')}><span>📏</span><span><strong>Я расту!</strong><small>Мой рост, вес и история измерений</small></span><b>Открыть →</b></button>
     <section className="h-card">
@@ -191,7 +213,7 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
      <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">💛</span><h2>Как ты себя чувствуешь?</h2></div>
      <div className="h-mood">
       {([['good','😊 Бодро'],['ok','🙂 Обычно'],['rest','😴 Нужен отдых']] as const).map(([code,label])=>
-       <button className={state.mood[today]===code?'chosen':''} key={code} onClick={()=>save(s=>({...s,mood:{...s.mood,[today]:code}}))}>{label}</button>)}
+       <button className={daily.mood===code?'chosen':''} key={code} onClick={()=>saveDaily({...daily,mood:code})}>{label}</button>)}
      </div>
      <small className="h-muted">Если сильно устал, можно выбрать отдых. Миро не заставляет тренироваться.</small>
     </section>
@@ -200,46 +222,14 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
 
    {section==='growth'&&<GrowthJournal childId={childId} familyId={familyId} parent={parent} legacy={state.measurements}/>}
    {section==='exercise'&&<ExerciseAdventure onComplete={()=>{if(!done.includes('morning'))markHabit('morning')}}/>}
-   {section==='food'&&<section className="h-card">
-    <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🥗</span><h2>Наше меню на неделю</h2></div>
-    <p>Обычная семейная еда, без диет, подсчёта калорий и запретов. Можно заменять блюда и добавлять перекус, когда голоден.</p>
-    <div className="h-week">{SHORT.map((d,i)=><button className={selectedDay===i?'active':''} key={d} onClick={()=>setSelectedDay(i)}>{d}</button>)}</div>
-    <h3 className="h-day-name">{WEEK[selectedDay]}</h3>
-    {([['breakfast','🌤️ Завтрак'],['lunch','🥘 Обед'],['dinner','🌙 Ужин'],['snack','🍎 Перекус при голоде']] as [keyof Meal,string][]).map(([field,label])=>
-     <div className="h-meal" key={field}><strong>{label}</strong>
-      {parent&&mealEdit?<textarea rows={2} maxLength={180} value={currentMeal[field]} onChange={e=>changeMeal(field,e.target.value)} aria-label={label}/>:<p>{currentMeal[field]}</p>}
-     </div>)}
-    {parent&&<div className="h-action-row">
-     <button className="h-secondary" onClick={()=>setMealEdit(x=>!x)}>{mealEdit?'✓ Завершить редактирование':'✏️ Изменить меню'}</button>
-     <button className="h-secondary" onClick={()=>{if(window.confirm('Вернуть меню этого дня к первоначальному варианту?'))save(s=>({...s,meals:s.meals.map((m,i)=>i===selectedDay?{...BASE_MEALS[i]}:m)}))}}>↺ Вернуть день</button>
-    </div>}
-    <p className="h-water">💧 Вода — основной напиток. Размер порций выбирайте по голоду, насыщению и рекомендациям врача, а не по баллам.</p>
-    <button className="h-subtle-button" onClick={()=>setShopping(x=>!x)}>{shopping?'Скрыть список покупок':'🛒 Пример списка покупок'}</button>
-    {shopping&&<div className="h-shopping"><p>Список составлен по исходному меню. Если меняли блюда, проверьте его вручную.</p>{GROCERY.map(x=><div key={x}>• {x}</div>)}</div>}
-   </section>}
+   {section==='food'&&<HealthKitchen plan={plan} parent={parent} connected={cloud.connected} requests={cloud.requests}
+     onPlan={savePlan} onPropose={cloud.propose} onDecide={cloud.decide}/>}
 
-   {section==='sleep'&&<section className="h-card">
-    <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">🌙</span><h2>Спокойный сон</h2></div>
-    <p>В 12 лет обычно требуется 9–12 часов сна за сутки. Режим можно изменить вместе с родителем.</p>
-    <div className="h-status-grid">
-     <div><small>Ложиться спать</small><strong>{state.bed}</strong></div>
-     <div><small>Просыпаться</small><strong>{state.wake}</strong></div>
-    </div>
-    <div className="h-sleep-total">🌙 Между отбоем и подъёмом: <strong>{asHours(duration)}</strong></div>
-    {duration<540||duration>720?<p className="h-caution">Этот интервал выходит за обычные рекомендации для 12-летних. Посмотрите режим вместе с педиатром.</p>:<p className="h-positive">Это позволяет выделить достаточно времени на сон, если удаётся уснуть близко ко времени отбоя.</p>}
-    <div className="h-timeline">
-     <div><strong>{windDown}</strong><span>Заканчиваем игры, приглушаем свет, убираем экран</span></div>
-     <div><strong>{clockLabel((timeMinutes(state.bed)-30+1440)%1440)}</strong><span>Душ, зубы, удобная одежда, спокойная подготовка</span></div>
-     <div><strong>{state.bed}</strong><span>Тихо, темно, сон</span></div>
-     <div><strong>{state.wake}</strong><span>Доброе утро с Миро</span></div>
-    </div>
-    {parent&&<div className="h-sleep-edit">
-     <label>Время отбоя<input type="time" value={state.bed} onChange={e=>changeSleep('bed',e.target.value)}/></label>
-     <label>Время подъёма<input type="time" value={state.wake} onChange={e=>changeSleep('wake',e.target.value)}/></label>
-     <button disabled={busy} onClick={()=>void toggleReminders()}>{state.reminders?'🔕 Выключить напоминания':'🔔 Включить напоминания Android'}</button>
-     <small>При включении на этом телефоне появятся вечернее напоминание и утренний сигнал. Системный будильник Миро настраивается отдельно.</small>
-    </div>}
-   </section>}
+   {section==='sleep'&&<SleepWell bed={plan.bed} wake={plan.wake} parent={parent} daily={daily} days={cloud.days}
+     reminders={state.reminders} working={busy} onSaveDay={saveDaily} onChangeTime={changeSleep}
+     onToggleReminders={()=>void toggleReminders()} onGoAlarm={()=>onOpenSettings?.()}/>}
+   {section==='garden'&&<HealthGarden days={cloud.days.length?cloud.days:Object.keys(state.habits).map(date=>({date,habits:state.habits[date],mood:state.mood[date]||'',energy:'',sleepQuality:''}))}
+     placements={cloud.garden} night={actualTheme==='night'} today={daily} onSaveGarden={cloud.updateGarden} onSaveDay={saveDaily}/>}
 
    {section==='parent'&&parent&&<section className="h-card">
     <div className="h-card-heading"><span className="h-card-icon" aria-hidden="true">👨‍👩‍👦</span><h2>Кабинет родителя</h2></div>
@@ -250,6 +240,7 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
     <small className="h-muted">Замечания и измерения хранятся только в памяти этого устройства. Удаление приложения или его данных может стереть записи. Это локальный журнал, не медицинская карта.</small>
    </section>}
    {notice&&<div className="h-notice" role="status">{notice}</div>}
+   <div className="h-sync-indicator" role="status">{cloud.connected?(cloud.working?'☁️ Синхронизация…':'☁️ Семейная синхронизация подключена'):'📱 Локальные данные (семейный аккаунт не подключён)'}</div>
    <footer className="h-sources">Источники: <a href="https://www.cdc.gov/healthy-schools/sleep/" target="_blank" rel="noreferrer">CDC (сон)</a>, <a href="https://www.who.int/europe/news-room/fact-sheets/item/physical-activity" target="_blank" rel="noreferrer">ВОЗ (движение)</a>, <a href="https://www.aesan.gob.es/es/nutricion/recomendaciones-dieteticas" target="_blank" rel="noreferrer">AESAN (питание)</a>. Этот раздел помогает соблюдать привычки, но не заменяет рекомендации педиатра.</footer>
   </div>;
 }

@@ -8,7 +8,7 @@ from pathlib import Path
 
 parser=argparse.ArgumentParser()
 parser.add_argument("apk",type=Path)
-parser.add_argument("--version",default="3.7.0")
+parser.add_argument("--version",default="3.8.0")
 args=parser.parse_args()
 with zipfile.ZipFile(args.apk) as apk:
     names=set(apk.namelist())

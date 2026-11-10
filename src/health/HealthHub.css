@@ -219,3 +219,5 @@
 .h-health .h-growth-shortcut>span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:4px}
 .h-health .h-growth-shortcut strong{font-size:16px}.h-health .h-growth-shortcut small{font-size:10px;color:var(--h-muted)}
 .h-health .h-growth-shortcut>b{font-size:10px;color:var(--h-accent);white-space:nowrap}
+
+.h-health .h-sync-indicator{padding:10px 13px;border-radius:12px;background:var(--h-soft);color:var(--h-muted);font-size:10px;margin:12px 0}

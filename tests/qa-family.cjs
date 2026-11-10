@@ -6,6 +6,11 @@ const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'nume
 function makeJWT(id){const payload=Buffer.from(JSON.stringify({sub:id,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+7200})).toString('base64url');return 'eyJhbGciOiJIUzI1NiJ9.'+payload+'.synthetic'}
 let failures=0;
 let growthMeasurements=[];let growthSerial=0;
+let healthPlan=null,healthDaily=[],healthGarden=null,healthRequestSeq=1;
+let healthRequests=[{id:'d9999999-9999-4999-8999-000000000001',family_id:ids.family,child_id:ids.child,
+ weekday:0,meal_kind:'lunch',suggestion:'Чечевица с морковью и хлебом',
+ status:'pending',created_at:'2026-11-09T07:00:00Z'}];
+
 const privateDaily=new Map();
 async function syntheticEpub(){
  const zip=new JSZip();
@@ -52,6 +57,7 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
+ let healthNetworkBlocked=false;
  const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;let playBalance=60,playCap=30,storyDone=[];
  let playSessions=role==='parent'?[{id:'91111111-1111-4111-8111-111111111111',minutes:10,status:'pending',requested_at:new Date().toISOString(),started_at:null}]:[];
  const playOverview=()=>({balance:playBalance,dailyLimit:playCap,todayUsed:playSessions.filter(x=>['active','finished'].includes(x.status)).reduce((n,x)=>n+x.minutes,0)});
@@ -83,6 +89,55 @@ async function run(role,browser){
     if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
+  if(['moymir_health_plan','moymir_health_daily','moymir_health_garden','moymir_health_meal_requests'].includes(name)){
+    if(healthNetworkBlocked)return route.abort('failed');
+    const single=request.headers()['accept']?.includes('vnd.pgrst.object')||false;
+    const body=method==='POST'||method==='PATCH'?request.postDataJSON():null;
+    if(name==='moymir_health_plan'){
+     if(method==='GET')return resp(healthPlan,single);
+     if(method==='POST'){
+      const item=Array.isArray(body)?body[0]:body;
+      healthPlan={...healthPlan,...item};
+      counters.restWrites.push({name,method,record:healthPlan});
+      return resp(single?healthPlan:[],single);
+     }
+    }
+    if(name==='moymir_health_daily'){
+     if(method==='GET')return resp(healthDaily);
+     if(method==='POST'){
+      const item=Array.isArray(body)?body[0]:body;
+      healthDaily=[...healthDaily.filter(x=>x.activity_date!==item.activity_date),{...item}];
+      counters.restWrites.push({name,method,record:item});
+      return resp([]);
+     }
+    }
+    if(name==='moymir_health_garden'){
+     if(method==='GET')return resp(healthGarden,single);
+     if(method==='POST'){
+      const item=Array.isArray(body)?body[0]:body;
+      healthGarden={...healthGarden,...item};
+      counters.restWrites.push({name,method,record:healthGarden});
+      return resp(single?healthGarden:[],single);
+     }
+    }
+    if(name==='moymir_health_meal_requests'){
+     if(method==='GET')return resp(healthRequests);
+     if(method==='POST'){
+      const item=Array.isArray(body)?body[0]:body;
+      const newRecord={id:'d9999999-9999-4999-8999-'+String(++healthRequestSeq).padStart(12,'0'),
+       family_id:item.family_id,child_id:item.child_id,weekday:item.weekday,
+       meal_kind:item.meal_kind,suggestion:item.suggestion,status:'pending',created_at:new Date().toISOString()};
+      healthRequests.unshift(newRecord);counters.restWrites.push({name,method,record:newRecord});
+      return resp([]);
+     }
+     if(method==='PATCH'){
+      const id=url.searchParams.get('id')?.replace('eq.','');
+      healthRequests=healthRequests.map(x=>x.id===id?{...x,...body}:x);
+      counters.restWrites.push({name,method,record:body});
+      return resp([]);
+     }
+    }
+   }
   if(name==='moymir_health_measurements'){
     if(method==='GET')return resp(growthMeasurements);
     if(method==='POST'){
@@ -463,10 +518,10 @@ async function run(role,browser){
 
 
  check('Miro avatar shared with world',await health.locator('.h-miro svg').count()===1);
- check('sleep times on dashboard',await health.getByText('21:00').count()>0&&await health.getByText('06:45').count()>0);
+ check('sleep times on dashboard',await health.getByText(role==='parent'?'21:00':'21:15').count()>0&&await health.getByText('06:45').count()>0);
  check('five health habits visible',await health.locator('.h-habit').count()===5);
  await health.getByRole('checkbox',{name:'Подвигался утром'}).check();
- check('habit saved on this device',await page.evaluate(id=>JSON.parse(localStorage.getItem('moymir-health-local-v1:'+id)||'{}').habits?.[new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())]?.includes('morning'),ids.child));
+ check('habit preserved in family history',await health.getByRole('checkbox',{name:'Подвигался утром'}).isChecked()&&healthDaily.some(x=>x.habits?.includes('morning')));
  check('nutrition does not award coins',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
 
  await health.getByRole('checkbox',{name:'Подвигался утром'}).uncheck();
@@ -506,18 +561,99 @@ async function run(role,browser){
  await exercise.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-health-stage3-'+role+'.png'});
  await page.setViewportSize({width:390,height:790});
  await health.locator('.h-navigation button').filter({hasText:'Еда'}).click();
- check('7-day family menu',await health.locator('.h-week button').count()===7);
- check('four meal slots',await health.locator('.h-meal').count()===4);
+ const kitchen=health.locator('.h-kitchen');
+ check('7-day menu after redesign',await kitchen.locator('.h-kitchen-week button').count()===7);
+ check('four illustrated meals',await kitchen.locator('.h-food-card').count()===4&&await kitchen.locator('.h-food-art').count()===4);
+ await kitchen.getByRole('button',{name:'📖 Рецепт'}).first().click();
+ check('recipe opens in kitchen',await kitchen.locator('.h-food-recipe').count()===1);
+ await kitchen.getByRole('button',{name:'Показать список покупок'}).click();
+ check('shopping list derived from menu',await kitchen.locator('.h-food-shopping label').count()>=7);
  if(role==='parent'){
-  await health.getByRole('button',{name:/Изменить меню/}).click();
-  await health.getByRole('textbox',{name:'🌤️ Завтрак'}).fill('Овсянка и яблоко для теста');
-  check('parent menu editing saved locally',await page.evaluate(id=>JSON.parse(localStorage.getItem('moymir-health-local-v1:'+id)||'{}').meals.some(m=>m.breakfast==='Овсянка и яблоко для теста'),ids.child));
+  await kitchen.getByRole('button',{name:'✏️ Редактировать блюда'}).click();
+  await kitchen.getByRole('textbox',{name:'🌤️ Завтрак'}).fill('Овсянка с яблоком и молоком');
+  await page.waitForTimeout(200);
+  check('parent menu writes protected plan',counters.restWrites.some(x=>x.name==='moymir_health_plan'&&x.method==='POST'));
+  check('parent menu stored for child',healthPlan?.meals?.some(m=>m.breakfast==='Овсянка с яблоком и молоком'));
+  await kitchen.getByRole('button',{name:'✓ Завершить редактирование'}).click();
+  await kitchen.getByRole('textbox',{name:'Аллергия или ограничение'}).fill('орехи');
+  await kitchen.getByRole('button',{name:'Добавить'}).click();
+  check('allergies shared in plan',healthPlan?.allergies?.includes('орехи'));
+  await kitchen.getByRole('button',{name:'✓ Утвердить'}).first().click();
+  await page.waitForTimeout(220);
+  check('parent approves child proposal',healthRequests[0].status==='approved');
+  check('approved proposal changes family menu',healthPlan?.meals?.[0]?.lunch==='Чечевица с морковью и хлебом');
  }else{
-  check('child cannot edit family meal plan',await health.getByRole('button',{name:/Изменить меню/}).count()===0);
+  check('child cannot edit family meal plan',await kitchen.getByRole('button',{name:/Редактировать блюда/}).count()===0);
+  check('child sees parent approved menu',await kitchen.getByText('Овсянка с яблоком и молоком').count()>0);
+  await kitchen.getByRole('button',{name:'💡 Предложить'}).first().click();
+  await kitchen.locator('.h-food-alternatives>button').first().click();
+  await page.waitForTimeout(250);
+  check('child meal proposal posted',counters.restWrites.some(x=>x.name==='moymir_health_meal_requests'&&x.method==='POST'));
+  await kitchen.getByRole('button',{name:'💡 Предложить'}).last().click();
+  check('known allergy filters nut alternatives',await kitchen.locator('.h-food-alternatives>button').filter({hasText:'орех'}).count()===0);
+  await kitchen.getByRole('button',{name:'💡 Предложить'}).last().click();
+
+  check('child cannot approve own proposal',await kitchen.getByRole('button',{name:/Утвердить/}).count()===0);
  }
  await health.locator('.h-navigation button').filter({hasText:'Сон'}).click();
- check('sleep plan has bedtime wind-down',await health.getByText(/Заканчиваем игры/).count()===1);
- check('child sleep controls restricted',role==='child'?await health.locator('input[type=time]').count()===0:await health.locator('input[type=time]').count()===2);
+ const sleepHub=health.getByRole('region',{name:'Мой сон и самочувствие'});
+ check('sleep diary and nightly routine visible',await sleepHub.count()===1&&await sleepHub.locator('.h-sleep-steps>div').count()===4);
+ check('weekly sleep history visible',await sleepHub.locator('.h-sleep-week>div').count()===7);
+ check('sleep controls restricted to parent',role==='child'?await sleepHub.locator('input[type=time]').count()===0:await sleepHub.locator('input[type=time]').count()===2);
+ if(role==='parent'){
+  await sleepHub.locator('input[type=time]').first().fill('21:15');
+  await page.waitForTimeout(220);
+  check('parent bedtime synced via protected plan',healthPlan?.bed_time==='21:15');
+ }else{
+  check('child sees parent bedtime',await sleepHub.getByText('21:15').count()>0);
+ }
+ await sleepHub.getByRole('button',{name:'😌 Хорошо'}).click();
+ await sleepHub.getByRole('button',{name:'⚡ Бодрый'}).click();
+ check('sleep and energy saved in protected daily journal',healthDaily.some(x=>x.sleep_quality==='great'&&x.energy==='high'));
+ check('budilnik link available',await sleepHub.getByRole('button',{name:/Открыть будильник Миро/}).count()===1);
+ await health.locator('.h-navigation button').filter({hasText:'Сад здоровья'}).click();
+ const garden=health.getByRole('region',{name:'Сад здоровья'});
+ check('interactive 3D garden created',await garden.locator('canvas').count()===1);
+ check('16 accessible garden plots',await garden.locator('.h-garden-slots button').count()===16);
+ check('9 garden decorations',await garden.locator('.h-garden-inventory button').count()===9);
+ if(role==='child')check('child receives parent 3D garden decoration',await garden.getByRole('button',{name:'Сектор 1 flower'}).count()===1);
+ await garden.getByRole('button',{name:role==='parent'?'Сектор 1 пустой':'Сектор 2 пустой'}).click();
+ check('garden placement saved in family garden table',counters.restWrites.some(x=>x.name==='moymir_health_garden'&&x.method==='POST'));
+ check('garden keeps flower on plot',await garden.getByRole('button',{name:role==='parent'?'Сектор 1 flower':'Сектор 2 flower'}).count()===1);
+ await garden.getByRole('button',{name:'☁️ Дождик'}).click();
+ check('garden weather decorative mode',await garden.locator('.h-garden-rain').count()===1);
+ await garden.getByRole('button',{name:'▦ Список'}).click();
+ check('garden has fallback list for weak phones',await garden.locator('.h-garden-fallback').count()===1);
+ await garden.getByRole('button',{name:'🌿 3D'}).click();
+ if(role==='child'){
+  const quest=garden.getByRole('checkbox',{name:/Прогулялись вместе/});
+  await quest.check();
+  await page.waitForTimeout(130);
+  check('family quest writes daily history',healthDaily.some(x=>x.habits?.includes('family_walk')));
+  healthNetworkBlocked=true;
+  await garden.getByRole('button',{name:'Сектор 3 пустой'}).click();
+  await page.waitForTimeout(180);
+  const offlineData=await page.evaluate(([family,child])=>{
+   const p='moymir-health-cloud-v1:'+family+':'+child+':';
+   return {garden:JSON.parse(localStorage.getItem(p+'garden')||'[]'),queue:JSON.parse(localStorage.getItem(p+'queue')||'[]')}
+  },[ids.family,ids.child]);
+  check('offline garden placement saved locally',offlineData.garden.some(x=>x.slot===2&&x.kind==='flower'));
+  check('offline queue survives network failure',offlineData.queue.some(x=>x.type==='garden'));
+  healthNetworkBlocked=false;
+  await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+  await page.waitForFunction(([family,child])=>{
+   const k='moymir-health-cloud-v1:'+family+':'+child+':queue';
+   return (JSON.parse(localStorage.getItem(k)||'[]')).length===0;
+  },[ids.family,ids.child],{timeout:9000});
+  check('offline garden queue flushed after reconnection',healthGarden?.placements?.some(x=>x.slot===2&&x.kind==='flower'));
+ }
+ await garden.locator('.h-garden-canvas').scrollIntoViewIfNeeded();
+ await garden.locator('canvas').screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-health-stage6-webgl-'+role+'.png'});
+
+ await page.setViewportSize({width:320,height:720});
+ check('garden fits 320px screen',await garden.evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+ await garden.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-health-stage6-garden-'+role+'.png'});
+ await page.setViewportSize({width:390,height:790});
  if(role==='parent'){
   await health.locator('.h-navigation button').filter({hasText:'Родителю'}).click();
   check('parent health role preserved',await health.getByRole('button',{name:/Открыть семейный дневник/}).count()===1);
