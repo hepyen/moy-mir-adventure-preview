@@ -68,7 +68,7 @@ function subjectAudio(subject:string){
 const LEGACY_NATIVE=Capacitor.isNativePlatform()&&!native;
 const APK_URL='https://hepyen.github.io/moy-mir-adventure-preview/downloads/MOY_MIR_3.3.0_TEST.apk';
 
-export function MiroAlarmPanel({parent=false,lessons=[]}:{parent?:boolean;lessons?:Lesson[]}){
+export function MiroAlarmPanel({lessons=[]}:{lessons?:Lesson[]}){
  const [settings,setSettings]=useState<AlarmState>(DEFAULT);
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState('');
@@ -141,7 +141,7 @@ export function MiroAlarmPanel({parent=false,lessons=[]}:{parent?:boolean;lesson
    tone:settings.tone,voice:settings.voice,vibrate:settings.vibrate,gradual:settings.gradual,snooze:settings.snooze
   }),settings.enabled?'Будильник сохранён в Android':'Будильник выключен');
  }
- const toggleDay=(i:number)=>edit('days',settings.days^(1<<i));
+ const toggleDay=(i:number)=>setSettings(s=>({...s,days:s.days^(1<<i)}));
  return <section className="miro-alarm-panel" aria-label="Будильник Миро">
   <div className="miro-alarm-heading"><div className="miro-alarm-clock-icon">⏰</div><div><span>МОЙ МИР · УТРО</span><h2>Миро будит Илью</h2><p>Будильник на этом телефоне. Работает без интернета в установленной Android-версии.</p></div></div>
   <div className="miro-alarm-scene">
@@ -159,16 +159,16 @@ export function MiroAlarmPanel({parent=false,lessons=[]}:{parent?:boolean;lesson
   </div>
   <div className="miro-alarm-form">
    <label className="miro-alarm-switch"><span><b>Включить будильник</b><small>Рабочие дни по умолчанию</small></span>
-    <input type="checkbox" checked={settings.enabled} onChange={e=>edit('enabled',e.target.checked)} disabled={!parent}/></label>
-   <div className="miro-alarm-row"><label>Время пробуждения<input aria-label="Время будильника" type="time" value={fmtTime(settings.hour,settings.minute)} onChange={e=>{const [h,m]=e.target.value.split(':').map(Number);if(Number.isInteger(h)&&Number.isInteger(m)){setSettings(s=>({...s,hour:h,minute:m}))}}} disabled={!parent}/></label>
-   <label>Повтор через<select value={settings.snooze} onChange={e=>edit('snooze',Number(e.target.value))} disabled={!parent}><option value={0}>Без повтора</option><option value={5}>5 минут</option><option value={10}>10 минут</option></select></label></div>
-   <div className="miro-alarm-week"><span>Дни недели</span><div>{days.map((d,i)=><button type="button" key={d} className={(settings.days&(1<<i))?'selected':''} aria-pressed={!!(settings.days&(1<<i))} onClick={()=>toggleDay(i)} disabled={!parent}>{d}</button>)}</div></div>
-   <label className="miro-alarm-field">Мелодия<select value={settings.tone} onChange={e=>edit('tone',e.target.value as AlarmState['tone'])} disabled={!parent}>{tones.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><small>{tones.find(t=>t.id===settings.tone)?.description}</small></label>
-   <label className="miro-alarm-check"><input type="checkbox" checked={settings.gradual} onChange={e=>edit('gradual',e.target.checked)} disabled={!parent}/> Постепенно увеличивать громкость</label>
-   <label className="miro-alarm-check"><input type="checkbox" checked={settings.voice} onChange={e=>edit('voice',e.target.checked)} disabled={!parent}/> Миро напоминает об уроках, зубах и кровати каждые несколько секунд</label>
+    <input type="checkbox" checked={settings.enabled} onChange={e=>edit('enabled',e.target.checked)} disabled={busy}/></label>
+   <div className="miro-alarm-row"><label>Время пробуждения<input aria-label="Время будильника" type="time" value={fmtTime(settings.hour,settings.minute)} onChange={e=>{const [h,m]=e.target.value.split(':').map(Number);if(Number.isInteger(h)&&Number.isInteger(m)){setSettings(s=>({...s,hour:h,minute:m}))}}} disabled={busy}/></label>
+   <label>Повтор через<select value={settings.snooze} onChange={e=>edit('snooze',Number(e.target.value))} disabled={busy}><option value={0}>Без повтора</option><option value={5}>5 минут</option><option value={10}>10 минут</option></select></label></div>
+   <div className="miro-alarm-week"><span>Дни недели</span><div>{days.map((d,i)=><button type="button" key={d} className={(settings.days&(1<<i))?'selected':''} aria-pressed={!!(settings.days&(1<<i))} onClick={()=>toggleDay(i)} disabled={busy}>{d}</button>)}</div></div>
+   <label className="miro-alarm-field">Мелодия<select value={settings.tone} onChange={e=>edit('tone',e.target.value as AlarmState['tone'])} disabled={busy}>{tones.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select><small>{tones.find(t=>t.id===settings.tone)?.description}</small></label>
+   <label className="miro-alarm-check"><input type="checkbox" checked={settings.gradual} onChange={e=>edit('gradual',e.target.checked)} disabled={busy}/> Постепенно увеличивать громкость</label>
+   <label className="miro-alarm-check"><input type="checkbox" checked={settings.voice} onChange={e=>edit('voice',e.target.checked)} disabled={busy}/> Миро напоминает об уроках, зубах и кровати каждые несколько секунд</label>
    <p className="miro-alarm-note">📚 {lessonSpeech} Уроки берутся из раздела «Учёба» и сохраняются на телефоне для пробуждения без интернета.</p>
-   <label className="miro-alarm-check"><input type="checkbox" checked={settings.vibrate} onChange={e=>edit('vibrate',e.target.checked)} disabled={!parent}/> Вибрация при пробуждении</label>
-   {!parent&&<p className="miro-alarm-note">Изменить расписание может родитель в своём профиле на устройстве Ильи. Ты можешь посмотреть анимацию.</p>}
+   <label className="miro-alarm-check"><input type="checkbox" checked={settings.vibrate} onChange={e=>edit('vibrate',e.target.checked)} disabled={busy}/> Вибрация при пробуждении</label>
+   <p className="miro-alarm-note">Настраивать этот будильник можно и в детском, и в родительском профиле. Сигнал и время сохраняются на текущем телефоне.</p>
    {(LEGACY_NATIVE||(native&&settings.featureVersion!==3300))&&<div className="miro-alarm-warning"><strong>Нужен Android APK 3.3.0</strong><p>Для нового голоса и школьного расписания нужен системный модуль будильника версии 3.3.0. Установи APK поверх текущего «Моего мира», не удаляя приложение.</p><button type="button" onClick={()=>void Browser.open({url:APK_URL}).catch(e=>setError(String(e)))}>⬇ Установить будильник Миро (APK)</button></div>}
    {!Capacitor.isNativePlatform()&&<p className="miro-alarm-warning">В браузере доступен только предпросмотр. Реальный будильник работает в Android APK.</p>}
    {native&&<div className="miro-alarm-permissions">
@@ -176,11 +176,12 @@ export function MiroAlarmPanel({parent=false,lessons=[]}:{parent?:boolean;lesson
       {!settings.notificationsAllowed&&<button type="button" disabled={busy} onClick={()=>void nativeAction(()=>plugin.requestNotifications())}>Разрешить уведомления Android</button>}
       {!settings.fullScreenAllowed&&<button type="button" disabled={busy} onClick={()=>void nativeAction(()=>plugin.requestFullScreen())}>Разрешить экран будильника поверх блокировки</button>}
      </div>}
+   {settings.enabled&&settings.days===0&&<p className="miro-alarm-warning" role="alert">Выбери хотя бы один день недели, чтобы сохранить включённый будильник.</p>}
    {native&&settings.enabled&&settings.nextAt>0&&<p className="miro-alarm-next">⏰ Следующий сигнал: {new Date(settings.nextAt).toLocaleString('ru-RU',{weekday:'long',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'})}</p>}
    {error&&<p className="miro-alarm-error" role="alert">{error}</p>}
    {message&&<p className="miro-alarm-success" role="status">{message}</p>}
    <div className="miro-alarm-buttons">
-      <button disabled={busy||!native||!parent} onClick={()=>void save()}>{busy?'Сохраняю…':'Сохранить будильник'}</button>
+      <button disabled={busy||!native||(settings.enabled&&settings.days===0)} onClick={()=>void save()}>{busy?'Сохраняю…':'Сохранить будильник'}</button>
       {native&&<button disabled={busy||!settings.enabled} onClick={()=>void nativeAction(()=>plugin.test(),'Пробный сигнал назначен через 4 секунды')}>Тест на телефоне (4 с)</button>}
    </div>
   </div>

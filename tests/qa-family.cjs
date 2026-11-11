@@ -489,7 +489,17 @@ async function run(role,browser){
  check('alarm only has web preview in browser',await alarm.getByText(/В браузере доступен только предпросмотр/).count()===1);
  check('Miro alarm original tracks',await alarm.locator('select').last().locator('option').count()===3);
  check('alarm scheduling disabled without Android module',await alarm.getByRole('button',{name:'Сохранить будильник'}).isDisabled());
- check('alarm time controls owned by parent',role==='parent'?await alarm.locator('input[type=time]').isEnabled():await alarm.locator('input[type=time]').isDisabled());
+ const alarmTime=alarm.locator('input[type=time]');
+ const alarmDay=alarm.locator('.miro-alarm-week button').first();
+ const alarmEnabled=alarm.locator('.miro-alarm-switch input[type=checkbox]');
+ check('alarm controls editable for child and parent',await alarmTime.isEnabled()&&await alarmDay.isEnabled()&&await alarmEnabled.isEnabled());
+ await alarmTime.fill('06:45');
+ check('alarm time changes in UI',await alarm.locator('.miro-alarm-time').innerText()==='06:45');
+ const mondayBefore=await alarmDay.getAttribute('aria-pressed');
+ await alarmDay.click();
+ check('alarm weekday toggles in UI',(await alarmDay.getAttribute('aria-pressed'))!==mondayBefore);
+ await alarmEnabled.check();
+ check('alarm enabled from child or parent profile',await alarmEnabled.isChecked());
  await alarm.getByRole('button',{name:/Посмотреть и послушать/}).click();
  check('Miro animation opened',await alarm.locator('.miro-alarm-avatar.waking').count()===1);
  check('awake and snooze controls exist',await alarm.getByRole('button',{name:/Я проснулся!/}).count()===1&&await alarm.getByRole('button',{name:/Ещё 5 мин/}).count()===1);
