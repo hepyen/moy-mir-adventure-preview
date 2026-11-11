@@ -4,6 +4,7 @@ import {LocalNotifications} from '@capacitor/local-notifications';
 import {supabase} from '../lib/supabase';
 import type {useFamilyCloud} from '../lib/useFamilyCloud';
 import './PlayTimeBank.css';
+import {reviewAnchor} from '../notifications/destinations';
 type Cloud=ReturnType<typeof useFamilyCloud>;
 type Session={id:string;minutes:number;status:'pending'|'approved'|'active'|'finished'|'rejected';requested_at:string;started_at:string|null};
 type Overview={balance:number;dailyLimit:number;todayUsed:number};
@@ -54,7 +55,7 @@ export function PlayTimeBank({cloud}:{cloud:Cloud}){
   catch(e){setError(e instanceof Error?e.message:'Не удалось начать сеанс')}
   finally{setBusy(false)}
  };
- return <section className="mw-panel playbank" aria-label="Копилка игрового времени">
+ return <section id="review-playtime" className="mw-panel playbank" aria-label="Копилка игрового времени">
   <div className="playbank-top"><div><small>🎮 СЕМЕЙНЫЕ ПРАВИЛА</small><h3>Копилка PlayStation</h3></div><span>⏱️</span></div>
   <div className="playbank-stats"><div><strong>{overview.balance} мин</strong><span>Можно потратить</span></div><div><strong>{overview.dailyLimit} мин</strong><span>Дневной предел</span></div><div><strong>{overview.todayUsed} мин</strong><span>Начато сегодня</span></div></div>
   {loading?<p className="playbank-info">Загружаем игровое время…</p>:null}
@@ -64,11 +65,11 @@ export function PlayTimeBank({cloud}:{cloud:Cloud}){
   </div>}
   {cloud.role==='parent'&&<div className="playbank-parent"><strong>👨‍👩‍👦 Управление родителя</strong><p>Добавляй минуты за подтверждённые дела. Время остаётся отдельным от монет магазина и духовных баллов.</p><div className="playbank-options">{[10,20,30,60].map(m=><button key={m} type="button" className={grant===m?'selected':''} onClick={()=>setGrant(m)}>+{m}</button>)}</div><button disabled={busy} onClick={()=>void action('moymir_playtime_grant',{p_family:cloud.familyId,p_child:cloud.childId,p_minutes:grant,p_note:'Награда от родителя'},`В копилку добавлено ${grant} минут`)}>Добавить {grant} минут в копилку</button>
    <div className="playbank-limit"><label>Дневной предел<select value={limit} onChange={e=>setLimit(Number(e.target.value))}>{[10,20,30,40,50,60,90,120].map(m=><option key={m} value={m}>{m} минут</option>)}</select></label><button disabled={busy||limit===overview.dailyLimit} onClick={()=>void action('moymir_playtime_set_limit',{p_family:cloud.familyId,p_child:cloud.childId,p_daily:limit},'Дневной предел изменён')}>Сохранить</button></div>
-   {inProgress?.status==='pending'&&<div className="playbank-approval"><strong>Запрос от Ильи: {inProgress.minutes} минут</strong><div><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:true},'Сеанс разрешён')}>✓ Разрешить</button><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:false},'Запрос отклонён')}>Отклонить</button></div></div>}
+   {inProgress?.status==='pending'&&<div className="playbank-approval" id={reviewAnchor('playtime',inProgress.id)} tabIndex={-1}><strong>Запрос от Ильи: {inProgress.minutes} минут</strong><div><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:true},'Сеанс разрешён')}>✓ Разрешить</button><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:false},'Запрос отклонён')}>Отклонить</button></div></div>}
    {inProgress?.status==='approved'&&<p>✅ Разрешено {inProgress.minutes} минут. Илья ещё не начал таймер.</p>}
   </div>}
   {error&&<p className="playbank-error" role="alert">{error}</p>}{success&&<p className="playbank-success" role="status">{success}</p>}
-  <details className="playbank-history"><summary>История запросов ({sessions.length})</summary>{sessions.length? sessions.map(s=><div key={s.id}><span>{s.minutes} мин · {({pending:'Ждёт',approved:'Одобрено',active:'Идёт',finished:'Завершено',rejected:'Отклонено'} as Record<string,string>)[s.status]}</span><small>{new Date(s.requested_at).toLocaleDateString('ru-RU',{timeZone:'Europe/Madrid'})}</small></div>):<p>Пока нет запросов.</p>}</details>
+  <details className="playbank-history"><summary>История запросов ({sessions.length})</summary>{sessions.length? sessions.map(s=><div key={s.id} id={cloud.role==='parent'&&inProgress?.status==='pending'&&s.id===inProgress.id?undefined:reviewAnchor('playtime',s.id)} tabIndex={-1}><span>{s.minutes} мин · {({pending:'Ждёт',approved:'Одобрено',active:'Идёт',finished:'Завершено',rejected:'Отклонено'} as Record<string,string>)[s.status]}</span><small>{new Date(s.requested_at).toLocaleDateString('ru-RU',{timeZone:'Europe/Madrid'})}</small></div>):<p>Пока нет запросов.</p>}</details>
   <p className="playbank-info">Приложение показывает время и напоминает, когда оно истекло. Оно не может автоматически выключить PlayStation. Выданные родителем минуты не покупаются за духовные баллы.</p>
  </section>
 }

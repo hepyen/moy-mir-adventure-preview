@@ -1,10 +1,12 @@
 import {useCallback,useEffect,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import './NotificationInbox.css'
+import {notificationDestination} from './destinations'
+import type {Destination} from './destinations'
 type FamilyNotification={
- id:string;kind:string;title:string;body:string;created_at:string;read_at:string|null
+ id:string;kind:string;source_id:string|null;title:string;body:string;created_at:string;read_at:string|null
 }
-export function NotificationInbox({userId,familyId}:{userId:string;familyId:string}){
+export function NotificationInbox({userId,familyId,onOpen}:{userId:string;familyId:string;onOpen:(destination:Destination)=>void}){
  const [rows,setRows]=useState<FamilyNotification[]>([])
  const [open,setOpen]=useState(false)
  const [error,setError]=useState('')
@@ -12,7 +14,7 @@ export function NotificationInbox({userId,familyId}:{userId:string;familyId:stri
  const refresh=useCallback(async()=>{
   if(!supabase)return
   const {data,error}=await supabase.from('family_notifications')
-   .select('id,kind,title,body,created_at,read_at')
+   .select('id,kind,source_id,title,body,created_at,read_at')
    .eq('family_id',familyId).eq('recipient_id',userId)
    .order('created_at',{ascending:false}).limit(50)
   if(error){setError('Не удалось обновить уведомления');return}
@@ -68,13 +70,19 @@ export function NotificationInbox({userId,familyId}:{userId:string;familyId:stri
   </button>
   {open&&<div className="notification-panel">
    <div className="notification-panel-title"><strong>События семьи</strong><div className="notification-actions">{rows.some(n=>n.read_at)&&<button className="reject" disabled={loading} type="button" onClick={()=>void clearRead()}>Удалить прочитанные</button>}<button className="reject" type="button" onClick={()=>setOpen(false)}>Закрыть</button></div></div>
-   <p className="muted">Все события сохраняются на сервере. Системные push при закрытом приложении требуют отдельного подключения Firebase.</p>
+   <p className="muted">Нажмите на уведомление, чтобы открыть связанное событие.</p>
    {error&&<p role="alert">{error}</p>}
    {rows.length===0&&<p className="muted">Новых событий пока нет.</p>}
-   {rows.map(n=><article key={n.id} className={'notification-item '+(!n.read_at?'notification-unread':'')}>
-    <div><strong>{n.title}</strong><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</small></div>
-    <div className="notification-actions">{!n.read_at?<button className="action" disabled={loading} onClick={()=>void markRead(n.id)}>Прочитано</button>:<button className="reject" disabled={loading} onClick={()=>void deleteRead(n.id)}>Удалить</button>}</div>
-   </article>)}
+   {rows.map(n=>{
+    const destination=notificationDestination({kind:n.kind,source_id:n.source_id??undefined})
+    const date=new Date(n.created_at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+    return <article key={n.id} className={'notification-item '+(!n.read_at?'notification-unread':'')}>
+     <div>{destination?<button type="button" className="notification-open" onClick={()=>{
+      setOpen(false);onOpen(destination);if(!n.read_at)void markRead(n.id)
+     }}><strong>{n.title}</strong><span>{n.body}</span><small>{date}</small></button>:<><strong>{n.title}</strong><p>{n.body}</p><small>{date}</small></>}</div>
+     <div className="notification-actions">{!n.read_at?<button className="action" disabled={loading} onClick={()=>void markRead(n.id)}>Прочитано</button>:<button className="reject" disabled={loading} onClick={()=>void deleteRead(n.id)}>Удалить</button>}</div>
+    </article>
+   })}
   </div>}
  </section>
 }

@@ -24,6 +24,9 @@ import {PushCenter} from '../../features/PushCenter';
 import {UpdateCenter} from '../../features/UpdateCenter';
 import {ParentChildAccess} from '../../features/ParentChildAccess';
 import {NotificationInbox} from '../../notifications/NotificationInbox';
+import {ParentApprovals} from '../../features/ParentApprovals';
+import {notificationDestination} from '../../notifications/destinations';
+import type {Destination,NotificationPayload,Tab} from '../../notifications/destinations';
 import {isSoundEnabled,playSound} from '../../features/sounds';
 import {useFamilyCloud} from '../../lib/useFamilyCloud';
 import {CloudSignIn,CloudTasks,CloudShop,CloudSpiritual} from './CloudPanels';
@@ -31,7 +34,6 @@ import {CloudSignIn,CloudTasks,CloudShop,CloudSpiritual} from './CloudPanels';
 import {WORLD_01_OBJECTS,WORLD_01_END} from '../../legacyWorld/world01';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import './MyWorld.css';
-type Tab = 'world' | 'tasks' | 'shop' | 'family' | 'spiritual' | 'settings' | 'school' | 'health';
 type Proposal={id:number;title:string;points:number;emoji:string;status:'pending'|'accepted'|'rejected'};
 type Chore = {
   id: number;
@@ -129,18 +131,76 @@ export const GeneratedComponent = () => {
   return()=>{active=false;void subscription.then(listener=>{if(listener)return listener.remove()})};
  },[]);
 
- useEffect(()=>{
-  const open=(e:Event)=>{const data=(e as CustomEvent).detail||{};if(data.section==='health')setTab('health');else if(data.section==='school')setTab('school');else if(data.section==='spiritual')setTab('spiritual');else if(data.section==='shop')setTab('shop');else if(data.kind==='chat_message')setTab('family');else if(data.kind==='child_app_open'||data.kind==='daily_submitted'||data.kind==='task_submitted')setTab('settings');else setTab('settings')};
-  window.addEventListener('moymir-notification-open',open);
-  return()=>window.removeEventListener('moymir-notification-open',open);
- },[]);
-
   const saved=useMemo(()=>readSave(),[]);
   const [day,setDay]=useState(today());
 
   const [tab, setTab] = useState<Tab>('world');
   const scrollScreen=useRef<HTMLDivElement>(null);
+  const [destination,setDestination]=useState<Destination|null>(null);
+  const [missingTarget,setMissingTarget]=useState(false);
+  function openDestination(next:Destination){
+   setMissingTarget(false);
+   setDestination({...next});
+   setTab(next.tab);
+  }
   useEffect(()=>{if(scrollScreen.current)scrollScreen.current.scrollTop=0},[tab]);
+  useEffect(()=>{
+   const open=(event:Event)=>{
+    const payload=(event as CustomEvent<NotificationPayload>).detail;
+    const next=payload&&notificationDestination(payload);
+    if(!next)return;
+    openDestination(next);
+    void cloud.refresh();
+   };
+   window.addEventListener('moymir-notification-open',open);
+   return()=>window.removeEventListener('moymir-notification-open',open);
+  },[cloud.refresh]);
+  useEffect(()=>{
+   if(!destination)return;
+   if(destination.tab!==tab){setDestination(null);setMissingTarget(false);return}
+   const root=scrollScreen.current;
+   if(!root||!destination.anchor)return;
+   const {anchor,fallback}=destination;
+   let highlighted:HTMLElement|null=null;
+   function focus(id:string){
+    const target=document.getElementById(id);
+    if(!target||!root?.contains(target))return false;
+    for(let parent=target.parentElement;parent&&parent!==root;parent=parent.parentElement){
+     if(parent instanceof HTMLDetailsElement)parent.open=true;
+    }
+    highlighted?.classList.remove('mw-notification-target');
+    target.classList.add('mw-notification-target');
+    if(target.tabIndex<0&&!target.hasAttribute('tabindex'))target.tabIndex=-1;
+    target.focus({preventScroll:true});
+    target.scrollIntoView({block:'center'});
+    highlighted=target;
+    return true;
+   }
+   const observer=new MutationObserver(()=>{
+    if(focus(anchor)){setMissingTarget(false);observer.disconnect()}
+   });
+   const delay=window.setTimeout(()=>{
+    if(highlighted||focus(anchor))return;
+    if(fallback){
+     if(anchor!==fallback)setMissingTarget(true);
+     focus(fallback);
+    }
+   },3200);
+   const stopWatching=window.setTimeout(()=>observer.disconnect(),12000);
+   const frame=requestAnimationFrame(()=>{
+    if(!focus(anchor))observer.observe(root,{childList:true,subtree:true,attributes:true,attributeFilter:['id']});
+   });
+   return()=>{
+    cancelAnimationFrame(frame);
+    clearTimeout(delay);
+    clearTimeout(stopWatching);
+    observer.disconnect();
+    highlighted?.classList.remove('mw-notification-target');
+   };
+  },[destination,tab]);
+  useEffect(()=>{
+   if(!cloud.session){setDestination(null);setMissingTarget(false)}
+  },[cloud.session?.user.id]);
 
   const [previewWorld,setPreviewWorld]=useState<1|2>(1);
   const [worldAdvanceError,setWorldAdvanceError]=useState('');
@@ -319,21 +379,23 @@ export const GeneratedComponent = () => {
   return <main className={"mw-root mw-theme-"+theme.resolved} data-app-theme={theme.resolved} data-app-theme-choice={theme.selection}>
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.8.1</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.8.2</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
  <div className="mw-tabs-top">
  <button className={!shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else setTab('tasks')}}>👦 Илья</button>
- <button className={shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else if(cloud.role==='child')setShowConnection(true);else setTab('tasks')}}>👨‍👩‍👦 Родители</button>
+ <button className={shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else if(cloud.role==='child')setShowConnection(true);else setTab('world')}}>👨‍👩‍👦 Родители</button>
  <SoundControl onChange={setSound}/>
  </div>
  <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div> <div ref={scrollScreen} className={tab==='family'&&connected?'mw-scroll mw-family-screen':'mw-scroll'}>
- <div className="mw-system-stack" style={{display:tab==='settings'?'flex':'none'}}><UpdateCenter/>{connected&&cloud.session&&<><NotificationInbox userId={cloud.session.user.id} familyId={cloud.familyId}/><PushCenter userId={cloud.session.user.id}/></>}</div>
+ <div className="mw-system-stack" style={{display:tab==='settings'?'flex':'none'}}><div id="app-updates"><UpdateCenter/></div>{connected&&cloud.session&&<><NotificationInbox key={cloud.session.user.id} userId={cloud.session.user.id} familyId={cloud.familyId} onOpen={next=>{openDestination(next);void cloud.refresh()}}/><PushCenter userId={cloud.session.user.id}/></>}</div>
  {showConnection&&(connected?<section className="mw-panel mw-cloud-account"><h3>Семейный аккаунт</h3><p>{cloud.session?.user.email}</p><button onClick={()=>{void cloud.logout();setShowConnection(false)}}>Выйти</button><button onClick={()=>setShowConnection(false)}>Закрыть</button></section>:tab==='world'?<CloudSignIn cloud={cloud}/>:null)}
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
+ {missingTarget&&<p className="mw-note" role="status">Эта запись уже обработана или больше не доступна.</p>}
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
+ {connected&&cloud.role==='parent'&&<ParentApprovals cloud={cloud} onOpen={openDestination}/>}
  {connected&&<MyDay cloud={cloud} school={school} onGo={setTab} onAskMiro={askMiro}/>}
  <button className="mw-health-shortcut" type="button" onClick={()=>setTab('health')}><span className="mw-health-heart">💚</span><span><strong>Моё здоровье</strong><small>Сон · зарядка с Миро · здоровое меню</small></span><b>Открыть →</b></button>
  <div className="mw-worldswitch"><button className={currentWorld===1?'active':''} onClick={()=>setPreviewWorld(1)}>🏡 Домик на поляне</button><button className={currentWorld===2?'active':''} disabled={cloud.worldNumber!==2} onClick={()=>setPreviewWorld(2)}>🌳 Домик на дереве {cloud.worldNumber!==2?'🔒':''}</button></div>
@@ -353,7 +415,7 @@ export const GeneratedComponent = () => {
  <section className="mw-panel"><div className="mw-section-label">КАК РАЗВИВАТЬ МИР</div><p className="mw-task-explain">Каждое подтверждённое родителем задание приносит монеты и очки развития. Постройки возникают сами, в прежнем порядке. Трогай Миро на острове: он увеличится и поможет разобраться с уроками.</p><button className="mw-primary" onClick={()=>setTab('tasks')}>Посмотреть задания →</button></section>
  </>}
  {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'health' && <HealthHub themeMode={theme.selection} themeResolved={theme.resolved} onThemeChange={theme.setTheme} onOpenSettings={()=>setTab('settings')} parent={shownParent} childId={cloud.childId||'local-ilya'} familyId={connected?cloud.familyId:undefined}/>}
+ {tab === 'health' && <HealthHub openKitchen={destination?.kitchen?destination:undefined} onMealDecision={cloud.refresh} themeMode={theme.selection} themeResolved={theme.resolved} onThemeChange={theme.setTheme} onOpenSettings={()=>setTab('settings')} parent={shownParent} childId={cloud.childId||'local-ilya'} familyId={connected?cloud.familyId:undefined}/>}
  {tab === 'school' && (connected?<SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro}/>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'shop' && (connected?<><CloudShop cloud={cloud}/><PlayTimeBank cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
  {tab === 'spiritual' && (connected?<><DailyTextReader cloud={cloud} onAskMiro={askMiro} onSchoolSettings={()=>setTab('school')}/><CloudSpiritual cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}

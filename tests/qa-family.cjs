@@ -5,6 +5,12 @@ const ids={parent:'11111111-1111-4111-8111-111111111111',child:'22222222-2222-42
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function makeJWT(id){const payload=Buffer.from(JSON.stringify({sub:id,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+7200})).toString('base64url');return 'eyJhbGciOiJIUzI1NiJ9.'+payload+'.synthetic'}
 let failures=0;
+const approvalQA=process.env.QA_FOCUS==='parent-approvals';
+const qaDaily='a1100000-0000-4000-8000-000000000001';
+const qaTask='a1100000-0000-4000-8000-000000000002';
+const qaNotice='a1100000-0000-4000-8000-000000000003';
+const qaReward='a1100000-0000-4000-8000-000000000004';
+const qaYesterday=new Date(Date.parse(today+'T12:00:00Z')-86400000).toISOString().slice(0,10);
 let growthMeasurements=[];let growthSerial=0;
 let healthPlan=null,healthDaily=[],healthGarden=null,healthRequestSeq=1;
 let healthRequests=[{id:'d9999999-9999-4999-8999-000000000001',family_id:ids.family,child_id:ids.child,
@@ -58,6 +64,7 @@ async function run(role,browser){
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
  let healthNetworkBlocked=false;
+ let qaDailyStatus='pending';
  const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;let playBalance=60,playCap=30,storyDone=[];
  let playSessions=role==='parent'?[{id:'91111111-1111-4111-8111-111111111111',minutes:10,status:'pending',requested_at:new Date().toISOString(),started_at:null}]:[];
  const playOverview=()=>({balance:playBalance,dailyLimit:playCap,todayUsed:playSessions.filter(x=>['active','finished'].includes(x.status)).reduce((n,x)=>n+x.minutes,0)});
@@ -78,7 +85,7 @@ async function run(role,browser){
    }
   }
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
-  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
+  if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)qaDailyStatus=request.postDataJSON().p_approve?'approved':'rejected';if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
     if(name==='moymir_playtime_set_limit'){playCap=Number(request.postDataJSON()?.p_daily);return resp(true)}
     if(name==='moymir_playtime_grant'){playBalance+=Number(request.postDataJSON()?.p_minutes);return resp(true)}
     if(name==='moymir_playtime_request'){const minutes=Number(request.postDataJSON()?.p_minutes);playSessions=[{id:'92222222-2222-4222-8222-222222222222',minutes,status:'pending',requested_at:new Date().toISOString(),started_at:null}];return resp(playSessions[0].id)}
@@ -185,11 +192,11 @@ async function run(role,browser){
    case 'family_members': data=url.searchParams.get('role')==='eq.child'?[{user_id:ids.child}]:url.searchParams.has('user_id')?{family_id:ids.family,role}:[{user_id:ids.parent,role:'parent'},{user_id:ids.child,role:'child'}];break;
    case 'point_ledger': data=[{child_id:ids.child,delta:1700}];break;
    case 'daily_chore_templates': data=[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]}];break;
-   case 'daily_chore_completions':data=[];break;
+   case 'daily_chore_completions':data=approvalQA?[{id:qaDaily,template_id:ids.daily,activity_date:today,status:qaDailyStatus}]:[];break;
    case 'tasks':data=[{id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child},{id:'77777777-7777-4777-8777-777777777777',title:'Без исполнителя',points:10,assigned_child:null}];break;
-   case 'task_submissions':data=[];break;
+   case 'task_submissions':data=approvalQA?[{id:qaTask,task_id:ids.task,child_id:ids.child,activity_date:qaYesterday,status:'pending'}]:[];break;
    case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true},{id:'b2222222-2222-4222-8222-222222222222',title:'Неактивная награда',cost:200,active:false}];break;
-   case 'reward_requests':data=[];break;
+   case 'reward_requests':data=approvalQA?[{id:qaReward,reward_id:ids.reward,cost_snapshot:80,status:'pending'}]:[];break;
    case 'behavior_points':data=[];break;
    case 'spiritual_activity_records':data=[...(spiritualAward?[{id:'a4444444-4444-4444-8444-444444444444',activity_date:dateToday,step_id:'daily-text',points:10}]:[]),...(growthAward?[{id:'a6666666-6666-4666-8666-666666666666',activity_date:dateToday,step_id:'growth-focus',points:20}]:[])];break;
    case 'spiritual_point_requests':data=[];break;
@@ -197,7 +204,7 @@ async function run(role,browser){
    case 'child_world_progress':data=[{active_world:world}];break;
    case 'family_child_profiles':data=url.searchParams.has('child_id')?{display_name:'Илья'}:[{child_id:ids.child,display_name:'Илья'}];break;
    case 'family_chat_messages':data=[];break;
-   case 'family_notifications':data=[];break;
+   case 'family_notifications':data=approvalQA?[{id:qaNotice,kind:'daily_submitted',source_id:qaDaily,title:'Илья заправил кровать',body:'Подтвердите выполнение',created_at:new Date().toISOString(),read_at:null}]:[];break;
    case 'device_push_tokens':data=[];break;
    default:data=[];
   }
@@ -209,6 +216,33 @@ async function run(role,browser){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ if(approvalQA){
+  const queue=page.getByRole('region',{name:'Ждёт вашего решения'});
+  check('home queue is parent only',await queue.count()===(role==='parent'?1:0));
+  if(role==='parent'&&await queue.count()){
+   check('home shows daily completion and overdue task',await queue.getByText('Заправить кровать',{exact:true}).count()===1&&await queue.getByText('Сделать уроки',{exact:true}).count()===1);
+   check('home shows requests for play and food',await queue.getByText(/10 мин/).count()===1&&await queue.getByText('Чечевица с морковью и хлебом').count()===1);
+   await queue.getByText('Чечевица с морковью и хлебом').locator('..').locator('..').getByRole('button',{name:'Открыть'}).click();
+   await page.locator('.mw-notification-target').filter({hasText:'Чечевица с морковью и хлебом'}).waitFor();
+   check('food link opens exact card',await page.getByRole('region',{name:'Моя кухня'}).isVisible());
+   await page.getByRole('button',{name:'Открыть настройки'}).click();
+   await page.getByRole('button',{name:/🔔 Уведомления/}).click();
+   await page.getByRole('button',{name:/Илья заправил кровать/}).click();
+   await page.locator('.mw-notification-target').filter({hasText:'Заправить кровать'}).waitFor();
+   check('notification opens and highlights exact daily card',await page.getByRole('heading',{name:'Проверка заданий'}).isVisible());
+   await page.evaluate(id=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'task_submitted',source_id:id}})),qaTask);
+   await page.locator('.mw-notification-target').filter({hasText:'Сделать уроки'}).waitFor();
+   check('Android payload opens exact previous-day submission',true);
+   await page.evaluate(id=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'reward_requested',source_id:id}})),qaReward);
+   await page.locator('.mw-notification-target').filter({hasText:'Семейное кино'}).waitFor();
+   check('Android reward payload opens exact request in shop history',true);
+   await page.getByRole('navigation',{name:'Навигация'}).getByRole('button',{name:/Мир/}).click();
+   await queue.getByRole('article').filter({hasText:'Заправить кровать'}).getByRole('button',{name:'Подтвердить'}).click();
+   await queue.getByText('Заправить кровать',{exact:true}).waitFor({state:'detached'});
+   check('home confirmation uses existing RPC with exact submission ID',counters.rpc.some(x=>x.name==='review_daily_chore'&&x.body.p_completion===qaDaily&&x.body.p_approve));
+  }
+  return;
+ }
  const myday=page.getByRole('region',{name:'Мой день'});
  check('smart daily planner exists',await myday.count()===1);
  check('three day modes and auto',await myday.getByRole('button',{name:/Утро/}).count()===1&&await myday.getByRole('button',{name:/После школы/}).count()===1&&await myday.getByRole('button',{name:/Вечер/}).count()===1);

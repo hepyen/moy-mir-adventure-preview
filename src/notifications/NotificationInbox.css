@@ -11,3 +11,6 @@
 @media(max-width:600px){.notification-item{align-items:start;flex-direction:column}}
 
 .notification-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.notification-item .notification-open{display:grid;gap:5px;width:100%;text-align:start;color:inherit;background:transparent;border:0;padding:0;font:inherit;cursor:pointer}
+.notification-open span{font-size:13px}
+.notification-open:hover strong,.notification-open:focus-visible strong{text-decoration:underline}

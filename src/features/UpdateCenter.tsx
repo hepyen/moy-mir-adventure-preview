@@ -5,7 +5,7 @@ import {Browser} from '@capacitor/browser';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {playSound} from './sounds';
 import './system.css';
-const APP_VERSION='3.8.1';
+const APP_VERSION='3.8.2';
 const BASE_VERSION='3.3.0';
 const MANIFEST='https://hepyen.github.io/moy-mir-adventure-preview/updates/latest.json';
 type Manifest={version:string;title:string;notes:string[];url:string;sha256:string;nativeBaseVersion:string;required?:boolean;apkUrl?:string};

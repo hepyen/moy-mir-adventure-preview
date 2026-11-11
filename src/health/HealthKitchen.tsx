@@ -1,3 +1,4 @@
+import {reviewAnchor} from '../notifications/destinations';
 import {useState} from 'react';
 import type {HealthMeal,HealthPlan,MealProposal} from './useHealthFamily';
 import './HealthKitchen.css';
@@ -113,8 +114,8 @@ export function HealthKitchen({plan,parent,connected,requests,onPlan,onPropose,o
    <h3>Пищевые ограничения и аллергии</h3><p>Указывайте только подтверждённые ограничения. При аллергии проверяйте состав каждого блюда.</p>
    <div className="h-food-allergies">{plan.allergies.map(x=><button key={x} onClick={()=>onPlan({...plan,allergies:plan.allergies.filter(y=>y!==x)})}>× {x}</button>)}</div>
    <div className="h-food-allergy-entry"><input aria-label="Аллергия или ограничение" placeholder="Например, орехи" maxLength={70} value={allergyEntry} onChange={e=>setAllergyEntry(e.target.value)}/><button disabled={!allergyEntry.trim()} onClick={()=>{onPlan({...plan,allergies:[...plan.allergies,allergyEntry.trim()].slice(0,15)});setAllergyEntry('')}}>Добавить</button></div>
-   <h3>Предложения Ильи {pending.length?('('+pending.length+')'):''}</h3>
-   {pending.length===0?<p>Новых предложений нет.</p>:pending.map(p=><div className="h-food-request" key={p.id}><span>{WEEK[p.weekday]} · {MEALS.find(([k])=>k===p.mealKind)?.[1]}<strong>{p.suggestion}</strong></span><button disabled={busy} onClick={()=>void decision(p,true)}>✓ Утвердить</button><button disabled={busy} onClick={()=>void decision(p,false)}>×</button></div>)}
+   <h3 id="review-meals">Предложения Ильи {pending.length?('('+pending.length+')'):''}</h3>
+   {pending.length===0?<p>Новых предложений нет.</p>:pending.map(p=><div className="h-food-request" key={p.id} id={reviewAnchor('meal',p.id)} tabIndex={-1}><span>{WEEK[p.weekday]} · {MEALS.find(([k])=>k===p.mealKind)?.[1]}<strong>{p.suggestion}</strong></span><button disabled={busy} onClick={()=>void decision(p,true)}>✓ Утвердить</button><button disabled={busy} onClick={()=>void decision(p,false)}>×</button></div>)}
   </div>}
   {!parent&&plan.allergies.length>0&&<div className="h-food-notice">⚠️ Учитываем семейные ограничения: {plan.allergies.join(', ')}. Перед едой проверь состав продуктов со взрослым.</div>}
   <div className="h-card"><div className="h-card-heading"><span className="h-card-icon">🛒</span><h2>Покупки на неделю</h2></div>

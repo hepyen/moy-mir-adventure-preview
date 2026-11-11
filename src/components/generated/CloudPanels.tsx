@@ -6,6 +6,8 @@ import type {CloudItem} from '../../lib/useFamilyCloud';
 import {useFamilyCloud} from '../../lib/useFamilyCloud';
 import {spiritualSteps,spiritualStage} from '../../lib/spiritualProgress';
 import './CloudPanels.css';
+import {ApprovalCard,taskApprovals} from '../../features/ParentApprovals';
+import {reviewAnchor} from '../../notifications/destinations';
 type Cloud=ReturnType<typeof useFamilyCloud>;
 const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export function CloudSignIn({cloud}:{cloud:Cloud}){
@@ -69,6 +71,11 @@ export function CloudTasks({cloud}:{cloud:Cloud}){
  const[title,setTitle]=useState(''),[points,setPoints]=useState('10'),[propose,setPropose]=useState(''),[proposePoints,setProposePoints]=useState('10');
  const[deductReason,setDeductReason]=useState(''),[deductAmount,setDeductAmount]=useState('5'),[category,setCategory]=useState('agreement');
  const all=[...cloud.daily.map(x=>({...x,kind:'daily'})),...cloud.tasks.map(x=>({...x,kind:'ordinary'}))];
+ const today=day();
+ const todayDaily=new Map(cloud.dailyDone.filter(row=>row.activity_date===today).map(row=>[row.template_id,row.id]));
+ const todayTasks=new Map(cloud.activity.filter(row=>row.activity_date===today).map(row=>[row.task_id,row.id]));
+ const visibleIds=new Set(all.map(x=>x.kind==='daily'?todayDaily.get(x.id):todayTasks.get(x.id)));
+ const earlier=cloud.role==='parent'?taskApprovals(cloud).filter(item=>!visibleIds.has(item.id)):[];
  const completed=all.filter(x=>x.status==='approved').length;
  const onCreate=async()=>{if(cloud.role!=='parent'||!title.trim())return;await cloud.rpc('create_family_task',{p_family:cloud.familyId,p_child:cloud.childId,p_title:title.trim(),p_points:Number(points)});setTitle('')};
  const onProposal=async()=>{if(cloud.role!=='child'||!propose.trim())return;await cloud.rpc('propose_child_task',{p_family:cloud.familyId,p_title:propose.trim(),p_points:Number(proposePoints)});setPropose('')};
@@ -84,15 +91,16 @@ export function CloudTasks({cloud}:{cloud:Cloud}){
  <form onSubmit={e=>{e.preventDefault();void onProposal().catch(e=>alert(e.message))}}><input required maxLength={160} placeholder="Например, помочь приготовить ужин" value={propose} onChange={e=>setPropose(e.target.value)}/><label>Баллы<input type="number" min={0} max={1000} required value={proposePoints} onChange={e=>setProposePoints(e.target.value)}/></label><button type="submit">Отправить родителю</button></form></section>}
  {cloud.role==='parent'&&<section className="mw-panel mw-cloud-form"><h3>➕ Добавить задание</h3><form onSubmit={e=>{e.preventDefault();void onCreate().catch(e=>alert(e.message))}}><input required maxLength={160} placeholder="Название задания" value={title} onChange={e=>setTitle(e.target.value)}/><label>Баллы<input type="number" min={0} max={1000} value={points} onChange={e=>setPoints(e.target.value)}/></label><button type="submit">Создать задание</button></form></section>}
  {cloud.role==='parent'&&<DailySettings cloud={cloud}/>}
- <h3 className="mw-cloud-heading">🗓️ Ежедневные дела ({cloud.daily.length})</h3>
+ {earlier.length>0&&<section className="mw-panel"><h3>Другие дела на проверку</h3>{earlier.map(item=><ApprovalCard key={item.id} item={item} anchored/>)}</section>}
+ <h3 className="mw-cloud-heading" id="review-tasks">🗓️ Ежедневные дела ({cloud.daily.length})</h3>
  {all.length===0&&<p className="mw-note">Заданий пока нет. Нажми «Обновить» на панели аккаунта.</p>}
- {all.map(x=><article className="mw-chore" key={x.kind+x.id}><div className="mw-task-emoji">{x.icon||'✅'}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{x.status==='approved'?'✓ Подтверждено':x.status==='pending'?'⏳ Ожидает решения родителя':'Доступно сегодня'} · {x.kind==='daily'?'Ежедневное':'Обычное'}</small></div><div className="mw-task-right"><b>+{x.points} 🪙</b>
+ {all.map(x=>{const id=x.kind==='daily'?todayDaily.get(x.id):todayTasks.get(x.id);return <article className="mw-chore" key={x.kind+x.id} id={id?reviewAnchor(x.kind==='daily'?'daily':'task',id):undefined} tabIndex={id?-1:undefined}><div className="mw-task-emoji">{x.icon||'✅'}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{x.status==='approved'?'✓ Подтверждено':x.status==='pending'?'⏳ Ожидает решения родителя':'Доступно сегодня'} · {x.kind==='daily'?'Ежедневное':'Обычное'}</small></div><div className="mw-task-right"><b>+{x.points} 🪙</b>
  {cloud.role==='child'&&x.status!=='pending'&&x.status!=='approved'&&<Action run={()=>submit(x,x.kind)}>Готово</Action>}
  {cloud.role==='parent'&&x.status==='pending'&&<div className="mw-cloud-inline"><Action run={()=>review(x,x.kind,true)}>✓</Action><Action run={()=>review(x,x.kind,false)}>✕</Action></div>}
- </div></article>)}
- <section className="mw-panel mw-cloud-form"><h3>💡 Предложения заданий</h3>
+ </div></article>})}
+ <section className="mw-panel mw-cloud-form" id="review-proposals"><h3>💡 Предложения заданий</h3>
  {cloud.proposals.length===0&&<p>Предложений пока нет.</p>}
- {cloud.proposals.map(x=><div className="mw-cloud-line" key={x.id}><div><strong>{x.title}</strong><small>{x.status==='pending'?'На рассмотрении':x.status==='approved'?'✓ Принято':x.status==='rejected'?'Отклонено':'Отменено'} · {x.proposed_points} баллов</small></div>
+ {cloud.proposals.map(x=><div className="mw-cloud-line" key={x.id} id={reviewAnchor('proposal',x.id)} tabIndex={-1}><div><strong>{x.title}</strong><small>{x.status==='pending'?'На рассмотрении':x.status==='approved'?'✓ Принято':x.status==='rejected'?'Отклонено':'Отменено'} · {x.proposed_points} баллов</small></div>
  {cloud.role==='parent'&&x.status==='pending'&&<><Action run={()=>cloud.rpc('review_child_task_proposal',{p_proposal:x.id,p_approve:true,p_points:x.proposed_points})}>Принять</Action><Action run={()=>cloud.rpc('review_child_task_proposal',{p_proposal:x.id,p_approve:false,p_points:null})}>Отклонить</Action></>}
  </div>)}</section>
  {cloud.role==='parent'&&<section className="mw-panel mw-cloud-form"><h3>⚖️ Дисциплинарные меры</h3><p>Списания уменьшают баланс магазина, но не разрушают построенный мир.</p>
@@ -100,7 +108,7 @@ export function CloudTasks({cloud}:{cloud:Cloud}){
  <select value={category} onChange={e=>setCategory(e.target.value)}><option value="agreement">Нарушение договорённости</option><option value="respect">Неуважительный разговор</option><option value="kindness">Обидные слова</option><option value="honesty">Вопрос честности</option><option value="other">Другое</option></select>
  <label>Баллы<select value={deductAmount} onChange={e=>setDeductAmount(e.target.value)}><option value="5">−5</option><option value="10">−10</option></select></label>
  <textarea required minLength={8} maxLength={300} placeholder="Причина и как исправить ситуацию" value={deductReason} onChange={e=>setDeductReason(e.target.value)}/><button type="submit">Зафиксировать списание</button></form></section>}
- {cloud.behavior.length>0&&<section className="mw-panel"><h3>История дисциплинарных мер</h3>{cloud.behavior.map(x=><div className="mw-cloud-line" key={x.id}><div><strong>{x.cancelled_at?'Отменено':'−'+x.amount+' 🪙'}</strong><small>{x.reason}</small></div>{cloud.role==='parent'&&!x.cancelled_at&&<Action run={()=>cloud.rpc('cancel_behavior_point_deduction',{p_id:x.id})}>Вернуть</Action>}</div>)}</section>}
+ {cloud.behavior.length>0&&<section className="mw-panel" id="behavior-history"><h3>История дисциплинарных мер</h3>{cloud.behavior.map(x=><div className="mw-cloud-line" key={x.id}><div><strong>{x.cancelled_at?'Отменено':'−'+x.amount+' 🪙'}</strong><small>{x.reason}</small></div>{cloud.role==='parent'&&!x.cancelled_at&&<Action run={()=>cloud.rpc('cancel_behavior_point_deduction',{p_id:x.id})}>Вернуть</Action>}</div>)}</section>}
  {cloud.role==='parent'&&<ParentActivityJournal cloud={cloud}/>}
  </>;
 }
@@ -122,7 +130,7 @@ export function CloudShop({cloud}:{cloud:Cloud}){
  <div className="mw-wallet"><span>ДОСТУПНО</span><strong>🪙 {Math.max(0,cloud.balance-reserved)}</strong><p>Всего {cloud.balance} · Зарезервировано {reserved}</p></div>
  <div className="mw-reward-grid">{cloud.rewards.filter(x=>cloud.role==='parent'||x.active!==false).map(x=><article className="mw-reward" key={x.id}><div className="mw-reward-icon">🎁</div><h3>{x.title}</h3>{x.active===false&&<small>Приостановлена</small>}<div className="mw-reward-foot"><strong>🪙 {x.cost}</strong>{cloud.role==='child'&&<Action disabled={cloud.balance-reserved<(x.cost||0)||cloud.rewardRequests.some(r=>r.reward_id===x.id&&r.status==='pending')} run={()=>cloud.rpc('request_reward',{p_reward:x.id})}>Заказать</Action>}</div>{cloud.role==='parent'&&<RewardEditor cloud={cloud} item={x}/>}</article>)}</div>
  {cloud.role==='parent'&&<section className="mw-panel mw-cloud-form"><h3>Добавить награду</h3><form onSubmit={e=>{e.preventDefault();void cloud.rpc('create_reward',{p_family:cloud.familyId,p_title:title,p_cost:Number(cost)}).then(()=>setTitle('')).catch(e=>alert(e.message))}}><input required maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Название награды"/><input type="number" min={1} max={100000} required value={cost} onChange={e=>setCost(e.target.value)}/><button type="submit">Добавить</button></form></section>}
- <section className="mw-panel"><h3>История заказов</h3>{cloud.rewardRequests.map(r=><div className="mw-cloud-line" key={r.id}><div><strong>{cloud.rewards.find(x=>x.id===r.reward_id)?.title||'Награда'}</strong><small>{r.status==='approved'?'✓ Выдано':r.status==='pending'?'⏳ Ожидает родителя':'Отклонено'} · {r.cost_snapshot} баллов {r.mystery_prize?' · '+r.mystery_prize:''}</small></div>{cloud.role==='parent'&&r.status==='pending'&&<><Action run={()=>cloud.rpc('review_reward',{p_request:r.id,p_approve:true})}>✓</Action><Action run={()=>cloud.rpc('review_reward',{p_request:r.id,p_approve:false})}>✕</Action></>}</div>)}{!cloud.rewardRequests.length&&<p>Покупок пока нет.</p>}</section>
+ <section className="mw-panel" id="review-rewards"><h3>История заказов</h3>{cloud.rewardRequests.map(r=><div className="mw-cloud-line" key={r.id} id={reviewAnchor('reward',r.id)} tabIndex={-1}><div><strong>{cloud.rewards.find(x=>x.id===r.reward_id)?.title||'Награда'}</strong><small>{r.status==='approved'?'✓ Выдано':r.status==='pending'?'⏳ Ожидает родителя':'Отклонено'} · {r.cost_snapshot} баллов {r.mystery_prize?' · '+r.mystery_prize:''}</small></div>{cloud.role==='parent'&&r.status==='pending'&&<><Action run={()=>cloud.rpc('review_reward',{p_request:r.id,p_approve:true})}>✓</Action><Action run={()=>cloud.rpc('review_reward',{p_request:r.id,p_approve:false})}>✕</Action></>}</div>)}{!cloud.rewardRequests.length&&<p>Покупок пока нет.</p>}</section>
  </>;
 }
 export function CloudSpiritual({cloud}:{cloud:Cloud}){
@@ -135,6 +143,6 @@ export function CloudSpiritual({cloud}:{cloud:Cloud}){
  <h3 className="mw-cloud-heading">Библейские занятия</h3>
  {spiritualSteps.map(x=>{const done=cloud.spiritual.some(r=>r.step_id===x.id&&r.activity_date===day()&&(x.id!=='daily-text'||Number(r.points)>=10));return <div className="mw-chore" key={x.id}><div className="mw-task-emoji">{x.icon}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{done?'✓ Сегодня отмечено':x.rhythm==='daily'?'Ежедневное занятие':'По возможности'}</small></div><div className="mw-task-right"><b>+{x.points} ✨</b>{cloud.role==='child'&&(x.id==='daily-text'?<button type='button' className='mw-read-quicklink' onClick={()=>document.querySelector('.daily-reader')?.scrollIntoView({behavior:'smooth',block:'start'})}>{done?'✓ Прочитано':'Читать'}</button>:<Action run={()=>cloud.rpc(done?'unmark_spiritual_activity':'mark_spiritual_activity',{p_family:cloud.familyId,p_date:day(),p_step:x.id})}>{done?'Отменить':'Отметить'}</Action>)}</div></div>})}
  {cloud.role==='child'&&<section className="mw-panel mw-cloud-form"><h3>💡 Предложить дополнительные духовные очки</h3><form onSubmit={e=>{e.preventDefault();void cloud.rpc('request_spiritual_points',{p_family:cloud.familyId,p_title:request,p_points:Number(points)}).then(()=>setRequest('')).catch(e=>alert(e.message))}}><input required maxLength={160} minLength={3} placeholder="Что я сделал?" value={request} onChange={e=>setRequest(e.target.value)}/><input type="number" min={1} max={100} required value={points} onChange={e=>setPoints(e.target.value)}/><button type="submit">Отправить родителю</button></form></section>}
- {cloud.pendingSpiritual.length>0&&<section className="mw-panel"><h3>Предложения духовных очков</h3>{cloud.pendingSpiritual.map(x=><div className="mw-cloud-line" key={x.id}><div><strong>{x.title}</strong><small>{x.status} · {x.proposed_points} ✨</small></div>{cloud.role==='parent'&&x.status==='pending'&&<><Action run={()=>cloud.rpc('review_spiritual_points_request',{p_request:x.id,p_approve:true,p_points:x.proposed_points})}>Принять</Action><Action run={()=>cloud.rpc('review_spiritual_points_request',{p_request:x.id,p_approve:false,p_points:null})}>Отказать</Action></>}</div>)}</section>}
+ {cloud.pendingSpiritual.length>0&&<section className="mw-panel" id="review-spiritual"><h3>Предложения духовных очков</h3>{cloud.pendingSpiritual.map(x=><div className="mw-cloud-line" key={x.id} id={reviewAnchor('spiritual',x.id)} tabIndex={-1}><div><strong>{x.title}</strong><small>{x.status} · {x.proposed_points} ✨</small></div>{cloud.role==='parent'&&x.status==='pending'&&<><Action run={()=>cloud.rpc('review_spiritual_points_request',{p_request:x.id,p_approve:true,p_points:x.proposed_points})}>Принять</Action><Action run={()=>cloud.rpc('review_spiritual_points_request',{p_request:x.id,p_approve:false,p_points:null})}>Отказать</Action></>}</div>)}</section>}
  </>;
 }

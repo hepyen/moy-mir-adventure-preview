@@ -82,7 +82,7 @@ async function setupReminders(bed:string,wake:string){
   extra:{section:'health'}
  }))});
 }
-export function HealthHub({parent=false,childId='local',familyId,themeMode,themeResolved,onThemeChange,onOpenSettings}:{parent?:boolean;childId?:string;familyId?:string;themeMode:ThemeChoice;themeResolved:'day'|'night';onThemeChange:(value:ThemeChoice)=>void;onOpenSettings?:()=>void}){
+export function HealthHub({parent=false,childId='local',familyId,themeMode,themeResolved,onThemeChange,onOpenSettings,openKitchen,onMealDecision}:{openKitchen?:object;onMealDecision?:()=>Promise<void>;parent?:boolean;childId?:string;familyId?:string;themeMode:ThemeChoice;themeResolved:'day'|'night';onThemeChange:(value:ThemeChoice)=>void;onOpenSettings?:()=>void}){
  const key='moymir-health-local-v1:'+childId;
  const [entry,setEntry]=useState<{key:string;data:HealthData}>(()=>({key,data:read(key)}));
  const state=entry.key===key?entry.data:read(key);
@@ -104,7 +104,8 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
   document.addEventListener('visibilitychange',visible);
   return()=>{window.clearInterval(interval);document.removeEventListener('visibilitychange',visible)};
  },[]);
- const [section,setSection]=useState<HealthSection>('today');
+ const [section,setSection]=useState<HealthSection>(openKitchen?'food':'today');
+ useEffect(()=>{if(openKitchen)setSection('food')},[openKitchen]);
  const [notice,setNotice]=useState('');
  const [busy,setBusy]=useState(false);
  const today=dateMadrid();
@@ -223,7 +224,7 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
    {section==='growth'&&<GrowthJournal childId={childId} familyId={familyId} parent={parent} legacy={state.measurements}/>}
    {section==='exercise'&&<ExerciseAdventure onComplete={()=>{if(!done.includes('morning'))markHabit('morning')}}/>}
    {section==='food'&&<HealthKitchen plan={plan} parent={parent} connected={cloud.connected} requests={cloud.requests}
-     onPlan={savePlan} onPropose={cloud.propose} onDecide={cloud.decide}/>}
+     onPlan={savePlan} onPropose={cloud.propose} onDecide={async(request,approve)=>{await cloud.decide(request,approve);await onMealDecision?.()}}/>}
 
    {section==='sleep'&&<SleepWell bed={plan.bed} wake={plan.wake} parent={parent} daily={daily} days={cloud.days}
      reminders={state.reminders} working={busy} onSaveDay={saveDaily} onChangeTime={changeSleep}

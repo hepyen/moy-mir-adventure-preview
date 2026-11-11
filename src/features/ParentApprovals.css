@@ -1,0 +1,15 @@
+.mw-approvals{border:1px solid #aad5d9}
+.mw-approvals-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.mw-approvals-heading h2,.mw-approvals-heading p{margin:0}
+.mw-approvals-heading h2{font-size:1.18rem}
+.mw-approvals-heading p{margin-top:4px}
+.mw-approvals-count{background:#125e69;color:#fff;border-radius:20px;min-width:32px;padding:5px 9px;text-align:center}
+.mw-approval-card{padding:12px;margin:8px 0;border:1px solid #7298a456;border-radius:12px}
+.mw-approval-copy{display:grid;gap:4px;overflow-wrap:anywhere}
+.mw-approval-copy small{opacity:.82}
+.mw-approval-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.mw-approval-actions button{padding:8px 10px;border:1px solid #125e69;border-radius:9px;background:#125e69;color:#fff;font-weight:700;cursor:pointer}
+.mw-approval-actions .mw-approval-reject,.mw-approval-actions .mw-approval-open{background:transparent;color:inherit}
+.mw-approval-actions button:disabled{opacity:.6;cursor:wait}
+.mw-approval-card [role=alert]{margin:8px 0 0}
+.mw-notification-target{outline:3px solid #d58b19!important;outline-offset:2px;scroll-margin-top:12px}
