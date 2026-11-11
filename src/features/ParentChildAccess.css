@@ -1,0 +1,10 @@
+.mw-parent-recovery{display:block}
+.mw-parent-recovery summary{font-size:13px;font-weight:800;color:#256b82;cursor:pointer;padding:2px 0}
+.mw-parent-recovery form{display:grid;gap:11px;margin-top:12px}
+.mw-parent-recovery label{display:grid;gap:5px;color:#446679;font-size:11px;font-weight:700}
+.mw-parent-recovery input{box-sizing:border-box;width:100%;min-height:42px;border:1px solid #bfd9e2;border-radius:12px;background:var(--app-input-bg,#fff);color:var(--app-text,#24475c);padding:10px;font-size:15px}
+.mw-parent-recovery small{font-size:11px;line-height:1.5;color:#668596}
+.mw-parent-recovery button{min-height:43px;white-space:normal}
+.mw-parent-recovery button:disabled{opacity:.5;cursor:not-allowed}
+.mw-recovery-success{color:#13764e!important;font-weight:800}
+

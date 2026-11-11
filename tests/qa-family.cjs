@@ -213,7 +213,9 @@ async function run(role,browser){
  check('smart daily planner exists',await myday.count()===1);
  check('three day modes and auto',await myday.getByRole('button',{name:/Утро/}).count()===1&&await myday.getByRole('button',{name:/После школы/}).count()===1&&await myday.getByRole('button',{name:/Вечер/}).count()===1);
  await myday.getByRole('button',{name:/Утро/}).click();
- check('morning reflects real Spanish subjects',await myday.getByText('Matemáticas',{exact:false}).count()>0||await myday.getByText(/Hoy no hay clases/).count()>0);
+ const todaySubjects=schoolMatrix[new Date(dateToday+'T12:00:00').getDay()]||[];
+ const morningCopy=await myday.innerText();
+ check('morning reflects real Spanish subjects',todaySubjects.length?todaySubjects.some(subject=>morningCopy.includes(subject)):morningCopy.includes('Hoy no hay clases'));
  await myday.getByRole('button',{name:/Вечер/}).click();
  check('evening includes tomorrow backpack',await myday.getByText(/Собери рюкзак на следующий день/).count()>0);
  await myday.getByRole('button',{name:'Авто'}).click();
@@ -708,6 +710,13 @@ async function run(role,browser){
  check('health saved automatic theme survives navigation',await page.locator('.h-health').getAttribute('data-theme-choice')==='auto');
  // Whole-app theme must be switchable from settings, and visible in every top-level screen.
  await page.getByRole('button',{name:'Открыть настройки'}).click();
+ const accessPanel=page.locator('.mw-parent-recovery');
+ check('recovery is parent-only',await accessPanel.count()===(role==='parent'?1:0));
+ if(role==='parent'){
+  await accessPanel.locator('summary').click();
+  check('recovery form requires three passwords',await accessPanel.locator('input[type=password]').count()===3);
+  check('recovery disabled until filled',await accessPanel.getByRole('button',{name:'Сменить пароль ребёнка'}).isDisabled());
+ }
  const globalTheme=page.getByRole('group',{name:'Тема оформления всего приложения'});
  check('full app theme switch available in Settings',await globalTheme.count()===1);
  await globalTheme.getByRole('button',{name:'Тема: Ночь'}).click();

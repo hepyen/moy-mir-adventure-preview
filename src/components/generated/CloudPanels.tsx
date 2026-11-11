@@ -19,7 +19,7 @@ export function CloudSignIn({cloud}:{cloud:Cloud}){
   {error&&<p className="mw-cloud-error" role="alert">{error}</p>}
   <button className="mw-primary" type="submit" disabled={busy}>{busy?'Входим…':'Подключить мой прогресс'}</button>
   </form>
-  <small>Не регистрируй новую семью. Нужен уже существующий аккаунт.</small>
+  <small>Забыл пароль? Попроси родителя открыть ⚙️ Настройки → «Восстановить доступ ребёнку» в его аккаунте. Новую семью создавать не нужно.</small>
  </section>;
 }
 function Action({children,run,disabled=false,className=''}:{children:React.ReactNode;run:()=>Promise<unknown>;disabled?:boolean;className?:string}){
