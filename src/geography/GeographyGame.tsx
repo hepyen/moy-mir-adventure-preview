@@ -34,7 +34,6 @@ function GeographyGame({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
  const[attempts,setAttempts]=useState<Attempt[]>([]);
  const[report,setReport]=useState<Attempt|null>(null);
  const[minutes,setMinutes]=useState<number>(30);
- const[remaining,setRemaining]=useState(1800);
  const[selected,setSelected]=useState<number|null>(null);
  const[busy,setBusy]=useState(false);
  const[error,setError]=useState('');
@@ -43,6 +42,7 @@ function GeographyGame({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
  const[liveNow,setLiveNow]=useState(Date.now());
  const finishing=useRef(false);
  const activeId=attempt?.id;
+ const remaining=attempt?Math.max(0,Math.ceil((Date.parse(attempt.started_at)+attempt.time_limit_minutes*60000-liveNow)/1000)):minutes*60;
  const fetchAttempts=useCallback(async()=>{
   if(!supabase||!cloud.familyId||!cloud.childId)return;
   const {data,error:e}=await supabase.from('moymir_geography_attempts')
@@ -52,9 +52,7 @@ function GeographyGame({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
  useEffect(()=>{let alive=true;setLoading(true);void fetchAttempts().catch(e=>{if(alive)setError(e instanceof Error?e.message:'Error al cargar informes')}).finally(()=>{if(alive)setLoading(false)});return()=>{alive=false}},[fetchAttempts]);
  useEffect(()=>{if(!supabase||!cloud.familyId)return;const channel=supabase.channel('geo-attempts-'+cloud.session?.user.id).on('postgres_changes',{event:'*',schema:'public',table:'moymir_geography_attempts',filter:'family_id=eq.'+cloud.familyId},()=>{void fetchAttempts()}).subscribe();return()=>{void supabase?.removeChannel(channel)}},[cloud.familyId,cloud.session?.user.id,fetchAttempts]);
  useEffect(()=>{if(!attempt||attempt.status!=='in_progress')return;const tick=()=>setLiveNow(Date.now());tick();const timer=window.setInterval(tick,500);return()=>clearInterval(timer)},[activeId,attempt?.status]);
- useEffect(()=>{if(!attempt)return;setRemaining(Math.max(0,Math.ceil((Date.parse(attempt.started_at)+attempt.time_limit_minutes*60000-liveNow)/1000)))},[attempt,liveNow]);
  const question=category?.questions[attempt?.answered_count||0];
- const last=selected!==null&&question?{correct:selected===question.correct}:null;
  const start=async(cat:GeographyCategory)=>{
   if(!isChild||busy||!supabase||!cloud.session||!cloud.familyId||!cloud.childId)return;
   setBusy(true);setError('');setMessage('');
@@ -86,7 +84,7 @@ function GeographyGame({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
   const filled=[...a.answers,...Array.from({length:blanks},(_,i)=>({id:a.quiz_id+'-'+String(a.answered_count+i+1).padStart(2,'0'),choice:null,correct:false}))];
   const next={...a,answers:filled,answered_count:25,incorrect_count:a.incorrect_count+blanks,status:'completed' as const,finished_at:new Date().toISOString()};
   try{await save(next);setMessage(timeout?'Tiempo agotado. Las preguntas pendientes cuentan como errores.':'¡Desafío completado!')}
-  catch(e){setError('No se pudo guardar el resultado. Vuelve a intentarlo. '+(e instanceof Error?e.message:''));finishing.current=false}
+  catch(e){setError('No se pudo guardar el resultado. Comprueba Internet y pulsa Reintentar. '+(e instanceof Error?e.message:''))}
   finally{setBusy(false)}
  },[busy,cloud.session?.user.id,fetchAttempts]);
  useEffect(()=>{if(attempt?.status==='in_progress'&&remaining<=0&&!busy&&!finishing.current){void finish(attempt,true)}},[attempt,remaining,busy,finish]);
@@ -109,9 +107,7 @@ function GeographyGame({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
  const leaveTest=()=>{setCategory(null);setAttempt(null);setSelected(null);setFeedbackChoice(null);setFeedbackQuestion('');finishing.current=false;setReport(null);setMessage('');setError('');void fetchAttempts()};
  const latestByCategory=useMemo(()=>geographyCategories.map(c=>{const arr=attempts.filter(a=>a.quiz_id===c.id&&a.status==='completed');return {id:c.id,best:arr.length?Math.max(...arr.map(a=>a.correct_count)):null}}),[attempts]);
  const perfect=latestByCategory.every(x=>x.best===25);
- const allCompleted=latestByCategory.every(x=>x.best!==null);
  const scoreTotal=latestByCategory.reduce((s,x)=>s+points(x.best||0),0)+(perfect?300:0);
- const overall=attempts.filter(a=>a.status==='completed').length;
  const displayed=feedback||question;
  const displayedChoice=feedback?feedbackChoice:selected;
  const displayedCorrect=displayedChoice!==null&&displayedChoice===displayed?.correct;
@@ -146,6 +142,7 @@ function GeographyGame({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
    </div>}
    {category&&attempt&&<div className="geo-play">
     <button className="geo-back" onClick={leaveTest}>← Volver a las misiones</button>
+    {error&&remaining<=0&&attempt.status==='in_progress'&&<button className="geo-retry-save" disabled={busy} onClick={()=>{finishing.current=false;void finish(attempt,true)}}>↻ Reintentar guardar el resultado</button>}
     <div className="geo-play-head"><div><small>MISIÓN · {category.title}</small><h2>Pregunta {displayNumber} de 25</h2></div><div className={'geo-clock '+(remaining<120?'urgent':'')}><span>⏱</span> {clock(remaining)}</div></div>
     <div className="geo-progress-rail"><div style={{width:`\${Math.round((attempt.answered_count/25)*100)}%`}}/></div>
     <div className="geo-mini-stats"><span>✅ {attempt.correct_count} aciertos</span><span>❌ {attempt.incorrect_count} errores</span><span>🎯 Hasta 50 puntos</span></div>
@@ -155,7 +152,7 @@ function GeographyGame({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
      <div className="geo-question-tag">{displayed.visual?'🖼️ OBSERVA Y RESPONDE':'🧠 PIENSA Y RESPONDE'}</div>
      {displayed.visual&&<GeographyIllustration kind={displayed.visual}/>}
      <h1>{displayed.text}</h1>
-     <div className="geo-options">{displayed.options.map((opt,i)=><button type="button" key={i} disabled={busy||displayedChoice!==null} onClick={()=>void choose(i)}
+     <div className="geo-options">{displayed.options.map((opt,i)=><button type="button" key={i} disabled={busy||displayedChoice!==null||remaining<=0} onClick={()=>void choose(i)}
       className={displayedChoice!==null?(i===displayed.correct?'correct':i===displayedChoice?'wrong':'dim') :''}>
       <span className="geo-option-letter">{['A','B','C'][i]}</span><span>{opt}</span>{displayedChoice!==null&&i===displayed.correct&&<b>✓</b>}{displayedChoice===i&&i!==displayed.correct&&<b>✕</b>}</button>)}</div>
      {displayedChoice!==null&&<div className={'geo-explanation '+(displayedCorrect?'correct':'wrong')} role="status"><b>{displayedCorrect?'🎉 ¡Correcto!':'📖 Vamos a aprenderlo'}</b>{!displayedCorrect&&<p><strong>Respuesta correcta:</strong> {['A','B','C'][displayed.correct]}. {displayed.options[displayed.correct]}</p>}<p>{displayed.explanation}</p>

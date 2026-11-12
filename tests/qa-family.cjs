@@ -312,6 +312,18 @@ async function run(role,browser){
  }
  await page.getByRole('button',{name:/Учёба/}).last().click();
  check('school tab',await page.getByRole('heading',{name:'Учёба'}).count()>0);
+ check('geography game launcher appears inside study',await page.locator('.geo-entry').count()===1);
+ await page.locator('.geo-entry button').click();
+ check('geography opens separate fullscreen game',await page.getByRole('dialog',{name:'La misión del clima'}).count()===1);
+ check('geography has four missions',await page.locator('.geo-category').count()===4);
+ check('geography shows 100 questions and 50 illustrations',await page.getByText('📘 100 preguntas').count()===1&&await page.getByText('🖼️ 50 ilustraciones').count()===1);
+ if(role==='child'){
+  check('geography starts with 30 minute option',await page.locator('.geo-time-options button.active').textContent().then(x=>x?.includes('30')));
+  await page.getByRole('button',{name:'20 min'}).click();
+  check('geography allows selecting test time',await page.locator('.geo-time-options button.active').textContent().then(x=>x?.includes('20')));
+ }else check('parent can see geography reports',await page.getByRole('heading',{name:'Informe de geografía'}).count()===1);
+ await page.getByRole('button',{name:'Cerrar juego'}).click();
+ check('closing geography returns to school',await page.getByRole('heading',{name:'Учёба'}).count()===1);
  check('school lesson',await page.getByText('Matemáticas',{exact:true}).count()>0);
  check('school cached for offline reopening',await page.evaluate(([f,c,u])=>{try{const x=JSON.parse(localStorage.getItem(`moymir31-school:${f}:${c}:${u}`)||'null');return x?.lessons?.length===30&&Array.isArray(x?.homework)}catch{return false}},[ids.family,ids.child,uid]));
  check('Spanish timetable heading',await page.getByRole('heading',{name:/Horario escolar/}).count()>0);
