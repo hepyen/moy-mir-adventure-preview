@@ -8,7 +8,8 @@ const htmlFile=zip.file('index.html');
 if(!htmlFile)throw Error('Missing index.html at archive root');
 const html=await htmlFile.async('string');
 if(html.includes('/moy-mir-adventure-preview/')||html.includes('github.io'))throw Error('Wrong GitHub Pages base in OTA');
-if(!html.includes('Мой Мир 3.8.4'))throw Error('Wrong app HTML version');
+const expectedVersion=process.argv[3];
+if(!/<title>Мой Мир 3\.8\.\d+/.test(html)||expectedVersion&&!html.includes('Мой Мир '+expectedVersion))throw Error('Wrong app HTML version');
 const refs=[...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(m=>m[1]).filter(s=>s.endsWith('.js')||s.endsWith('.css'));
 if(!refs.some(s=>s.endsWith('.js'))||!refs.some(s=>s.endsWith('.css')))throw Error('No JS or CSS linked');
 for(const ref of refs){
