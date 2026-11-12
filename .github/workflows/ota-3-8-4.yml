@@ -1,0 +1,42 @@
+name: Publish My World OTA 3.8.4 (Android paths)
+on:
+  push:
+    tags:
+      - "v3.8.4"
+permissions:
+  contents: write
+jobs:
+  ota:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck and build for the Android file server
+        run: npm run build -- --mode android
+      - name: Assert local asset paths in Android package
+        run: |
+          grep -q 'src="/assets/' dist/index.html
+          grep -q 'href="/assets/' dist/index.html
+          if grep -q '/moy-mir-adventure-preview/' dist/index.html; then
+            echo "ERROR: GitHub Pages asset URLs detected in Android build" >&2
+            exit 1
+          fi
+      - name: Package Android-local web assets at archive root
+        run: |
+          cd dist
+          zip -q -r "$RUNNER_TEMP/MOY_MIR_3.8.4_OTA.zip" .
+      - name: Validate OTA bundle and checksum
+        run: |
+          node scripts/check-ota-archive.mjs "$RUNNER_TEMP/MOY_MIR_3.8.4_OTA.zip"
+          cd "$RUNNER_TEMP"
+          sha256sum MOY_MIR_3.8.4_OTA.zip > MOY_MIR_3.8.4_OTA.zip.sha256
+      - name: Publish OTA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v3.8.4             "$RUNNER_TEMP/MOY_MIR_3.8.4_OTA.zip"             "$RUNNER_TEMP/MOY_MIR_3.8.4_OTA.zip.sha256"             --repo hepyen/moy-mir-adventure-preview             --verify-tag             --title "Мой мир 3.8.4 · Исправление белого экрана"             --notes-file RELEASE_3.8.4.md
