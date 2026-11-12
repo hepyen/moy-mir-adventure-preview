@@ -11,7 +11,13 @@ export function PushCenter({userId}:{userId:string}){
  const [busy,setBusy]=useState(false);
  const [lastEvent,setLastEvent]=useState('');
  const [testing,setTesting]=useState(false);
- const native=Capacitor.isNativePlatform()&&Capacitor.isPluginAvailable('PushNotifications');
+ // The installed Android package is com.moymir.adventure, but the only available
+ // google-services.json belongs to com.moymir.family. Calling register() with no
+ // default FirebaseApp throws on Capacitor's native thread and kills the entire app.
+ // Enable ONLY after Firebase config for the actual package is installed and verified.
+ const firebaseConfigured=false;
+ const native=Capacitor.isNativePlatform()&&Capacitor.isPluginAvailable('PushNotifications')&&firebaseConfigured;
+ const pushNeedsConfiguration=Capacitor.isNativePlatform()&&!firebaseConfigured;
  useEffect(()=>{
   if(!native)return;
   let active=true;
@@ -69,7 +75,7 @@ export function PushCenter({userId}:{userId:string}){
   setTesting(false);
  }
  return <section className="mw-push-center">
-  <div><strong>🔔 Уведомления Android</strong><p>{native?'Родительские решения, задания, сообщения семьи и достижения.':'Системные push доступны в установленном Android-приложении.'}</p></div>
+  <div><strong>🔔 Уведомления Android</strong><p>{native?'Родительские решения, задания, сообщения семьи и достижения.':pushNeedsConfiguration?'Push-уведомления временно отключены: требуется регистрация Android-приложения в Firebase. Миро, местные напоминания и остальные разделы продолжают работать.':'Системные push доступны в установленном Android-приложении.'}</p></div>
   {native&&<button type="button" disabled={busy} onClick={()=>void enable()}>{busy?'Подключение…':enabled?'↻ Обновить регистрацию':'Включить уведомления'}</button>}
   {native&&enabled&&<button type="button" disabled={testing} onClick={()=>void testPush()}>{testing?'Отправка…':'Отправить тестовое уведомление'}</button>}
   {status&&<small role="status">{status}</small>}{lastEvent&&<small>Последнее: {lastEvent}</small>}
