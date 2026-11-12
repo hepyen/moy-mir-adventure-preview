@@ -63,6 +63,7 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
+ let geographyAttempts=[];
  let healthNetworkBlocked=false;
  let qaDailyStatus='pending';
  const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;let playBalance=60,playCap=30,storyDone=[];
@@ -171,6 +172,21 @@ async function run(role,browser){
      counters.restWrites.push({name,method});
      return resp([]);
     }
+  }
+  if(name==='moymir_geography_attempts'){
+   if(method==='GET')return resp(geographyAttempts);
+   if(method==='POST'){
+    const x=request.postDataJSON();
+    const record={...x,id:'efefefef-0000-4000-8000-000000000001',option_orders:Array.from({length:25},(_,i)=>i%2===0?[2,1,0]:[1,0,2]),quiz_revision:2,reward_eligible:true,started_at:new Date().toISOString(),finished_at:null};
+    geographyAttempts.unshift(record);
+    return resp(record,true);
+   }
+   if(method==='PATCH'){
+    const id=url.searchParams.get('id')?.replace('eq.','');
+    const x=request.postDataJSON();
+    geographyAttempts=geographyAttempts.map(a=>a.id===id?{...a,...x}:a);
+    return resp(geographyAttempts.find(a=>a.id===id),true);
+   }
   }
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
@@ -321,6 +337,21 @@ async function run(role,browser){
   check('geography starts with 30 minute option',await page.locator('.geo-time-options button.active').textContent().then(x=>x?.includes('30')));
   await page.getByRole('button',{name:'20 min'}).click();
   check('geography allows selecting test time',await page.locator('.geo-time-options button.active').textContent().then(x=>x?.includes('20')));
+  await page.locator('.geo-category').first().getByRole('button',{name:/Empezar misión/}).click();
+  await page.locator('.geo-options button').first().waitFor({state:'visible'});
+  check('shuffled quiz shows correct first answer under C',await page.locator('.geo-options button').nth(2).innerText().then(x=>x.includes('La capa de gases')));
+  await page.locator('.geo-options button').nth(2).click();
+  await page.getByText('🎉 ¡Correcto!').waitFor({state:'visible',timeout:5000});
+  check('shuffled C answer verified and explanation shown',await page.getByText('🎉 ¡Correcto!').count()===1);
+  await page.getByRole('button',{name:/Siguiente pregunta/}).click();
+  check('second question correct answer now under A',await page.locator('.geo-options button').first().innerText().then(x=>x.includes('La troposfera')));
+  check('quiz tracks one submitted answer',geographyAttempts[0]?.answered_count===1 && geographyAttempts[0]?.answers[0]?.choice===2);
+  await page.getByRole('button',{name:/Volver a las misiones/}).click();
+  await page.locator('.geo-history-item').first().waitFor({state:'visible',timeout:5000});
+  check('quiz saved an in-progress attempt',await page.locator('.geo-history-item').count()>=1);
+  await page.locator('.geo-history-item').first().click();
+  check('report preserves shuffled chosen letter C',await page.locator('.geo-report-row').first().innerText().then(x=>x.includes('C.')&&x.includes('La capa de gases')));
+  await page.getByRole('button',{name:/Volver al informe/}).click();
  }else check('parent can see geography reports',await page.getByRole('heading',{name:'Informe de geografía'}).count()===1);
  await page.getByRole('button',{name:'Cerrar juego'}).click();
  check('closing geography returns to school',await page.getByRole('heading',{name:'Учёба'}).count()===1);

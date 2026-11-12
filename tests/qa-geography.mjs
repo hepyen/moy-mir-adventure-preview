@@ -32,3 +32,22 @@ assert.equal(prize(25),50);
 assert.equal(4*prize(25)+300,500);
 assert.equal(4*prize(20),20);
 console.log('GEOGRAPHY QA PASSED: 4 categories, 100 questions, 50 illustrated, answer keys and prizes validated.');
+const {visibleChoices}=await import('../src/geography/shuffle.ts');
+const sample=geographyCategories[0].questions[0];
+const identity=visibleChoices(sample,{quiz_revision:1,option_orders:[]});
+assert.deepEqual(identity.options,sample.options,'Legacy report retains original option positions');
+const flippedOrders=Array.from({length:25},()=>[2,1,0]);
+const reversed=visibleChoices(sample,{quiz_revision:2,option_orders:flippedOrders});
+assert.equal(reversed.options[2],sample.options[0],'Correct option moved from A to C');
+assert.equal(reversed.correct,2,'New correct letter is C');
+assert.notDeepEqual(reversed.options,identity.options,'New order differs from legacy');
+for(const cat of geographyCategories)for(const q of cat.questions){
+ const sequence=[0,1,2].map(i=>[i,(i+1)%3,(i+2)%3]);
+ for(const order of sequence){
+  const mixed=visibleChoices(q,{quiz_revision:2,option_orders:Array.from({length:25},()=>order)});
+  assert.equal(mixed.options[mixed.correct],q.options[q.correct]);
+  assert.deepEqual(new Set(mixed.options),new Set(q.options));
+ }
+}
+assert.throws(()=>visibleChoices(sample,{quiz_revision:2,option_orders:[]}),/Falta la distribución/,'No silent insecure fallback');
+console.log('SHUFFLE UI QA PASSED: answer positions change, legacy reports remain correct, missing order rejected.');
