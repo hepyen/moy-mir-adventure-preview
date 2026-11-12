@@ -124,12 +124,15 @@ export function useFamilyCloud(){
   try{
    const saved=JSON.parse(localStorage.getItem('moymir2-owned-push-token')||'null') as {token?:string;userId?:string}|null;
    if(saved?.token&&saved.userId===session?.user.id){
-    const {error:tokenError}=await supabase.from('device_push_tokens').delete().eq('token',saved.token).eq('user_id',saved.userId);
-    if(tokenError)console.warn('Device token deregistration failed:',tokenError.message);
-    else localStorage.removeItem('moymir2-owned-push-token');
+    // A stale server must not trap a child in the previous account.
+    const removal=supabase.from('device_push_tokens').delete().eq('token',saved.token).eq('user_id',saved.userId);
+    const result=await Promise.race([removal,new Promise<null>(resolve=>setTimeout(()=>resolve(null),1500))]);
+    if(result?.error)console.warn('Device token deregistration failed:',result.error.message);
+    else if(result)localStorage.removeItem('moymir2-owned-push-token');
    }
   }catch(e){console.warn('Device token cleanup failed')}
-  const{error}=await supabase.auth.signOut();if(error)throw error
+  // This clears only the local phone session and works even if the server is offline.
+  const{error}=await supabase.auth.signOut({scope:'local'});if(error)throw error
  }
  async function rpc(name:string,params:Record<string,unknown>){if(!supabase||!session)throw new Error('Войдите в семейный аккаунт');const{data,error}=await supabase.rpc(name,params);if(error)throw error;await refresh();return data}
  return {...data,session,role,familyId,childId,childName,loading,error,refresh,login,logout,rpc};

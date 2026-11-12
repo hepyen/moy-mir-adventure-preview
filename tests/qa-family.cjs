@@ -810,6 +810,15 @@ async function run(role,browser){
  check('single-row six bottom tabs',await page.locator('.mw-bottom button').count()===6);
  check('no JS exceptions',counters.errors.length===0,counters.errors.join(' | '));
  await page.screenshot({path:'/Volumes/Дополнительная память/MOY_MIR_2_GAME/docs/qa-'+role+'-2.8.png'});
+ if(role==='child'){
+  await page.getByRole('button',{name:/Родители/}).first().click();
+  check('parent switch shows family account even outside world tab',await page.getByRole('heading',{name:'Семейный аккаунт'}).count()===1);
+  await page.getByRole('button',{name:'Выйти',exact:true}).click();
+  await page.waitForTimeout(450);
+  check('local logout switches to login without network roundtrip',await page.getByRole('heading',{name:'🔐 Подключить прежний «Мой Мир»'}).count()>0);
+  check('login fields shown for parent account',await page.getByRole('textbox',{name:'Почта семейного аккаунта'}).count()===1);
+ }
+
  }catch(e){console.log('TEST_EXCEPTION',role,e.message.slice(0,650));failures++}
  await ctx.close();
 }

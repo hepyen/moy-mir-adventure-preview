@@ -1,8 +1,11 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL
-const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
+// Both values are public client configuration, never a service-role or secret key.
+// GitHub Actions builds without the local .env; a public fallback prevents
+// releasing an OTA that cannot initialize family authentication.
+const projectUrl = 'https://ueqtitxbvsnqmbudwxwu.supabase.co';
+const publicClientKey = 'sb_publishable_qWop6aV_TzUgWwn_0YCCzg_QzstXqKQ';
+const url = import.meta.env.VITE_SUPABASE_URL || projectUrl;
+const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || publicClientKey;
 
-// The demo UI works without credentials; production features must not silently use demo state.
-export const supabase: SupabaseClient | null =
-  url && anonKey ? createClient(url, anonKey) : null
+export const supabase: SupabaseClient = createClient(url, anonKey);

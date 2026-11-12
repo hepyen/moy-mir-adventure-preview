@@ -1,0 +1,52 @@
+name: Publish My World OTA 3.8.9 (Geography Game)
+on:
+  push:
+    tags:
+      - "v3.8.9"
+permissions:
+  contents: write
+jobs:
+  ota:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate geography content
+        run: node tests/qa-geography.mjs
+      - name: Typecheck and build in Android-local mode
+        run: npm run build -- --mode android
+      - name: Verify Supabase credentials are present in final production JavaScript
+        run: node scripts/check-client-config.mjs dist
+      - name: Assert Android WebView asset paths
+        run: |
+          grep -q 'src="/assets/' dist/index.html
+          grep -q 'href="/assets/' dist/index.html
+          if grep -q '/moy-mir-adventure-preview/' dist/index.html; then
+            echo "ERROR: GitHub Pages asset paths cannot be used by Android" >&2
+            exit 1
+          fi
+      - name: Package assets at ZIP root
+        run: |
+          cd dist
+          zip -q -r "$RUNNER_TEMP/MOY_MIR_3.8.9_OTA.zip" .
+      - name: Validate archive and checksum
+        run: |
+          node scripts/check-ota-archive.mjs "$RUNNER_TEMP/MOY_MIR_3.8.9_OTA.zip" 3.8.9
+          cd "$RUNNER_TEMP"
+          sha256sum MOY_MIR_3.8.9_OTA.zip > MOY_MIR_3.8.9_OTA.zip.sha256
+      - name: Publish optional OTA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v3.8.9 \
+            "$RUNNER_TEMP/MOY_MIR_3.8.9_OTA.zip" \
+            "$RUNNER_TEMP/MOY_MIR_3.8.9_OTA.zip.sha256" \
+            --repo hepyen/moy-mir-adventure-preview \
+            --verify-tag \
+            --title "Мой мир 3.8.9 · География: Миссия климата" \
+            --notes-file RELEASE_3.8.9.md
