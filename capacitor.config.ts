@@ -5,7 +5,7 @@ const config:CapacitorConfig={
  server:{androidScheme:'https'},
  plugins:{
    PushNotifications:{presentationOptions:['badge','sound','alert']},
-   CapacitorUpdater:{autoUpdate:false,appReadyTimeout:20000}
+   CapacitorUpdater:{autoUpdate:false,appReadyTimeout:20000,resetWhenUpdate:true}
  }
 };
 export default config;
