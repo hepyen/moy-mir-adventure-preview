@@ -131,6 +131,18 @@ export function PioneerArena({state,role,start,answer,hint,cashout,reload,onClos
      .filter(el=>el.getClientRects().length>0);
    if(!buttons.length)return;
    const selected=document.activeElement instanceof HTMLButtonElement&&buttons.includes(document.activeElement)?document.activeElement:null;
+   if(selected?.classList.contains('pn-option')&&!feedback){
+    const all=Array.from(document.querySelectorAll<HTMLButtonElement>('.pn-portal .pn-option'));
+    const index=all.indexOf(selected);
+    const nextIndex=e.key==='ArrowRight'?(index%2===0?index+1:index):
+       e.key==='ArrowLeft'?(index%2===1?index-1:index):
+       e.key==='ArrowDown'?(index<2?index+2:index):
+       e.key==='ArrowUp'?(index>=2?index-2:index):index;
+    const nextButton=all[nextIndex];
+    if(nextButton&&nextButton!==selected&&!nextButton.disabled){
+     e.preventDefault();nextButton.focus({preventScroll:true});return;
+    }
+   }
    const current=selected||buttons.find(el=>el.classList.contains('pn-option'))||buttons.find(el=>el.classList.contains('pn-level'))||buttons[0];
    if(!current)return;
    const rect=current.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
@@ -147,12 +159,13 @@ export function PioneerArena({state,role,start,answer,hint,cashout,reload,onClos
   window.addEventListener('keydown',keydown);return()=>window.removeEventListener('keydown',keydown);
  },[tv,active,feedback,busy,question,result]);
  useEffect(()=>{
-  if(!tv||!state||result)return;
+  if(!tv||!state)return;
   const frame=requestAnimationFrame(()=>{
-   const target=document.querySelector<HTMLButtonElement>('.pn-portal .pn-option:not(:disabled)')||document.querySelector<HTMLButtonElement>('.pn-portal .pn-level.open:not(:disabled)');
-   if(target&&!(document.activeElement instanceof HTMLButtonElement&&document.querySelector('.pn-portal')?.contains(document.activeElement)))target.focus({preventScroll:true});
+   const selector=result?'.pn-result .pn-primary':feedback?'.pn-feedback button':active?'.pn-option:not(:disabled)':' .pn-level.open:not(:disabled)';
+   const target=document.querySelector<HTMLButtonElement>('.pn-portal '+selector.trim());
+   if(target)target.focus({preventScroll:true});
   });return()=>cancelAnimationFrame(frame);
- },[tv,question?.id,!!state?.active,!!result]);
+ },[tv,question?.id,!!state?.active,!!feedback,!!result]);
  useEffect(()=>{try{localStorage.setItem('pioneer-music',music?'on':'off')}catch{}},[music]);
  const top=<div className="pn-head">
   <div className="pn-mark"><span className="pn-mark-star">✦</span><span>КТО ХОЧЕТ<br/>СТАТЬ ПИОНЕРОМ?</span><span className="pn-mark-star">✦</span></div>

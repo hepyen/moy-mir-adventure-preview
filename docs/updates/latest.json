@@ -7,8 +7,8 @@
     "Несгораемые духовные баллы и результаты семьи сохраняются.",
     "Сохранены география, будильник, здоровье и все другие разделы."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v3.8.11/MOY_MIR_3.8.11_OTA.zip",
-  "sha256": "fe46a2de5dbd14cc8d2360e764e3354ff377362ccddc098cf8263d4c389c5591",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v3.8.11/MOY_MIR_3.8.11_OTA_r2.zip",
+  "sha256": "b128a25967c7a071348b5b2b911302af5c55900d6eba0e245bf5aa81661e6bde",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
