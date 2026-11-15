@@ -1,0 +1,1 @@
+{"name":"pioneer-quiz-tv","version":"1.0.0","private":true,"type":"module","scripts":{"sync":"cap sync android"},"dependencies":{"@capacitor/android":"^8.6.0","@capacitor/core":"^8.6.0"}}

@@ -2,13 +2,14 @@
 """Prevent blank Android WebView: verify all bundled entrypoint URLs resolve locally."""
 import argparse
 import re
+import json
 import sys
 import zipfile
 from pathlib import Path
 
 parser=argparse.ArgumentParser()
 parser.add_argument("apk",type=Path)
-parser.add_argument("--version",default="3.8.0")
+parser.add_argument("--version",default=json.loads((Path(__file__).resolve().parents[1]/"package.json").read_text())["version"])
 args=parser.parse_args()
 with zipfile.ZipFile(args.apk) as apk:
     names=set(apk.namelist())

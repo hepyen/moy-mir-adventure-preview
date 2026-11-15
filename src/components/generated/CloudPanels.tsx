@@ -5,6 +5,8 @@ import React,{useState} from 'react';
 import type {CloudItem} from '../../lib/useFamilyCloud';
 import {useFamilyCloud} from '../../lib/useFamilyCloud';
 import {spiritualSteps,spiritualStage} from '../../lib/spiritualProgress';
+import {PioneerSection} from '../../pioneer/PioneerSection';
+import '../../pioneer/PioneerEntry.css';
 import './CloudPanels.css';
 import {ApprovalCard,taskApprovals} from '../../features/ParentApprovals';
 import {reviewAnchor} from '../../notifications/destinations';
@@ -140,6 +142,7 @@ export function CloudSpiritual({cloud}:{cloud:Cloud}){
  <div className="mw-spirit-hero"><span>{stage.icon}</span><div><strong>{stage.name}</strong><p>Этап {stage.number} из 10</p><h2>{cloud.spiritualPoints} ✨</h2></div></div>
  <div className="mw-progress"><div className="mw-progress-head"><strong>До следующего этапа</strong><span>{stage.progress}/1000</span></div><div className="mw-progress-track"><div style={{width:`${stage.progress/1000*100}%`}}/></div></div>
  <GrowthFocus cloud={cloud}/>
+ <PioneerSection cloud={cloud}/>
  <h3 className="mw-cloud-heading">Библейские занятия</h3>
  {spiritualSteps.map(x=>{const done=cloud.spiritual.some(r=>r.step_id===x.id&&r.activity_date===day()&&(x.id!=='daily-text'||Number(r.points)>=10));return <div className="mw-chore" key={x.id}><div className="mw-task-emoji">{x.icon}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{done?'✓ Сегодня отмечено':x.rhythm==='daily'?'Ежедневное занятие':'По возможности'}</small></div><div className="mw-task-right"><b>+{x.points} ✨</b>{cloud.role==='child'&&(x.id==='daily-text'?<button type='button' className='mw-read-quicklink' onClick={()=>document.querySelector('.daily-reader')?.scrollIntoView({behavior:'smooth',block:'start'})}>{done?'✓ Прочитано':'Читать'}</button>:<Action run={()=>cloud.rpc(done?'unmark_spiritual_activity':'mark_spiritual_activity',{p_family:cloud.familyId,p_date:day(),p_step:x.id})}>{done?'Отменить':'Отметить'}</Action>)}</div></div>})}
  {cloud.role==='child'&&<section className="mw-panel mw-cloud-form"><h3>💡 Предложить дополнительные духовные очки</h3><form onSubmit={e=>{e.preventDefault();void cloud.rpc('request_spiritual_points',{p_family:cloud.familyId,p_title:request,p_points:Number(points)}).then(()=>setRequest('')).catch(e=>alert(e.message))}}><input required maxLength={160} minLength={3} placeholder="Что я сделал?" value={request} onChange={e=>setRequest(e.target.value)}/><input type="number" min={1} max={100} required value={points} onChange={e=>setPoints(e.target.value)}/><button type="submit">Отправить родителю</button></form></section>}

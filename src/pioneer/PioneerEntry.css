@@ -1,0 +1,6 @@
+.pn-entry{display:flex;align-items:center;gap:15px;margin:14px 0 23px;padding:19px;border-radius:18px;background:radial-gradient(circle at 13% 50%,#3e4997 0,#1a2b71 36%,#131a4b 100%);border:1px solid #b9b0d2;color:#fff;box-shadow:0 10px 28px #02082735}
+.pn-entry-emblem{position:relative;display:grid;place-items:center;flex-shrink:0;height:70px;width:70px;border-radius:50%;font-size:45px;color:#ffe7a2;border:2px solid #e8c77d;box-shadow:inset 0 0 22px #6154b3,0 0 18px #e8c77d55}
+.pn-entry-emblem span{position:absolute;font-size:26px}.pn-entry-text{flex:1;min-width:0}.pn-entry-text small{font-size:10px;letter-spacing:.12em;color:#f1d288;font-weight:800}.pn-entry-text h3{font-size:clamp(15px,2.2vw,23px);line-height:1.2;margin:5px 0 6px;color:#fff}.pn-entry-text p{margin:0;color:#bfcefa;font-size:12px;line-height:1.4}
+.pn-entry button{border:1px solid #ffe9a4;background:linear-gradient(110deg,#f3d88c,#dcae51);color:#17204a;font-weight:800;padding:13px 17px;border-radius:12px;white-space:nowrap}
+@media(max-width:500px){.pn-entry{gap:10px;padding:14px 10px}.pn-entry-emblem{width:44px;height:44px;font-size:34px}.pn-entry-emblem span{font-size:19px}.pn-entry-text h3{font-size:15px}.pn-entry-text p{font-size:10px}.pn-entry-text small{font-size:8px}.pn-entry button{font-size:12px;padding:10px}}
+
