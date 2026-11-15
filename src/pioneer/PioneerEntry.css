@@ -4,3 +4,6 @@
 .pn-entry button{border:1px solid #ffe9a4;background:linear-gradient(110deg,#f3d88c,#dcae51);color:#17204a;font-weight:800;padding:13px 17px;border-radius:12px;white-space:nowrap}
 @media(max-width:500px){.pn-entry{gap:10px;padding:14px 10px}.pn-entry-emblem{width:44px;height:44px;font-size:34px}.pn-entry-emblem span{font-size:19px}.pn-entry-text h3{font-size:15px}.pn-entry-text p{font-size:10px}.pn-entry-text small{font-size:8px}.pn-entry button{font-size:12px;padding:10px}}
 
+
+.pn-entry .pn-entry-emblem{overflow:hidden;padding:0;background:none;border-color:#eed18b}
+.pn-entry-emblem img{width:100%;height:100%;object-fit:cover;border-radius:50%}

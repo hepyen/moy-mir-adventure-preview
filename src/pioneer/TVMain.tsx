@@ -4,7 +4,7 @@ import bankRaw from './bank.txt?raw';
 import {PioneerArena,type PioneerState,type PioneerAnswer,type PioneerHintData,type PioneerHints} from './PioneerArena';
 
 type BankQuestion={id:number;level:number;text:string;choices:string[];reference:string};
-type ActiveLocal={id:string;level:number;cycle:number;slot:number;ids:number[];orders:number[][];correct:number;hints:PioneerHints};
+type ActiveLocal={id:string;level:number;cycle:number;slot:number;ids:number[];orders:number[][];correct:number;hints:PioneerHints;deadline:number|null};
 type LocalData={version:number;used:Record<string,number[]>;cycles:Record<string,number>;plays:Record<string,number>;awards:Record<string,number>;history:PioneerState['history'];active:ActiveLocal|null};
 const KEY='moymir-pioneer-tv-2026-v1';
 const BANK:BankQuestion[]=bankRaw.trim().split(/\r?\n/).map((line,index)=>{
@@ -14,7 +14,10 @@ if(BANK.length!==300||BANK.some(q=>q.choices.length!==4||q.choices.some(c=>!c)))
 const initial=():LocalData=>({version:1,used:{},cycles:{},plays:{},awards:{},history:[],active:null});
 function load():LocalData{
  try{const v=JSON.parse(localStorage.getItem(KEY)||'null') as LocalData;
-  if(v?.version===1&&v.used&&v.cycles&&v.plays&&v.awards&&Array.isArray(v.history))return v;
+  if(v?.version===1&&v.used&&v.cycles&&v.plays&&v.awards&&Array.isArray(v.history)){
+   if(v.active&&v.active.deadline===undefined){v.active.deadline=Date.now()+30000;localStorage.setItem(KEY,JSON.stringify(v))}
+   return v;
+  }
  }catch{}return initial();
 }
 function randomInt(max:number){
@@ -33,7 +36,7 @@ function getData(d:LocalData):PioneerState{
  return{total:awards.reduce((s,a)=>s+a.points,0),unlocked,awards,
   cycles:Array.from({length:6},(_,i)=>{const level=i+1;return{level,cycle:d.cycles[level]||1,plays:d.plays[level]||0,used:(d.used[level]||[]).length}}),
   history:d.history,
-  active:active&&current?{id:active.id,level:active.level,cycle:active.cycle,slot:active.slot,correct:active.correct,hints:active.hints,question:{
+  active:active&&current?{id:active.id,level:active.level,cycle:active.cycle,slot:active.slot,correct:active.correct,hints:active.hints,deadline:active.deadline?new Date(active.deadline).toISOString():null,question:{
    id:current.id,text:current.text,choices:active.orders[active.correct].map(i=>current.choices[i]),number:active.correct+1
   }}:null
  };
@@ -54,7 +57,7 @@ function TVGame(){
   const cycle=used.length===0&&plays>0?(d.cycles[level]||1)+1:(d.cycles[level]||1);
   const slot=plays%5+1;
   d.used[level]=[...used,...ids];d.plays[level]=plays+1;d.cycles[level]=cycle;
-  d.active={id:String(Date.now())+'-'+randomInt(1000000),level,cycle,slot,ids,orders:ids.map(()=>shuffle([0,1,2,3])),correct:0,hints:{}};
+  d.active={id:String(Date.now())+'-'+randomInt(1000000),level,cycle,slot,ids,orders:ids.map(()=>shuffle([0,1,2,3])),correct:0,hints:{},deadline:Date.now()+30000};
   save({...d});
  }
  function conclude(d:LocalData,mode:'won'|'lost'|'cashed',score:number){
@@ -73,12 +76,14 @@ function TVGame(){
   if(a.ids[a.correct]!==question)throw Error('Вопрос уже пройден');
   const q=BANK[question-1];
   if(!q||choice<0||choice>3)throw Error('Неверный вариант');
-  const correct=a.orders[a.correct][choice]===0;
+  if(a.deadline===null)throw Error('Нажмите «Следующий вопрос»');
+  const expired=Date.now()>=a.deadline;
+  const correct=!expired&&a.orders[a.correct][choice]===0;
   const score=a.correct+(correct?1:0),finished=!correct||score===10;
   const result=finished?conclude(d,correct?'won':'lost',score):null;
-  if(!finished)a.correct=score;
+  if(!finished){a.correct=score;a.deadline=null;}
   if(finished)localStorage.setItem(KEY,JSON.stringify(d));else save({...d});
-  return{correct,answer:q.choices[0],reference:q.reference,finished,status:correct?(finished?'won':'active'):'lost',saved:result?result.award:score>=5?5:0,newPoints:result?.newPoints||0};
+  return{correct,expired,answer:q.choices[0],reference:q.reference,finished,status:correct?(finished?'won':'active'):'lost',saved:result?result.award:score>=5?5:0,newPoints:result?.newPoints||0};
  }
  async function hint(attempt:string,type:'half'|'audience'|'scripture'):Promise<PioneerHintData>{
   const d=load(),a=d.active;if(!a||a.id!==attempt)throw Error('Сессия не найдена');
@@ -95,11 +100,24 @@ function TVGame(){
   }
   a.hints={...a.hints,[type]:value};save({...d});return value;
  }
+ async function advance(attempt:string){
+  const d=load();if(!d.active||d.active.id!==attempt)throw Error('Сессия завершена');
+  if(d.active.deadline===null)d.active.deadline=Date.now()+30000;
+  save({...d});
+ }
+ async function timeout(attempt:string,question:number):Promise<PioneerAnswer|null>{
+  const d=load(),a=d.active;
+  if(!a||a.id!==attempt||a.ids[a.correct]!==question||!a.deadline||Date.now()<a.deadline)return null;
+  const q=BANK[question-1];
+  const reply=conclude(d,'lost',a.correct);
+  localStorage.setItem(KEY,JSON.stringify(d));
+  return{correct:false,expired:true,answer:q.choices[0],reference:q.reference,finished:true,status:'lost',saved:reply.award,newPoints:reply.newPoints};
+ }
  async function cashout(attempt:string){
-  const d=load();if(!d.active||d.active.id!==attempt||d.active.correct<5)throw Error('Несгораемая отметка ещё не достигнута');
+  const d=load();if(!d.active||d.active.id!==attempt)throw Error('Сессия завершена');
   const result=conclude(d,'cashed',d.active.correct);localStorage.setItem(KEY,JSON.stringify(d));return{saved:result.award,newPoints:result.newPoints};
  }
- return <PioneerArena tv state={getData(data)} role="child" start={start} answer={answer} hint={hint} cashout={cashout} reload={async()=>{setData(load())}} error={error}/>;
+ return <PioneerArena tv state={getData(data)} role="child" start={start} answer={answer} hint={hint} cashout={cashout} advance={advance} timeout={timeout} reload={async()=>{setData(load())}} error={error}/>;
 }
 document.addEventListener('DOMContentLoaded',()=>{
  const root=document.getElementById('root');if(root)createRoot(root).render(<TVGame/>);
