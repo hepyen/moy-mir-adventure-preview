@@ -1,0 +1,36 @@
+.ptv-gate{position:fixed;inset:0;width:100%;height:100dvh;overflow:hidden;background:radial-gradient(ellipse at 50% -20%,#314c97 0,#101d52 48%,#050b24 100%);color:#f9faff;font-family:Montserrat,'Arial',sans-serif;z-index:2147480000;font-size:clamp(12px,1vw,17px);-webkit-font-smoothing:antialiased}
+.ptv-gate *{box-sizing:border-box}.ptv-gate button,.ptv-gate input{font:inherit}.ptv-gate button{cursor:pointer}
+.ptv-gate button:focus-visible,.ptv-gate input:focus-visible{outline:3px solid #ffe397;outline-offset:3px}
+.ptv-gate-stars{position:absolute;pointer-events:none;inset:0;opacity:.4;background-image:radial-gradient(circle at 16% 25%,#ffdb88 0 1px,transparent 2px),radial-gradient(circle at 88% 72%,#e5dbff 0 1px,transparent 2px);background-size:270px 230px,320px 300px}
+.ptv-gate-content{height:100%;max-width:1690px;margin:auto;padding:clamp(12px,2.7vh,35px) clamp(20px,4.3vw,65px);position:relative;display:flex;flex-direction:column;gap:clamp(9px,1.4vh,17px);overflow:hidden}
+.ptv-gate-heading{display:flex;gap:clamp(12px,2vw,30px);align-items:center;flex:0 0 auto}
+.ptv-trophy{height:clamp(56px,10vh,118px);width:clamp(56px,10vh,118px);border:4px solid #ddba6c;border-radius:30%;display:grid;place-items:center;font-size:clamp(38px,6vh,75px);color:#f7d88d;text-shadow:0 0 22px #edc469;background:radial-gradient(circle,#29397c,#151e56)}
+.ptv-kicker{font-size:clamp(9px,.8vw,15px);font-weight:900;letter-spacing:.16em;color:#e5c17a}
+.ptv-gate h1{margin:3px 0 7px;font-size:clamp(24px,3.2vw,55px);letter-spacing:-.04em;line-height:1.1}
+.ptv-gate-heading p{margin:0;color:#bfcdea;font-size:clamp(11px,1vw,15px);line-height:1.5}
+.ptv-columns{min-height:0;flex:1;display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);gap:clamp(12px,2vw,28px)}
+.ptv-choice,.ptv-scores{display:flex;flex-direction:column;min-height:0;border:1px solid #7f91c58a;background:linear-gradient(150deg,#1c2b69de,#101943e8);box-shadow:inset 0 1px #a1baff20,0 9px 35px #0004;border-radius:clamp(13px,1.3vw,22px);padding:clamp(11px,1.8vw,25px)}
+.ptv-section-title{display:flex;align-items:center;gap:10px;flex-shrink:0;margin-bottom:clamp(8px,1vh,17px)}.ptv-section-title>span{font-size:clamp(22px,2vw,32px)}.ptv-section-title h2{font-size:clamp(16px,1.45vw,24px);margin:0}.ptv-section-title small{margin-left:auto;color:#8da4d6;font-size:clamp(9px,.75vw,13px)}
+.ptv-players{flex:1;overflow:auto;min-height:0;padding:2px 3px 4px 2px;scrollbar-width:thin;scrollbar-color:#b5a16f transparent}
+.ptv-player{width:100%;display:flex;align-items:center;gap:clamp(9px,1vw,17px);border:1px solid #829bd47d;background:#213577c7;color:white;border-radius:clamp(10px,1vw,15px);min-height:clamp(56px,8.5vh,83px);padding:clamp(6px,.8vw,13px);margin-bottom:clamp(7px,1vh,12px);text-align:left;transition:background .16s,transform .16s}
+.ptv-player:hover,.ptv-player:focus-visible{background:#3453a2;transform:translateY(-2px)}
+.ptv-avatar{display:grid;place-items:center;flex-shrink:0;width:clamp(34px,4.5vw,60px);height:clamp(34px,4.5vw,60px);border-radius:50%;background:linear-gradient(120deg,#ffdf96,#cb9b49);color:#1c2956;font-size:clamp(15px,1.7vw,26px);font-weight:900}
+.ptv-player-name{display:grid;gap:5px;flex:1;min-width:0}.ptv-player-name b{font-size:clamp(13px,1.3vw,20px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ptv-player-name small{color:#b5c7ef;font-size:clamp(9px,.8vw,12px)}
+.ptv-player>strong{font-size:clamp(13px,1.3vw,20px);color:#fce09d;white-space:nowrap}.ptv-chevron{color:#d6e3ff;font-size:30px}
+.ptv-empty{color:#b8c5e8;text-align:center;line-height:1.7;margin:40px 0}
+.ptv-add{flex:0 0 auto;border-top:1px solid #8595bb64;margin-top:8px;padding-top:clamp(10px,1.6vh,20px)}.ptv-add>label{display:block;margin-bottom:clamp(6px,.8vh,10px);font-weight:800;color:#f2d38d;font-size:clamp(12px,1vw,16px)}
+.ptv-inputrow{display:flex;gap:10px}
+.ptv-inputrow input{width:100%;flex:1;min-width:0;background:#080f36;border:2px solid #8096d1;border-radius:12px;color:white;padding:clamp(9px,1.2vw,15px);font-size:clamp(12px,1vw,17px)}.ptv-inputrow input::placeholder{color:#8799c6}
+.ptv-inputrow button{white-space:nowrap;border:1px solid #ffefb8;background:linear-gradient(120deg,#ffebb1,#d6a44d);border-radius:12px;padding:clamp(8px,1.1vw,16px);font-weight:900;color:#1c244d;font-size:clamp(11px,1vw,16px)}.ptv-inputrow button:disabled{opacity:.48}
+.ptv-import{display:flex!important;gap:9px;align-items:center;font-weight:600!important;line-height:1.3;color:#e3edff!important;margin-top:11px}.ptv-import input{accent-color:#f3ca82;width:18px;height:18px}.ptv-error{color:#ffc7ba;font-weight:700;margin:8px 0 0}
+.ptv-score-head,.ptv-rank{display:flex;justify-content:space-between;align-items:center;gap:10px}.ptv-score-head{font-size:clamp(10px,.75vw,13px);color:#b2bfe5;padding:7px 13px;border-bottom:1px solid #6473a4}
+.ptv-rank-list{overflow:auto;flex:1;min-height:0;scrollbar-width:thin;scrollbar-color:#b5a16f transparent}
+.ptv-rank{padding:clamp(10px,1.3vh,19px) clamp(5px,.8vw,12px);border-bottom:1px solid #7082ad59;min-height:clamp(58px,8vh,90px)}.ptv-rank.ptv-top{background:linear-gradient(90deg,#c09a431b,transparent)}
+.ptv-rank-position{font-weight:900;font-size:clamp(17px,1.8vw,27px);min-width:44px;text-align:center}
+.ptv-rank-name{flex:1;min-width:0;display:grid;gap:6px}.ptv-rank-name b{font-size:clamp(13px,1.2vw,19px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ptv-rank-name small{font-size:clamp(9px,.72vw,12px);color:#b8c6e5}
+.ptv-rank>strong{white-space:nowrap;color:#f8d990;font-size:clamp(16px,1.5vw,24px)}.ptv-rank>strong small{font-size:clamp(9px,.8vw,12px);color:#cfdef3}
+.ptv-score-footer{font-size:clamp(9px,.72vw,12px);color:#8fa7d4;flex:0 0 auto;text-align:center;padding:clamp(8px,1vh,13px) 0}
+.ptv-footer{text-align:center;color:#92a5cc;font-size:clamp(9px,.8vw,13px);flex:0 0 auto}
+@media(max-height:720px){.ptv-gate-content{padding-top:10px;padding-bottom:9px;gap:7px}.ptv-gate-heading p{display:none}.ptv-trophy{height:55px;width:55px}.ptv-gate h1{font-size:28px}.ptv-choice,.ptv-scores{padding:12px}.ptv-player{min-height:52px}.ptv-rank{min-height:52px}.ptv-add{padding-top:8px}}
+@media(max-width:850px){.ptv-gate-content{padding:9px 12px}.ptv-columns{gap:8px}.ptv-inputrow{flex-wrap:wrap}.ptv-inputrow button{width:100%}.ptv-section-title small{display:none}}
+

@@ -206,3 +206,10 @@
 .pn-tv .pn-brand-icon{width:clamp(40px,5vh,65px);height:clamp(40px,5vh,65px)}
 /* Center the live question like a TV stage while keeping every control visible. */
 .pn-tv .pn-play-main{justify-content:space-evenly}
+
+.pn-current-player{display:inline-flex;align-items:center;padding:9px 13px;border:1px solid #edd087;border-radius:25px;color:#ffe8a9;background:#172a60;font-size:clamp(12px,1.1vw,16px);font-weight:800;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pn-tv .pn-actions{align-items:center;flex-wrap:nowrap}
+@media(max-height:750px){.pn-tv .pn-current-player{padding:5px 9px;font-size:12px}}
+
+.pn-player-label{display:inline-flex;align-items:center;padding:7px 13px;border:1px solid #9cb0e082;border-radius:40px;background:#15275bb6;color:#ffdd97;font-weight:850;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(11px,1.12vw,17px)}
+.pn-tv .pn-player-label{font-size:clamp(11px,1vw,16px)}

@@ -15,7 +15,7 @@ export type PioneerEngine={
  hint:(attempt:string,type:'half'|'audience'|'scripture')=>Promise<PioneerHintData>;
  cashout:(attempt:string)=>Promise<{saved:number;newPoints:number}>;reload:()=>Promise<void>;
  advance:(attempt:string)=>Promise<void>;timeout:(attempt:string,question:number)=>Promise<PioneerAnswer|null>;
- onClose?:()=>void;error:string;loading?:boolean;tv?:boolean;
+ onClose?:()=>void;error:string;loading?:boolean;tv?:boolean;playerName?:string;closeLabel?:string;
 };
 const TIERS=[
  {name:'Интересующийся',icon:'🌱',desc:'Первые открытия'},
@@ -30,7 +30,7 @@ const MONEY=[1,2,3,4,5,6,7,8,9,10];
 type Feedback={question:PioneerQuestion;answer:PioneerAnswer;choice:number};
 function heading(n:number){const t=TIERS[n-1]||TIERS[0];return t.icon+' '+t.name}
 function formatDate(v:string){try{return new Date(v).toLocaleDateString('ru-RU',{day:'2-digit',month:'short',year:'numeric'})}catch{return ''}}
-export function PioneerArena({state,role,start,answer,hint,cashout,advance,timeout,reload,onClose,error,loading,tv=false}:PioneerEngine){
+export function PioneerArena({state,role,start,answer,hint,cashout,advance,timeout,reload,onClose,error,loading,tv=false,playerName,closeLabel}:PioneerEngine){
  const [busy,setBusy]=useState(false);
  const [failure,setFailure]=useState('');
  const [feedback,setFeedback]=useState<Feedback|null>(null);
@@ -179,7 +179,7 @@ export function PioneerArena({state,role,start,answer,hint,cashout,advance,timeo
  useEffect(()=>{try{localStorage.setItem('pioneer-music',music?'on':'off')}catch{}},[music]);
  const top=<div className="pn-head">
   <div className="pn-mark"><img className="pn-brand-icon" src={pioneerEmblem} alt=""/><span>КТО ХОЧЕТ<br/>СТАТЬ ПИОНЕРОМ?</span><span className="pn-mark-star">✦</span></div>
-  <div className="pn-actions"><button type="button" className="pn-chip" onClick={()=>setMusic(v=>!v)} aria-label={music?'Выключить музыку':'Включить музыку'}>{music?'♫ Музыка':'♪ Звук выключен'}</button>{(onClose||active)&&<button type="button" className="pn-chip pn-exit" onClick={goBack}>⇥ {active?'Выйти':'Закрыть'}</button>}</div>
+  <div className="pn-actions">{playerName&&<span className="pn-current-player">👤 {playerName}</span>}<button type="button" className="pn-chip" onClick={()=>setMusic(v=>!v)} aria-label={music?'Выключить музыку':'Включить музыку'}>{music?'♫ Музыка':'♪ Звук выключен'}</button>{(onClose||active)&&<button type="button" className="pn-chip pn-exit" onClick={goBack}>⇥ {active?'Выйти':closeLabel||'Закрыть'}</button>}</div>
  </div>;
  if(!state)return <div className={'pn-portal '+(tv?'pn-tv':'')}><div className="pn-shell">{top}<div className="pn-loading">{loading?'✦ Загружаем викторину…':'Не удалось загрузить игру'}<p>{failure||error}</p><button type="button" onClick={()=>void run(reload)}>Повторить</button></div></div></div>;
  return <div className={'pn-portal '+(tv?'pn-tv':'')} role={tv?undefined:'dialog'} aria-modal={tv?undefined:true} aria-label="Кто хочет стать пионером">
