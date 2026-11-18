@@ -1,11 +1,13 @@
 const {chromium}=require('playwright-core');
 const JSZip=require('jszip');
+const {PerspectiveCamera,Vector3}=require('three');
 const BASE=process.env.QA_BASE_URL||'http://127.0.0.1:5248/';
 const ids={parent:'11111111-1111-4111-8111-111111111111',child:'22222222-2222-4222-8222-222222222222',family:'33333333-3333-4333-8333-333333333333',task:'44444444-4444-4444-8444-444444444444',daily:'55555555-5555-4555-8555-555555555555',reward:'66666666-6666-4666-8666-666666666666'};
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function makeJWT(id){const payload=Buffer.from(JSON.stringify({sub:id,role:'authenticated',aud:'authenticated',exp:Math.floor(Date.now()/1000)+7200})).toString('base64url');return 'eyJhbGciOiJIUzI1NiJ9.'+payload+'.synthetic'}
 let failures=0;
 const approvalQA=process.env.QA_FOCUS==='parent-approvals';
+const worldInspectQA=process.env.QA_FOCUS==='world-inspect';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
 const qaTask='a1100000-0000-4000-8000-000000000002';
 const qaNotice='a1100000-0000-4000-8000-000000000003';
@@ -60,7 +62,7 @@ const syntheticLessons=Object.entries(schoolMatrix).flatMap(([day,subjects])=>su
 })));
 
 async function run(role,browser){
- const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860}});
+ const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860},hasTouch:process.env.QA_TOUCH==='1',isMobile:process.env.QA_TOUCH==='1'});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
  let geographyAttempts=[];
@@ -255,6 +257,39 @@ async function run(role,browser){
    await page.mouse.up();
   }
   check('3D orbit gesture leaves render healthy',await canvas.isVisible()&&counters.errors.length===0);
+  const picker=page.locator('.world3d-object-picker');
+  check('3D object picker appears',await picker.count()===1);
+  await picker.locator('summary').click();
+  check('3D lists only unlocked island decorations',await picker.getByRole('button').count()===7);
+  await picker.getByRole('button',{name:'🏡 Домик на поляне'}).click();
+  const selected=page.getByRole('region',{name:'Осмотр постройки'});
+  check('3D house selection shows contextual actions',await selected.isVisible()&&await selected.getByRole('button',{name:'🚪 Закрыть дверь'}).count()===1&&await selected.getByRole('button',{name:'💡 Выключить свет'}).count()===1);
+  await selected.getByRole('button',{name:'🚪 Закрыть дверь'}).click();
+  check('3D house door can be toggled',await selected.getByRole('button',{name:'🚪 Открыть дверь'}).count()===1);
+  await selected.getByRole('button',{name:'💡 Выключить свет'}).click();
+  check('3D house lights can be toggled',await selected.getByRole('button',{name:'💡 Включить свет'}).count()===1);
+  await picker.getByRole('button',{name:'🌳 Яблоня'}).click();
+  check('3D tree inspection works',await selected.getByText('🌳 Яблоня').count()===1);
+  await selected.getByRole('button',{name:'↺ Общий вид'}).click();
+  await selected.getByRole('button',{name:'Закрыть осмотр и вернуться к общему виду'}).click();
+  check('3D inspection closes without changing progress',await selected.count()===0&&await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
+  // Shoot a real ray through the rendered 3D house rather than using its accessible picker.
+  await page.waitForTimeout(1600);
+  await canvas.scrollIntoViewIfNeeded();
+  const houseBounds=await canvas.boundingBox();
+  if(houseBounds){
+   const camera=new PerspectiveCamera(37,houseBounds.width/houseBounds.height,.1,100);
+   camera.position.set(6.3,7.2,9);
+   camera.lookAt(0,.55,0);
+   camera.updateMatrixWorld();
+   const hit=new Vector3(.8,2.35,.62).project(camera);
+   const clickX=houseBounds.x+(1+hit.x)*houseBounds.width*.5;
+   const clickY=houseBounds.y+(1-hit.y)*houseBounds.height*.5;
+   if(process.env.QA_TOUCH==='1')await page.touchscreen.tap(clickX,clickY);
+   else await page.mouse.click(clickX,clickY);
+   check('direct 3D model click selects an island object',await selected.count()===1,`projected ${clickX.toFixed(0)} ${clickY.toFixed(0)}`);
+  }
+  if(worldInspectQA)return;
   if(role==='child'){
    await page.setViewportSize({width:320,height:700});
    const row=await orbit.boundingBox();
@@ -320,6 +355,14 @@ async function run(role,browser){
    check('advance persisted',counters.rpc.some(x=>x.name==='advance_my_world'));
    check('world2 available',await page.getByRole('button',{name:/Домик на дереве/}).isEnabled());
    check('second 3D world retains camera controls',await page.getByRole('group',{name:'Управление камерой 3D-мира'}).count()===1);
+   const secondPicker=page.locator('.world3d-object-picker');
+   await secondPicker.locator('summary').click();
+   check('second world keeps future home locked until earned',await secondPicker.getByRole('button',{name:'🌳 Домик на дереве'}).count()===0);
+   await secondPicker.getByRole('button',{name:'🌲 Большое дерево'}).click();
+   const secondInspect=page.getByRole('region',{name:'Осмотр постройки'});
+   check('second world offers focus on earned parts',await secondInspect.isVisible()&&await secondInspect.getByText('🌲 Большое дерево').count()===1);
+   check('second world does not unlock door/light interactions early',await secondInspect.getByRole('button',{name:/дверь|свет/}).count()===0);
+   await secondInspect.getByRole('button',{name:'Закрыть осмотр и вернуться к общему виду'}).click();
    check('living island event',await page.getByRole('region',{name:'Приключение острова и семейный альбом'}).count()>0);
    const story=page.getByRole('region',{name:'История белочки на семь дней'});
    check('7 story chapters',await story.locator('.island-story-days button').count()===7);

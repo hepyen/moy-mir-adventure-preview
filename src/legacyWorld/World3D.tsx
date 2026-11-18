@@ -10,6 +10,8 @@ import { MiroRobot } from './MiroRobot'
 import { AnimatedTreehousePiece } from './TreehouseWorld'
 import { TREEHOUSE_STAGES } from './treehouseStages'
 import { DogActor } from './DogActor'
+import {meadowSpot,treehouseSpot,TREEHOUSE_BUILD_ORDER} from './worldSpots'
+import type {WorldSpot} from './worldSpots'
 
 function Block({position=[0,0,0],size=[1,1,1],color='#ffffff',round=0.07,rotation=[0,0,0]}:{position?:[number,number,number];size?:[number,number,number];color?:string;round?:number;rotation?:[number,number,number]}) {
  // Stable geometry per mesh: previous code created a new, undisposed primitive on each render.
@@ -29,12 +31,20 @@ function Flower({x,z,tint='#ff69a2'}:{x:number;z:number;tint?:string}) {
  return <Ball key={i} position={[Math.cos(a)*.09,.28,Math.sin(a)*.09]} size={.095} color={tint}/>
  })}<Ball position={[0,.29,0]} size={.08} color="#ffe39a"/></group>
 }
-function Tree({part}:{part:string}) {
+function Tree({part,shake=0}:{part:string;shake?:number}) {
+ const crown=useRef<Group>(null)
+ const shaking=useRef(0)
+ useEffect(()=>{if(shake>0&&part==='crown')shaking.current=2},[shake,part])
+ useFrame(({clock},dt)=>{
+  if(!crown.current)return
+  shaking.current=Math.max(0,shaking.current-dt)
+  crown.current.rotation.z=shaking.current>0?Math.sin(clock.elapsedTime*11)*.09*(shaking.current/2):0
+ })
  const x=-1.35,z=-.54
  return <group position={[x,0,z]}>
  {part==='sprout'&&<><Block position={[0,.14,0]} size={[.06,.28,.07]} color="#589e4e"/><Ball position={[-.11,.29,0]} size={.14} color="#7dc06b"/></>}
  {part==='trunk'&&<><mesh position={[0,.92,0]} castShadow><cylinderGeometry args={[.18,.3,1.85,10]}/><meshStandardMaterial color="#a96b42"/></mesh><Block position={[.3,1.25,0]} size={[.6,.18,.2]} rotation={[0,0,-.48]} color="#a96b42"/></>}
- {part==='crown'&&[[-.52,2.1,0,.62],[0,2.55,0,.76],[.55,2.17,0,.63],[0,1.95,.4,.55]].map(([a,b,c,r],i)=><Ball key={i} position={[a,b,c]} size={r} color={['#289f49','#39bc55','#218c42','#5fcf62'][i]}/>)}
+ {part==='crown'&&<group ref={crown}>{[[-.52,2.1,0,.62],[0,2.55,0,.76],[.55,2.17,0,.63],[0,1.95,.4,.55]].map(([a,b,c,r],i)=><Ball key={i} position={[a,b,c]} size={r} color={['#289f49','#39bc55','#218c42','#5fcf62'][i]}/>)}</group>}
  {part==='apples'&&[
  [-.70,2.08,.58],[.29,2.59,.79],[.78,2.16,.53],
  [-.12,1.78,.88],[-.37,2.84,.63],[.58,2.40,.75],
@@ -45,7 +55,12 @@ function Tree({part}:{part:string}) {
  </group>)}
  </group>
 }
-function House({part}:{part:string}) {
+function HingedDoor({opened}:{opened:boolean}){
+ const hinge=useRef<Group>(null)
+ useFrame((_,dt)=>{if(hinge.current)hinge.current.rotation.y+=((opened?-1.12:0)-hinge.current.rotation.y)*(1-Math.exp(-dt*7))})
+ return <group ref={hinge} position={[-.68,.84,.922]}><Block position={[.29,0,0]} size={[.58,1.08,.08]} color="#986148"/><Ball position={[.51,.03,.08]} size={.045} color="#ffe0a5"/></group>
+}
+function House({part,doorOpen=false,lightsOn=false}:{part:string;doorOpen?:boolean;lightsOn?:boolean}) {
  const x=.65,z=-.12
  return <group position={[x,0,z]}>
  {part==='blueprint'&&<Block position={[0,.025,0]} size={[2.05,.05,1.72]} color="#e2c99a"/>}
@@ -54,13 +69,13 @@ function House({part}:{part:string}) {
  {part==='wallback'&&<Block position={[0,1.07,-.81]} size={[1.82,1.55,.16]} color="#f4b15d"/>}
  {part==='wallleft'&&<Block position={[-.89,1.07,0]} size={[.16,1.55,1.55]} color="#e9a359"/>}
  {part==='wallright'&&<Block position={[.89,1.07,0]} size={[.16,1.55,1.55]} color="#ffe0a0"/>}
- {part==='door'&&<><Block position={[-.39,.84,.922]} size={[.58,1.08,.08]} color="#986148"/><Ball position={[-.17,.87,1]} size={.045} color="#ffe0a5"/></>}
- {part==='window'&&<><Block position={[.35,1.2,.93]} size={[.57,.55,.1]} color="#fff6d1"/><Block position={[.35,1.2,.992]} size={[.44,.43,.04]} color="#8fd5fa"/><Block position={[.35,1.2,1.021]} size={[.055,.48,.06]} color="#fffbec"/><Block position={[.35,1.2,1.021]} size={[.47,.05,.06]} color="#fffbec"/></>}
+ {part==='door'&&<HingedDoor opened={doorOpen}/>}
+ {part==='window'&&<><Block position={[.35,1.2,.93]} size={[.57,.55,.1]} color="#fff6d1"/><Block position={[.35,1.2,.992]} size={[.44,.43,.04]} color={lightsOn?'#ffd77d':'#8fd5fa'}/>{lightsOn&&<pointLight position={[.35,1.2,1.1]} color="#ffdc8a" intensity={.85} distance={3.5}/>}<Block position={[.35,1.2,1.021]} size={[.055,.48,.06]} color="#fffbec"/><Block position={[.35,1.2,1.021]} size={[.47,.05,.06]} color="#fffbec"/></>}
  {part==='roofleft'&&<Block position={[-.49,2.16,0]} size={[1.38,.18,2.1]} color="#ee4934" rotation={[0,0,.58]}/>}
  {part==='roofright'&&<Block position={[.49,2.16,0]} size={[1.38,.18,2.1]} color="#d93428" rotation={[0,0,-.58]}/>}
  {part==='chimney'&&<><Block position={[.58,2.57,-.48]} size={[.34,.83,.34]} color="#d48357"/><Block position={[.58,2.98,-.48]} size={[.44,.12,.44]} color="#a8553b"/></>}
  {part==='smoke'&&<Smoke/>}
- {part==='lamp'&&<><Block position={[-1.2,.9,1]} size={[.07,1.8,.07]} color="#765842"/><Ball position={[-1.2,1.7,1]} size={.16} color="#ffdda2"/></>}
+ {part==='lamp'&&<><Block position={[-1.2,.9,1]} size={[.07,1.8,.07]} color="#765842"/><Ball position={[-1.2,1.7,1]} size={.16} color={lightsOn?'#fff0a4':'#be9c68'}/>{lightsOn&&<pointLight position={[-1.2,1.7,1]} intensity={1.5} distance={4.2} color="#ffe3a0"/>}</>}
  {part==='steps'&&<><Block position={[-.39,.21,1.13]} size={[.81,.22,.46]} color="#cfaa83"/><Block position={[-.39,.13,1.5]} size={[.93,.12,.42]} color="#dbb78d"/></>}
  </group>
 }
@@ -77,13 +92,13 @@ function Pond(){
 function HappyDog({points}:{points:number}) {
  return <DogActor points={points}/>
 }
-function Extras({part,points}:{part:string;points:number}){
+function Extras({part,points,doorOpen,lightsOn,treeShake}:{part:string;points:number;doorOpen:boolean;lightsOn:boolean;treeShake:number}){
  switch(part){
  case 'grass':return <group>{[[-2,0,-1],[2,0,-1],[-2,0,.8],[.2,0,1.9],[-.7,0,1.2]].map(([x,y,z],i)=><Ball key={i} position={[x,y+.08,z]} size={.13} color="#38b94b"/>)}</group>
  case 'flowers':return <group>{[[-2.2,-.5],[-2.1,.35],[-.85,1.4],[-1.9,1.4]].map(([x,z],i)=><Flower key={i} x={x} z={z} tint={i%2?'#fff0b5':'#ff65a6'}/>)}</group>
  case 'pebbles':return <group>{Array.from({length:5},(_,i)=><Ball key={i} position={[.2+i*.18,.07,1.12+i*.14]} size={.13} color="#e4d3ae"/>)}</group>
- case 'sprout':case 'trunk':case 'crown':case 'apples':return <Tree part={part}/>
- case 'blueprint':case 'foundation':case 'wallfront':case 'wallback':case 'wallleft':case 'wallright':case 'door':case 'window':case 'roofleft':case 'roofright':case 'chimney':case 'smoke':case 'lamp':case 'steps':return <House part={part}/>
+ case 'sprout':case 'trunk':case 'crown':case 'apples':return <Tree part={part} shake={treeShake}/>
+ case 'blueprint':case 'foundation':case 'wallfront':case 'wallback':case 'wallleft':case 'wallright':case 'door':case 'window':case 'roofleft':case 'roofright':case 'chimney':case 'smoke':case 'lamp':case 'steps':return <House part={part} doorOpen={doorOpen} lightsOn={lightsOn}/>
  case 'fence':return <group>{Array.from({length:5},(_,i)=><group key={i} position={[1.46+i*.29,0,-1.6]}><Block position={[0,.42,0]} size={[.11,.83,.11]} color="#fff3d8"/><Block position={[0,.62,.03]} size={[.19,.15,.12]} color="#fff9e9"/></group>)}<Block position={[2.06,.48,-1.6]} size={[1.5,.08,.08]} color="#fff3d8"/></group>
  case 'bench':return <group position={[-1.95,0,1.07]}>
   {[-.46,.46].flatMap(x=>[-.23,.23].map(z=><Block key={x+'-'+z} position={[x,.26,z]} size={[.12,.48,.13]} color="#65452f"/>))}
@@ -109,7 +124,7 @@ function Extras({part,points}:{part:string;points:number}){
  default:return null
  }
 }
-function Appearing({id,at,points}:{id:string;at:number;points:number}) {
+function Appearing({id,at,points,doorOpen,lightsOn,treeShake,onInspect}:{id:string;at:number;points:number;doorOpen:boolean;lightsOn:boolean;treeShake:number;onInspect:(part:string)=>void}) {
  const ref=useRef<Group>(null)
  // Keep the initial scale stable across React rerenders. A dynamic JSX scale
  // used to set it straight to 1, skipping the entire appearance animation.
@@ -124,15 +139,29 @@ function Appearing({id,at,points}:{id:string;at:number;points:number}) {
   group.scale.set(next,next,next)
   group.visible=target===1 || next>.015
  })
- return <group ref={ref} scale={initialScale} visible={initialScale>.015}><Extras part={id} points={points}/></group>
+ return <group ref={ref} scale={initialScale} visible={initialScale>.015} onClick={e=>{if(points<at||e.delta>9)return;e.stopPropagation();onInspect(id)}}><Extras part={id} points={points} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake}/></group>
 }
-type CameraAction={id:number;type:'reset'|'closer'|'farther'}
+type CameraAction={id:number;type:'reset'|'closer'|'farther'|'focus';target?:[number,number,number];distance?:number}
 const cameraStart=(worldNumber:number)=>worldNumber===2?new Vector3(7.1,7.9,10.4):new Vector3(6.3,7.2,9)
 const cameraTarget=(worldNumber:number)=>new Vector3(0,worldNumber===2?2.8:.55,0)
 function WorldCameraControls({worldNumber,action}:{worldNumber:number;action:CameraAction}){
  const {camera,gl}=useThree()
  const controls=useRef<OrbitControls|null>(null)
- useFrame(()=>controls.current?.update())
+ const transition=useRef<{position:Vector3;target:Vector3}|null>(null)
+ useFrame((_,delta)=>{
+  const orbit=controls.current
+  if(!orbit)return
+  const move=transition.current
+  if(move){
+   const t=1-Math.exp(-Math.min(delta,.05)*5.4)
+   orbit.target.lerp(move.target,t)
+   camera.position.lerp(move.position,t)
+   if(camera.position.distanceToSquared(move.position)<.0002 && orbit.target.distanceToSquared(move.target)<.0002){
+    camera.position.copy(move.position);orbit.target.copy(move.target);transition.current=null
+   }
+  }
+  orbit.update()
+ })
  useEffect(()=>{
   const orbit=new OrbitControls(camera,gl.domElement)
   controls.current=orbit
@@ -153,6 +182,8 @@ function WorldCameraControls({worldNumber,action}:{worldNumber:number;action:Cam
   orbit.target.copy(cameraTarget(worldNumber))
   orbit.update()
   orbit.saveState()
+  const cancelTransition=()=>{transition.current=null}
+  orbit.addEventListener('start',cancelTransition)
   // Double-click on desktop or double-tap on mobile returns to the saved view.
   let firstTap:{at:number;x:number;y:number}|null=null
   let pointerStart:{id:number;at:number;x:number;y:number;multitouch:boolean}|null=null
@@ -179,6 +210,8 @@ function WorldCameraControls({worldNumber,action}:{worldNumber:number;action:Cam
    gl.domElement.removeEventListener('pointerdown',pointerDown)
    gl.domElement.removeEventListener('pointerup',pointerUp)
    gl.domElement.removeEventListener('dblclick',doubleClick)
+   orbit.removeEventListener('start',cancelTransition)
+   transition.current=null
    orbit.dispose()
    gl.domElement.style.touchAction=touchAction
   }
@@ -186,20 +219,25 @@ function WorldCameraControls({worldNumber,action}:{worldNumber:number;action:Cam
  useEffect(()=>{
   if(action.id===0||!controls.current)return
   const orbit=controls.current
-  if(action.type==='reset'){
-   orbit.reset()
+  if(action.type==='focus'&&action.target){
+   const target=new Vector3(...action.target)
+   const heading=camera.position.clone().sub(orbit.target).normalize()
+   const distance=Math.max(orbit.minDistance,Math.min(orbit.maxDistance,action.distance??7))
+   transition.current={position:target.clone().addScaledVector(heading,distance),target}
+  }else if(action.type==='reset'){
+   transition.current={position:cameraStart(worldNumber),target:cameraTarget(worldNumber)}
   }else{
+   transition.current=null
    const offset=camera.position.clone().sub(orbit.target)
    const distance=offset.length()
    const factor=action.type==='closer'?.79:1.26
    const next=Math.max(orbit.minDistance,Math.min(orbit.maxDistance,distance*factor))
    if(distance>0)camera.position.copy(orbit.target).addScaledVector(offset,next/distance)
+   orbit.update()
   }
-  orbit.update()
  },[action,camera,worldNumber])
  return null
 }
-const TREEHOUSE_BUILD_ORDER=[0,27,...Array.from({length:26},(_,i)=>i+1),28,29]
 // Story chapters unlock *visible and clickable* objects on the actual island.
 function AdventureDecor({count,onDiscover}:{count:number;onDiscover:(label:string)=>void}){
  return <group>
@@ -219,14 +257,14 @@ function AdventureDecor({count,onDiscover}:{count:number;onDiscover:(label:strin
   </group>}
  </group>
 }
-function WorldScene({points,worldNumber,adventureCount,onDiscover,theme='day'}:{points:number;worldNumber:number;adventureCount:number;onDiscover:(label:string)=>void;theme?:'day'|'night'}) {
+function WorldScene({points,worldNumber,adventureCount,onDiscover,onInspect,doorOpen,lightsOn,treeShake,theme='day'}:{points:number;worldNumber:number;adventureCount:number;onDiscover:(label:string)=>void;onInspect:(part:string)=>void;doorOpen:boolean;lightsOn:boolean;treeShake:number;theme?:'day'|'night'}) {
  const island=useRef<Group>(null)
  useFrame(({clock})=>{if(island.current)island.current.position.y=Math.sin(clock.elapsedTime*.7)*.045})
  return <><color attach="background" args={[theme==='night'?'#11294c':'#87ddf4']}/><ambientLight intensity={theme==='night'?0.6:0.72}/><hemisphereLight args={[theme==='night'?'#839ccf':'#e6f8ff',theme==='night'?'#335d64':'#75b86e',theme==='night'?0.68:0.95]}/><directionalLight position={[-4,9,6]} color={theme==='night'?'#c6daff':'#ffffff'} intensity={theme==='night'?1.2:2.15} castShadow shadow-mapSize={[512,512]}/>
  <group ref={island}>
   <Block position={[0,-.34,0]} size={[5.8,.67,4.5]} color="#9d623f" round={.39}/>
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
-  {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points}/>)}
+  {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} onInspect={onInspect}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points} doorOpen={doorOpen} lightsOn={lightsOn} onInspect={index=>onInspect('treehouse-'+index)}/>)}
   {worldNumber===1&&<AdventureDecor count={adventureCount} onDiscover={onDiscover}/>}
  </group>
  </>
@@ -234,8 +272,28 @@ function WorldScene({points,worldNumber,adventureCount,onDiscover,theme='day'}:{
 export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',adventureCount=0,theme='day'}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;adventureCount?:number;theme?:'day'|'night'}) {
  const panelRef=useRef<HTMLDivElement>(null)
  const[storyMessage,setStoryMessage]=useState('')
+ const[selected,setSelected]=useState<WorldSpot|null>(null)
+ const[doorOpen,setDoorOpen]=useState(false)
+ const[lightsOn,setLightsOn]=useState(false)
+ const[treeShake,setTreeShake]=useState(0)
  const[cameraAction,setCameraAction]=useState<CameraAction>({id:0,type:'reset'})
- const doCamera=(type:CameraAction['type'])=>setCameraAction(prev=>({id:prev.id+1,type}))
+ const doCamera=(type:CameraAction['type'],target?:[number,number,number],distance?:number)=>setCameraAction(prev=>({id:prev.id+1,type,target,distance}))
+ const doorUnlocked=points>=(worldNumber===1?600:700)
+ const lightsUnlocked=points>=(worldNumber===1?650:750)
+ const inspect=(part:string)=>{
+  const spot=worldNumber===1?meadowSpot(part):treehouseSpot(Number(part.replace('treehouse-','')))
+  setSelected(spot)
+  doCamera('focus',spot.target,spot.distance)
+  if(spot.kind==='home'&&doorUnlocked){setDoorOpen(open=>!open);if(lightsUnlocked)setLightsOn(on=>!on)}
+  else if(spot.kind==='door'&&doorUnlocked)setDoorOpen(open=>!open)
+  else if(spot.kind==='light'&&lightsUnlocked)setLightsOn(on=>!on)
+  else if(spot.kind==='tree'&&worldNumber===1)setTreeShake(i=>i+1)
+ }
+ const spotlightParts=worldNumber===1?['crown','roofleft','door','window','garden','pond','bench']:['treehouse-0','treehouse-12','treehouse-15','treehouse-16','treehouse-20','treehouse-23','treehouse-25']
+ const spotlightAvailable=spotlightParts.filter(part=>{
+  const index=worldNumber===1?WORLD_01_OBJECTS.findIndex(o=>o.id===part):TREEHOUSE_BUILD_ORDER.indexOf(Number(part.replace('treehouse-','')))
+  return index>=0&&points>=WORLD_01_OBJECTS[index].at
+ })
  async function toggleFullscreen() {
   const element=panelRef.current
   if(!element)return
@@ -244,7 +302,9 @@ export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=tru
  }
  const unlocked=unlockedWorldObjects(points)
  const next=nextWorldObject(points)
- return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><div className="world3d-camera-buttons" role="group" aria-label="Управление камерой 3D-мира"><button type="button" onClick={()=>doCamera('farther')} aria-label="Отдалить 3D-мир" title="Отдалить">−</button><button type="button" onClick={()=>doCamera('closer')} aria-label="Приблизить 3D-мир" title="Приблизить">+</button><button type="button" onClick={()=>doCamera('reset')} aria-label="Вернуть первоначальный вид 3D-мира" title="Вернуть вид">↺</button><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран" title="На весь экран">⛶</button></div></div><p className="world3d-gesture-hint">Проведи пальцем, чтобы повернуть · два пальца для масштаба · двойное касание для сброса</p><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><WorldCameraControls worldNumber={worldNumber} action={cameraAction}/><WorldScene points={points} worldNumber={worldNumber} adventureCount={adventureCount} onDiscover={setStoryMessage} theme={theme}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
+ return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><div className="world3d-camera-buttons" role="group" aria-label="Управление камерой 3D-мира"><button type="button" onClick={()=>doCamera('farther')} aria-label="Отдалить 3D-мир" title="Отдалить">−</button><button type="button" onClick={()=>doCamera('closer')} aria-label="Приблизить 3D-мир" title="Приблизить">+</button><button type="button" onClick={()=>doCamera('reset')} aria-label="Вернуть первоначальный вид 3D-мира" title="Вернуть вид">↺</button><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран" title="На весь экран">⛶</button></div></div><p className="world3d-gesture-hint">Проведи пальцем, чтобы повернуть · два пальца для масштаба · двойное касание для сброса</p><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><WorldCameraControls worldNumber={worldNumber} action={cameraAction}/><WorldScene points={points} worldNumber={worldNumber} adventureCount={adventureCount} onDiscover={setStoryMessage} onInspect={inspect} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} theme={theme}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
+ <details className="world3d-object-picker"><summary>🔎 Рассмотреть постройки</summary><div className="world3d-object-picker-list">{spotlightAvailable.map(part=>{const spot=worldNumber===1?meadowSpot(part):treehouseSpot(Number(part.replace('treehouse-','')));return <button type="button" key={part} onClick={()=>inspect(part)}>{spot.title}</button>})}</div></details>
+ {selected&&<section className="world3d-inspect" aria-label="Осмотр постройки"><div className="world3d-inspect-head"><div><strong>{selected.title}</strong><span>{selected.subtitle}</span></div><button type="button" onClick={()=>{setSelected(null);doCamera('reset')}} aria-label="Закрыть осмотр и вернуться к общему виду">×</button></div><p>{selected.description}</p><div className="world3d-inspect-actions"><button type="button" onClick={()=>doCamera('focus',selected.target,selected.distance)}>🔎 Приблизить</button>{doorUnlocked&&['home','door','light'].includes(selected.kind)&&<button type="button" onClick={()=>setDoorOpen(v=>!v)}>{doorOpen?'🚪 Закрыть дверь':'🚪 Открыть дверь'}</button>}{lightsUnlocked&&['home','door','light'].includes(selected.kind)&&<button type="button" onClick={()=>setLightsOn(v=>!v)}>{lightsOn?'💡 Выключить свет':'💡 Включить свет'}</button>}<button type="button" onClick={()=>doCamera('reset')}>↺ Общий вид</button></div></section>}
  {worldNumber===1&&adventureCount>0&&<div className="world3d-adventures"><strong>🌱 Постройки истории</strong><span>{adventureCount>=1?'🌻 Цветник':null}{adventureCount>=4?' · 📚 Читальный уголок':null}{adventureCount>=10?' · 🏮 Фонарик друзей':null}</span><button type="button" onClick={()=>setStoryMessage('За прохождение истории на полянке появились новые предметы. Нажми на них в 3D-мире!')}>Исследовать</button></div>}
  {storyMessage&&<div className="world3d-story-message" role="status">{storyMessage}<button onClick={()=>setStoryMessage('')} aria-label="Закрыть подсказку">×</button></div>}
  <div className="world3d-bottom"><span>{worldNumber===1?'🏡 Домик на поляне':'🌳 Домик на дереве'} · {unlocked.length}/30 открыто</span><strong>{Math.min(points,WORLD_01_END)} / {WORLD_01_END} ✨</strong></div>

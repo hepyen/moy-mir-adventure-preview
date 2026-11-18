@@ -29,3 +29,19 @@
 .world3d-camera-buttons button{min-width:38px;min-height:38px;padding:6px 8px;font-size:21px;line-height:1;touch-action:manipulation}
 .world3d-gesture-hint{color:#c0e7e8;font-size:11px;line-height:1.4;margin:0 8px 8px}
 @media(max-width:370px){.world3d-toolbar{gap:4px}.world3d-camera-buttons button{min-width:32px;min-height:36px;padding:5px;font-size:19px}.world3d-toolbar span{font-size:12px;line-height:1.2}}
+
+/* Stage 1: object inspection and accessible camera focus. */
+.world3d-object-picker{color:#e4f6fa;margin:9px 5px;border:1px solid #527c91;border-radius:12px;background:#133b54;font-size:12px}
+.world3d-object-picker summary{cursor:pointer;padding:10px 13px;font-weight:750;touch-action:manipulation}
+.world3d-object-picker-list{display:flex;gap:7px;flex-wrap:wrap;padding:2px 11px 11px}
+.world3d-object-picker-list button,.world3d-inspect-actions button{padding:9px 12px;border:1px solid #78a8b5;border-radius:10px;background:#25516b;color:#f3ffff;font-size:12px;font-weight:750;min-height:40px;touch-action:manipulation}
+.world3d-inspect{margin:9px 5px;padding:12px;border:1px solid #94c3a6;border-radius:13px;background:#eaf8ef;color:#234833}
+.world3d-inspect-head{display:flex;align-items:start;justify-content:space-between;gap:10px}
+.world3d-inspect-head div{display:flex;flex-direction:column;gap:3px}
+.world3d-inspect-head strong{font-size:15px}
+.world3d-inspect-head span{font-size:11px;color:#497b62}
+.world3d-inspect-head>button{border:0;border-radius:9px;min-width:34px;min-height:34px;background:#d5ebdd;color:#2e5d44;font-size:22px}
+.world3d-inspect p{font-size:12px;line-height:1.5;margin:9px 0}
+.world3d-inspect-actions{display:flex;gap:7px;flex-wrap:wrap}
+.world3d-inspect-actions button{background:#207354;border-color:#237356}
+@media(max-width:370px){.world3d-inspect-actions button{padding:8px;font-size:11px}}

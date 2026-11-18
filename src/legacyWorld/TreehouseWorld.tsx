@@ -94,10 +94,11 @@ function HouseShell({part}:{part:'back'|'sides'|'front'}){
   <Timber at={[.6,3.04,.88]} dim={[2.25,.14,.19]} color="#ab7449"/>
  </group>
 }
-function Window({at}:{at:Coord}){
+function Window({at,lit=false}:{at:Coord;lit?:boolean}){
  return <group position={at}>
   <Timber at={[0,0,0]} dim={[.72,.64,.11]} color="#fff0c9"/>
-  <Timber at={[0,0,.065]} dim={[.57,.49,.045]} color="#78cce5"/>
+  <Timber at={[0,0,.065]} dim={[.57,.49,.045]} color={lit?"#ffdc86":"#78cce5"}/>
+  {lit&&<pointLight position={[0,0,.3]} color="#ffe6a1" intensity={.75} distance={3.0}/>}
   <Timber at={[0,0,.1]} dim={[.065,.56,.07]} color="#fff6da"/>
   <Timber at={[0,0,.1]} dim={[.63,.055,.07]} color="#fff6da"/>
   <Orb at={[.18,.12,.125]} r={.045} color="#f7f5db"/>
@@ -170,7 +171,16 @@ function LivelySquirrel({points}:{points:number}){
   </group>
  </group>
 }
-export function TreehousePiece({index,points}:{index:number;points:number}){
+function TreehouseDoor({opened}:{opened:boolean}){
+ const hinge=useRef<Group>(null)
+ useFrame((_,dt)=>{if(hinge.current)hinge.current.rotation.y+=((opened?-1.06:0)-hinge.current.rotation.y)*(1-Math.exp(-dt*7))})
+ return <group ref={hinge} position={[.275,3.44,1.02]}>
+  <Timber at={[.295,0,-.03]} dim={[.59,.97,.095]} color="#9a5b38"/>
+  <Timber at={[.295,.46,.04]} dim={[.46,.13,.085]} color="#b97749"/>
+  <Orb at={[.49,-.02,.05]} r={.048} color="#ffdc82"/>
+ </group>
+}
+export function TreehousePiece({index,points,doorOpen=false,lightsOn=false}:{index:number;points:number;doorOpen?:boolean;lightsOn?:boolean}){
  switch(index){
  case 0:return <group>
   <Limb a={[0,0,0]} b={[-.15,4.1,-.25]} r={.54}/>
@@ -197,12 +207,8 @@ export function TreehousePiece({index,points}:{index:number;points:number}){
  case 12:return <HouseShell part="back"/>
  case 13:return <HouseShell part="sides"/>
  case 14:return <HouseShell part="front"/>
- case 15:return <group>
-  <Timber at={[.57,3.44,.99]} dim={[.59,.97,.095]} color="#9a5b38"/>
-  <Timber at={[.57,3.9,1.06]} dim={[.46,.13,.085]} color="#b97749"/>
-  <Orb at={[.76,3.42,1.064]} r={.048} color="#ffdc82"/>
- </group>
- case 16:return <group><Window at={[-.17,3.72,1]}/><Window at={[1.38,3.72,1]}/></group>
+ case 15:return <TreehouseDoor opened={doorOpen}/>
+ case 16:return <group><Window at={[-.17,3.72,1]} lit={lightsOn}/><Window at={[1.38,3.72,1]} lit={lightsOn}/></group>
  case 17:return <Timber at={[-.07,4.64,.12]} dim={[1.65,.17,2.15]} color="#dc6646" turn={[0,0,.57]}/>
  case 18:return <Timber at={[1.3,4.64,.12]} dim={[1.65,.17,2.15]} color="#cf4a3a" turn={[0,0,-.57]}/>
  case 19:return <group>
@@ -245,8 +251,9 @@ export function TreehousePiece({index,points}:{index:number;points:number}){
  </group>
  case 23:return <group>{[[-1.7,4.2,.17],[2.07,4.23,.23],[.42,3.83,1.71]].map(([x,y,z],i)=><group key={i}>
   <Limb a={[x,y+.4,z]} b={[x,y+.1,z]} r={.019} color="#766047"/>
-  <Orb at={[x,y,z]} r={.15} color="#ffdc7a"/>
-  <Orb at={[x,y,z+.055]} r={.09} color="#fff1ab"/>
+  <Orb at={[x,y,z]} r={.15} color={lightsOn?"#fff0b0":"#c7ab77"}/>
+  <Orb at={[x,y,z+.055]} r={.09} color={lightsOn?"#fff6c4":"#b9a57d"}/>
+  {lightsOn&&<pointLight position={[x,y,z]} color="#ffdd94" distance={3.2} intensity={.85}/>}
  </group>)}</group>
  case 24:return <group>{[-.65,1.42].map((x,i)=><group key={i}>{Array.from({length:5},(_,n)=><Orb key={n} at={[x+.04*Math.sin(n),4.06-n*.25,1.18]} r={.115} color={n%2?'#48a65d':'#66c961'}/>)}</group>)}</group>
  case 25:return <group>{[-.57,.1,.8,1.36].map((x,i)=><group key={i}><Timber at={[x,3.62,1.77]} dim={[.4,.19,.22]} color="#b07746"/><Blossom x={x} y={3.73} z={1.85} color={i%2?'#ffb665':'#ff85ac'}/></group>)}</group>
@@ -256,9 +263,9 @@ export function TreehousePiece({index,points}:{index:number;points:number}){
  default:return <group>{Array.from({length:17},(_,i)=><Orb key={i} at={[Math.sin(i*1.13)*2.35,2.5+(i%6)*.44,Math.cos(i*1.87)*1.32]} r={.05} color={i%2?'#ffdf7d':'#f6a0c3'}/>)}</group>
  }
 }
-export function AnimatedTreehousePiece({index,at,points}:{index:number;at:number;points:number}){
+export function AnimatedTreehousePiece({index,at,points,doorOpen=false,lightsOn=false,onInspect}:{index:number;at:number;points:number;doorOpen?:boolean;lightsOn?:boolean;onInspect?:(index:number)=>void}){
  const ref=useRef<Group>(null)
  const [start]=useState(()=>points>=at?1:.001)
  useFrame((_,dt)=>{if(!ref.current)return;const target=points>=at?1:.001;const value=ref.current.scale.y+(target-ref.current.scale.y)*(1-Math.exp(-Math.min(dt,.05)*3));ref.current.scale.set(value,value,value);ref.current.visible=value>.015})
- return <group ref={ref} scale={start} visible={start>.015}><TreehousePiece index={index} points={points}/></group>
+ return <group ref={ref} scale={start} visible={start>.015} onClick={e=>{if(points<at||e.delta>9)return;e.stopPropagation();onInspect?.(index)}}><TreehousePiece index={index} points={points} doorOpen={doorOpen} lightsOn={lightsOn}/></group>
 }
