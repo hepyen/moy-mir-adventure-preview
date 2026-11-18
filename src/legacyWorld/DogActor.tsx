@@ -1,4 +1,4 @@
-import {useRef} from 'react'
+import {useEffect,useRef} from 'react'
 import {useFrame} from '@react-three/fiber'
 import type {Group} from 'three'
 import {dogPathPosition} from './dogRoute'
@@ -11,15 +11,20 @@ function Ear({x}:{x:number}){
   <Ellipsoid at={[0,-.15,.075]} radius={.10} scale={[.56,1.35,.3]} color="#cb8c64"/>
  </group>
 }
-export function DogActor({points}:{points:number}){
+export function DogActor({points,reactTick=0}:{points:number;reactTick?:number}){
  const root=useRef<Group>(null),body=useRef<Group>(null)
  const face=useRef<Group>(null),tail=useRef<Group>(null)
  const frontLeft=useRef<Group>(null),frontRight=useRef<Group>(null)
  const backLeft=useRef<Group>(null),backRight=useRef<Group>(null)
- const eyes=useRef<Group>(null)
- useFrame(({clock})=>{
+ const eyes=useRef<Group>(null),mouth=useRef<Group>(null)
+ const travel=useRef(0),pause=useRef(0),barking=useRef(0)
+ useEffect(()=>{if(reactTick>0){pause.current=1.35;barking.current=1.35}},[reactTick])
+ useFrame(({clock},dt)=>{
   const t=clock.elapsedTime
-  const progress=(t%29)/29
+  pause.current=Math.max(0,pause.current-dt)
+  barking.current=Math.max(0,barking.current-dt)
+  if(pause.current===0)travel.current+=Math.min(dt,.05)
+  const progress=(travel.current%29)/29
   const [x,y,z]=dogPathPosition(progress,points)
   const [nx,,nz]=dogPathPosition((progress+.001)%1,points)
   const isBench=y>.30
@@ -28,9 +33,10 @@ export function DogActor({points}:{points:number}){
    const dx=nx-x,dz=nz-z
    if(Math.hypot(dx,dz)>.0003)root.current.rotation.y=Math.atan2(dx,dz)
   }
-  if(body.current)body.current.position.y=.015+Math.abs(Math.sin(t*11))*(isBench?.009:.033)
-  if(face.current)face.current.rotation.z=Math.sin(t*1.7)*.09
-  if(tail.current)tail.current.rotation.y=Math.sin(t*10)*.65
+  if(body.current)body.current.position.y=.015+Math.abs(Math.sin(t*11))*(isBench?.009:.033)+(barking.current>0?.045*Math.abs(Math.sin(t*16)):0)
+  if(face.current)face.current.rotation.z=barking.current>0?Math.sin(t*12)*.16:Math.sin(t*1.7)*.09
+  if(mouth.current)mouth.current.scale.y=barking.current>0?1.2+Math.abs(Math.sin(t*18))*.7:1
+  if(tail.current)tail.current.rotation.y=Math.sin(t*(barking.current>0?18:10))*(barking.current>0?.9:.65)
   const stride=isBench?.11:.44
   if(frontLeft.current)frontLeft.current.rotation.x=Math.sin(t*13)*stride
   if(frontRight.current)frontRight.current.rotation.x=-Math.sin(t*13)*stride
@@ -70,7 +76,7 @@ export function DogActor({points}:{points:number}){
       <Ellipsoid at={[x+.022,.151,.371]} radius={.017} color="#fff"/>
      </group>)}
     </group>
-    <Ellipsoid at={[0,-.22,.35]} radius={.064} scale={[.6,1.12,.31]} color="#df667b"/>
+    <group ref={mouth}><Ellipsoid at={[0,-.22,.35]} radius={.064} scale={[.6,1.12,.31]} color="#df667b"/></group>
     {[-.21,.21].map(x=><Ellipsoid key={x} at={[x,-.12,.30]} radius={.069} scale={[.9,.43,.37]} color="#f0b292"/>)}
    </group>
   </group>

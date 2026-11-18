@@ -8,6 +8,7 @@ function makeJWT(id){const payload=Buffer.from(JSON.stringify({sub:id,role:'auth
 let failures=0;
 const approvalQA=process.env.QA_FOCUS==='parent-approvals';
 const worldInspectQA=process.env.QA_FOCUS==='world-inspect';
+const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
 const qaTask='a1100000-0000-4000-8000-000000000002';
 const qaNotice='a1100000-0000-4000-8000-000000000003';
@@ -70,6 +71,7 @@ async function run(role,browser){
  let qaDailyStatus='pending';
  const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;let playBalance=60,playCap=30,storyDone=[];
  let playSessions=role==='parent'?[{id:'91111111-1111-4111-8111-111111111111',minutes:10,status:'pending',requested_at:new Date().toISOString(),started_at:null}]:[];
+ let earnedMock=1700;
  const playOverview=()=>({balance:playBalance,dailyLimit:playCap,todayUsed:playSessions.filter(x=>['active','finished'].includes(x.status)).reduce((n,x)=>n+x.minutes,0)});
 
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
@@ -96,7 +98,7 @@ async function run(role,browser){
     if(name==='moymir_playtime_start'){const when=new Date().toISOString();playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'active',started_at:when}:x);return resp(when)}
     if(name==='moymir_playtime_finish'){playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'finished'}:x);return resp(true)}
     if(name==='moymir_complete_story_chapter'){storyDone.push(Number(request.postDataJSON()?.p_chapter));return resp(true)}
-    if(name==='moymir_family_overview')return resp({worldPoints:1700,balance:1700,earned:1700,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+    if(name==='moymir_family_overview')return resp({worldPoints:earnedMock,balance:1700,earned:earnedMock,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(['moymir_health_plan','moymir_health_daily','moymir_health_garden','moymir_health_meal_requests'].includes(name)){
@@ -234,11 +236,31 @@ async function run(role,browser){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ if(worldMilestoneQA){
+  earnedMock+=30;
+  await page.locator('.mw-cloud-syncbar button').first().click();
+  await page.locator('.world3d-miro-greeting').waitFor({state:'visible',timeout:12000});
+  check('Miro reacts to earned points after the 1600-point building cap',await page.locator('.world3d-miro-greeting').innerText().then(t=>t.includes('Ура, Илья')));
+  check('more earned points do not change completed first-world building stages',await page.locator('.world3d-bottom').innerText().then(t=>t.includes('1600 / 1600')));
+  check('Miro achievement notification does not throw renderer errors',counters.errors.length===0);
+  return;
+ }
  // Camera controls should be present for every role, and must not corrupt the 3D scene.
  if(!approvalQA){
   const orbit=page.getByRole('group',{name:'Управление камерой 3D-мира'});
   await page.locator('.world3d-viewport canvas').waitFor({state:'visible',timeout:15000});
   check('3D world camera controls visible',await orbit.count()===1);
+  if(process.env.QA_SHOT==='1'&&role==='child'){
+   await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();
+   await page.waitForTimeout(400);
+   await page.screenshot({path:'/tmp/moymir3816_initial_screen.png'});
+   await page.waitForTimeout(3000);
+   await page.screenshot({path:'/tmp/moymir3816_moving_screen.png'});
+  }
+  if(process.env.QA_FOCUS==='world-inspect'){
+   await page.locator('.world3d-miro-greeting').waitFor({state:'visible',timeout:14000});
+   check('3D Miro walks to the house and greets Ilya',await page.locator('.world3d-miro-greeting').innerText().then(t=>t.includes('Привет, Илья')));
+  }
   check('3D world camera has zoom in/out, reset and fullscreen',
    await orbit.getByRole('button',{name:'Приблизить 3D-мир'}).count()===1 &&
    await orbit.getByRole('button',{name:'Отдалить 3D-мир'}).count()===1 &&
@@ -260,12 +282,29 @@ async function run(role,browser){
   const picker=page.locator('.world3d-object-picker');
   check('3D object picker appears',await picker.count()===1);
   await picker.locator('summary').click();
-  check('3D lists only unlocked island decorations',await picker.getByRole('button').count()===7);
-  await picker.getByRole('button',{name:'🏡 Домик на поляне'}).click();
+  check('3D lists only unlocked island decorations',await picker.getByRole('button').count()===8);
+  check('3D Miro replaces old floating SVG',await page.locator('.miro-world-control').count()===1&&await page.locator('.miro-flight-zone').count()===0);
+  await page.getByRole('button',{name:'Позвать Миро и открыть чат'}).click();
+  check('3D Miro uses original assistant dialog',await page.getByRole('dialog',{name:/Миро/}).isVisible());
+  await page.getByRole('button',{name:'Уменьшить Миро'}).click();
+  check('robot assistant returns to walking view',await page.getByRole('dialog',{name:/Миро/}).count()===0);
   const selected=page.getByRole('region',{name:'Осмотр постройки'});
+  await picker.getByRole('button',{name:'🐶 Собачка'}).click();
+  await page.locator('.world3d-dog-speech').waitFor({state:'visible',timeout:2500});
+  check('3D dog reacts with bark and petting action',await selected.getByRole('button',{name:'🐾 Погладить собачку'}).count()===1&&await page.locator('.world3d-dog-speech').isVisible());
+  await selected.getByRole('button',{name:'🐾 Погладить собачку'}).click();
+  check('3D dog can bark repeatedly without damaging world',await selected.isVisible()&&counters.errors.length===0);
+  check('3D Miro reacts to dog interaction',await page.locator('.world3d-miro-greeting').innerText().then(x=>x.includes('пёс')));
+  if(process.env.QA_SHOT==='1'&&role==='child'){await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();await page.waitForTimeout(500);await page.screenshot({path:'/tmp/moymir3816_dog_screen.png'});}
+  await picker.getByRole('button',{name:'🏡 Домик на поляне'}).click();
   check('3D house selection shows contextual actions',await selected.isVisible()&&await selected.getByRole('button',{name:'🚪 Закрыть дверь'}).count()===1&&await selected.getByRole('button',{name:'💡 Выключить свет'}).count()===1);
+  check('real doorway offers a view into furnished interior',await selected.getByRole('button',{name:'👀 Заглянуть внутрь'}).count()===1);
+  await selected.getByRole('button',{name:'👀 Заглянуть внутрь'}).click();
+  check('interior viewing keeps the Three.js scene active',await canvas.isVisible()&&counters.errors.length===0);
+  if(process.env.QA_SHOT==='1'&&role==='child'){await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();await page.waitForTimeout(900);await page.screenshot({path:'/tmp/moymir3816_house_screen.png'});}
   await selected.getByRole('button',{name:'🚪 Закрыть дверь'}).click();
   check('3D house door can be toggled',await selected.getByRole('button',{name:'🚪 Открыть дверь'}).count()===1);
+  check('3D Miro reacts to door interaction',await page.locator('.world3d-miro-greeting').innerText().then(x=>x.includes('дверь')));
   await selected.getByRole('button',{name:'💡 Выключить свет'}).click();
   check('3D house lights can be toggled',await selected.getByRole('button',{name:'💡 Включить свет'}).count()===1);
   await picker.getByRole('button',{name:'🌳 Яблоня'}).click();
@@ -361,6 +400,10 @@ async function run(role,browser){
    await secondPicker.getByRole('button',{name:'🌲 Большое дерево'}).click();
    const secondInspect=page.getByRole('region',{name:'Осмотр постройки'});
    check('second world offers focus on earned parts',await secondInspect.isVisible()&&await secondInspect.getByText('🌲 Большое дерево').count()===1);
+   if(process.env.QA_SHOT==='1'){await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();await page.screenshot({path:'/tmp/moymir3816_treehouse_screen.png'});}
+   check('second world has a real walking Miro model and accessible chat',await page.locator('.miro-world-control').count()===1&&await page.locator('.miro-flight-zone').count()===0);
+   await page.locator('.world3d-miro-greeting').waitFor({state:'visible',timeout:16000});
+   check('second-world Miro follows its path and greets before treehouse completion',await page.locator('.world3d-miro-greeting').innerText().then(t=>t.includes('Скоро здесь появится домик')));
    check('second world does not unlock door/light interactions early',await secondInspect.getByRole('button',{name:/дверь|свет/}).count()===0);
    await secondInspect.getByRole('button',{name:'Закрыть осмотр и вернуться к общему виду'}).click();
    check('living island event',await page.getByRole('region',{name:'Приключение острова и семейный альбом'}).count()>0);

@@ -79,6 +79,19 @@ function Staircase({top=false}:{top?:boolean}){
   <Limb a={[steps[0].pos[0]-.3,steps[0].pos[1]+.2,steps[0].pos[2]+.08]} b={[steps[7].pos[0]-.3,steps[7].pos[1]+.24,steps[7].pos[2]+.08]} r={.064} color="#a47142"/>
  </group>
 }
+function TreehouseInterior({lit}:{lit:boolean}){
+ return <group>
+  {/* A small furnished room behind the doorway, rather than a solid panel. */}
+  <Timber at={[.6,3.075,.15]} dim={[1.98,.055,1.40]} color="#d7a774"/>
+  <Timber at={[.60,3.115,.48]} dim={[.62,.018,.46]} color="#cda2b7"/>
+  <Timber at={[1.26,3.23,-.34]} dim={[.60,.17,.60]} color="#a46e47"/>
+  <Timber at={[1.26,3.36,-.34]} dim={[.52,.10,.47]} color="#e8c68d"/>
+  <Timber at={[-.18,3.41,-.4]} dim={[.35,.65,.30]} color="#a9774e"/>
+  {[-.29,-.08].map((x,i)=><Timber key={i} at={[x,3.47,-.225]} dim={[.095,.24,.075]} color={i?'#8dc5a1':'#dfa575'}/>)}
+  <Orb at={[1.18,3.64,-.28]} r={.10} color={lit?'#ffe5a4':'#d2b16c'}/>
+  {lit&&<pointLight position={[1,3.72,-.1]} intensity={1.2} distance={2.5} color="#ffe3a0"/>}
+ </group>
+}
 function HouseShell({part}:{part:'back'|'sides'|'front'}){
  const y=3.65
  if(part==='back')return <Timber at={[.6,y,-.65]} dim={[2.24,1.42,.17]} color="#ecba7e"/>
@@ -206,7 +219,7 @@ export function TreehousePiece({index,points,doorOpen=false,lightsOn=false}:{ind
  case 11:return <Staircase top/>
  case 12:return <HouseShell part="back"/>
  case 13:return <HouseShell part="sides"/>
- case 14:return <HouseShell part="front"/>
+ case 14:return <group><HouseShell part="front"/><TreehouseInterior lit={lightsOn}/></group>
  case 15:return <TreehouseDoor opened={doorOpen}/>
  case 16:return <group><Window at={[-.17,3.72,1]} lit={lightsOn}/><Window at={[1.38,3.72,1]} lit={lightsOn}/></group>
  case 17:return <Timber at={[-.07,4.64,.12]} dim={[1.65,.17,2.15]} color="#dc6646" turn={[0,0,.57]}/>
