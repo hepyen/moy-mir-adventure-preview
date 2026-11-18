@@ -1,11 +1,13 @@
 import {useCallback,useEffect,useState} from 'react';
-import {Capacitor} from '@capacitor/core';
+import {Capacitor,registerPlugin} from '@capacitor/core';
 import {CapacitorUpdater} from '@capgo/capacitor-updater';
 import {Browser} from '@capacitor/browser';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {playSound} from './sounds';
 import './system.css';
-const APP_VERSION='3.8.12';
+const APP_VERSION='3.8.13';
+const ALARM_NATIVE_FEATURE=3813;
+const alarmNative=registerPlugin<{getState():Promise<{featureVersion?:number}>}>('MiroAlarm');
 const BASE_VERSION='3.3.0';
 const MANIFEST='https://hepyen.github.io/moy-mir-adventure-preview/updates/latest.json';
 type Manifest={version:string;title:string;notes:string[];url:string;sha256:string;nativeBaseVersion:string;required?:boolean;apkUrl?:string};
@@ -37,7 +39,13 @@ export function UpdateCenter(){
  const [installing,setInstalling]=useState(false);
  const [percent,setPercent]=useState<number|null>(null);
  const [checked,setChecked]=useState(false);
+ const [nativeUpgradeNeeded,setNativeUpgradeNeeded]=useState(false);
  const isNative=Capacitor.isNativePlatform();
+ useEffect(()=>{
+  if(!isNative)return;
+  if(!Capacitor.isPluginAvailable('MiroAlarm')){setNativeUpgradeNeeded(true);return}
+  void alarmNative.getState().then(s=>setNativeUpgradeNeeded((s.featureVersion??0)<ALARM_NATIVE_FEATURE)).catch(()=>setNativeUpgradeNeeded(true));
+ },[isNative]);
  const check=useCallback(async(manual=false)=>{
   try{
    const r=await fetch(MANIFEST+'?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(10000)});
@@ -70,6 +78,7 @@ export function UpdateCenter(){
    await CapacitorUpdater.set({id:bundle.id});
   }catch(e){
    setStatus('Не удалось установить обновление через интернет. '+(e instanceof Error?e.message:'Попробуй снова.'));
+   setPercent(null);
    setInstalling(false);
   }finally{if(listener)void listener.remove()}
  }
@@ -77,11 +86,12 @@ export function UpdateCenter(){
   <div><strong>{available?'🚀 '+available.title:'🔄 Обновления приложения'}</strong>
   <p>{available?available.notes.join(' · '):'Версия '+APP_VERSION+' · Обновления без переустановки APK'}</p>
   {percent!==null&&installing&&<p>Загрузка {percent}%…</p>}
+  {nativeUpgradeNeeded&&<p role="status">Для исправленного будильника требуется обновить системный модуль Android. Обычное обновление внутри приложения заменяет только веб-часть.</p>}
   {status&&<small role="status">{status}</small>}
   </div>
   <div className="mw-update-controls">
    {available?<button disabled={installing} onClick={()=>void install()}>{installing?'Устанавливаем…':isNative?'Обновить сейчас':'Открыть новую версию'}</button>:<button onClick={()=>void check(true)}>{checked?'Проверить':'Проверка…'}</button>}
-   {available?.apkUrl&&<button onClick={()=>void Browser.open({url:available.apkUrl!})}>Android APK</button>}
+   {(nativeUpgradeNeeded||available?.apkUrl)&&<button type="button" onClick={()=>void Browser.open({url:available?.apkUrl||'https://hepyen.github.io/moy-mir-adventure-preview/downloads/'})}>Обновить Android APK</button>}
   </div>
  </section>;
 }

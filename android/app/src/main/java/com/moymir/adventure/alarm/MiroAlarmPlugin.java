@@ -25,7 +25,7 @@ public class MiroAlarmPlugin extends Plugin {
     private JSObject status(){
         android.content.SharedPreferences p=MiroAlarmScheduler.prefs(getContext());
         JSObject s=new JSObject();
-        s.put("featureVersion",3300);
+        s.put("featureVersion",3813);
         s.put("enabled",p.getBoolean("enabled",false));
         s.put("hour",p.getInt("hour",7));s.put("minute",p.getInt("minute",0));
         s.put("days",p.getInt("days",31));s.put("tone",p.getString("tone","sunrise"));
@@ -74,7 +74,8 @@ public class MiroAlarmPlugin extends Plugin {
         }
         boolean enabled=Boolean.TRUE.equals(call.getBoolean("enabled",false));
         if(enabled&&days==0){call.reject("Выберите хотя бы один день недели");return;}
-        if(enabled&&!MiroAlarmScheduler.canSchedule(getContext())){call.reject("Разрешите точные будильники в Android, затем сохраните ещё раз");return;}
+        // Save the configuration even if the user has not yet granted exact-alarm permission.
+        // The next activity resume (after Android settings) schedules the stored alarm.
         MiroAlarmScheduler.prefs(getContext()).edit().putBoolean("enabled",enabled)
           .putInt("hour",hour).putInt("minute",minute).putInt("days",days)
           .putInt("snooze",snooze).putString("tone",tone)

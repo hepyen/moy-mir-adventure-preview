@@ -124,9 +124,11 @@ export const GeneratedComponent = () => {
   let active=true;
   const subscription=LocalNotifications.addListener('localNotificationActionPerformed',event=>{
    if(!active)return;
-   const section=event.notification.extra?.section;
-   if(section==='school'||section==='spiritual'||section==='shop'||section==='health')setTab(section);
-   else if(section==='updates')setTab('settings');
+   const data=event.notification.extra;
+   const next=notificationDestination({kind:typeof data?.kind==='string'?data.kind:undefined,
+    section:typeof data?.section==='string'?data.section:undefined,
+    source_id:typeof data?.source_id==='string'?data.source_id:undefined});
+   if(next)openDestination(next);
   }).catch(e=>console.warn('Reminders navigation unavailable',e));
   return()=>{active=false;void subscription.then(listener=>{if(listener)return listener.remove()})};
  },[]);
@@ -379,7 +381,7 @@ export const GeneratedComponent = () => {
   return <main className={"mw-root mw-theme-"+theme.resolved} data-app-theme={theme.resolved} data-app-theme-choice={theme.selection}>
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.8.10</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">3.8.13</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
