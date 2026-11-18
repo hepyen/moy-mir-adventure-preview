@@ -22,3 +22,10 @@
 .world3d-viewport{isolation:isolate;overflow:hidden}
 
 .world3d-adventures{display:flex;align-items:center;gap:7px;flex-wrap:wrap;border:1px solid #cfe6c9;border-radius:12px;background:#f2fff0;padding:9px;margin:8px 0;color:#4c9a66;font-size:10px}.world3d-adventures strong{font-size:11px}.world3d-adventures span{flex:1}.world3d-adventures button{border:0;padding:7px 10px;border-radius:8px;background:#d9f5da;color:#428053;font-size:10px;font-weight:800}.world3d-story-message{border-radius:11px;padding:10px;background:#eafbe5;color:#4b8655;font-size:11px;display:flex;justify-content:space-between;gap:8px}.world3d-story-message button{background:none;border:0;color:#52845b;font-size:18px}
+
+/* Touch camera navigation: restrict gestures to the 3D canvas, not the page. */
+.world3d-viewport canvas{touch-action:none}
+.world3d-camera-buttons{display:flex;gap:5px;flex-wrap:nowrap}
+.world3d-camera-buttons button{min-width:38px;min-height:38px;padding:6px 8px;font-size:21px;line-height:1;touch-action:manipulation}
+.world3d-gesture-hint{color:#c0e7e8;font-size:11px;line-height:1.4;margin:0 8px 8px}
+@media(max-width:370px){.world3d-toolbar{gap:4px}.world3d-camera-buttons button{min-width:32px;min-height:36px;padding:5px;font-size:19px}.world3d-toolbar span{font-size:12px;line-height:1.2}}

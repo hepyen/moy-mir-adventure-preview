@@ -1,6 +1,8 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { Vector3 } from 'three'
 import type { Group } from 'three'
 import { WORLD_01_OBJECTS, nextWorldObject, unlockedWorldObjects, WORLD_01_END } from './world01'
 import './World3D.css'
@@ -124,9 +126,77 @@ function Appearing({id,at,points}:{id:string;at:number;points:number}) {
  })
  return <group ref={ref} scale={initialScale} visible={initialScale>.015}><Extras part={id} points={points}/></group>
 }
-function FocusCamera({worldNumber}:{worldNumber:number}){
- const {camera}=useThree()
- useEffect(()=>{camera.lookAt(0,worldNumber===2?2.8:.55,0);camera.updateProjectionMatrix()},[camera,worldNumber])
+type CameraAction={id:number;type:'reset'|'closer'|'farther'}
+const cameraStart=(worldNumber:number)=>worldNumber===2?new Vector3(7.1,7.9,10.4):new Vector3(6.3,7.2,9)
+const cameraTarget=(worldNumber:number)=>new Vector3(0,worldNumber===2?2.8:.55,0)
+function WorldCameraControls({worldNumber,action}:{worldNumber:number;action:CameraAction}){
+ const {camera,gl}=useThree()
+ const controls=useRef<OrbitControls|null>(null)
+ useFrame(()=>controls.current?.update())
+ useEffect(()=>{
+  const orbit=new OrbitControls(camera,gl.domElement)
+  controls.current=orbit
+  const touchAction=gl.domElement.style.touchAction
+  gl.domElement.style.touchAction='none'
+  orbit.enableRotate=true
+  orbit.enableZoom=true
+  orbit.enablePan=false  // Keep the island centered and never lose the build area.
+  orbit.enableDamping=true
+  orbit.dampingFactor=.085
+  orbit.rotateSpeed=.62
+  orbit.zoomSpeed=.75
+  orbit.minDistance=worldNumber===2?6.2:4.7
+  orbit.maxDistance=worldNumber===2?19:17
+  orbit.minPolarAngle=.28
+  orbit.maxPolarAngle=1.42
+  camera.position.copy(cameraStart(worldNumber))
+  orbit.target.copy(cameraTarget(worldNumber))
+  orbit.update()
+  orbit.saveState()
+  // Double-click on desktop or double-tap on mobile returns to the saved view.
+  let firstTap:{at:number;x:number;y:number}|null=null
+  let pointerStart:{id:number;at:number;x:number;y:number;multitouch:boolean}|null=null
+  const pointerDown=(e:PointerEvent)=>{
+   if(e.pointerType!=='touch')return
+   if(pointerStart)pointerStart.multitouch=true
+   else pointerStart={id:e.pointerId,at:performance.now(),x:e.clientX,y:e.clientY,multitouch:false}
+  }
+  const pointerUp=(e:PointerEvent)=>{
+   const down=pointerStart
+   if(!down||down.id!==e.pointerId)return
+   pointerStart=null
+   const now=performance.now()
+   if(down.multitouch||now-down.at>300||Math.hypot(e.clientX-down.x,e.clientY-down.y)>17){firstTap=null;return}
+   if(firstTap&&now-firstTap.at<350&&Math.hypot(e.clientX-firstTap.x,e.clientY-firstTap.y)<32){orbit.reset();firstTap=null}
+   else firstTap={at:now,x:e.clientX,y:e.clientY}
+  }
+  const doubleClick=()=>orbit.reset()
+  gl.domElement.addEventListener('pointerdown',pointerDown)
+  gl.domElement.addEventListener('pointerup',pointerUp)
+  gl.domElement.addEventListener('dblclick',doubleClick)
+  return()=>{
+   controls.current=null
+   gl.domElement.removeEventListener('pointerdown',pointerDown)
+   gl.domElement.removeEventListener('pointerup',pointerUp)
+   gl.domElement.removeEventListener('dblclick',doubleClick)
+   orbit.dispose()
+   gl.domElement.style.touchAction=touchAction
+  }
+ },[camera,gl,worldNumber])
+ useEffect(()=>{
+  if(action.id===0||!controls.current)return
+  const orbit=controls.current
+  if(action.type==='reset'){
+   orbit.reset()
+  }else{
+   const offset=camera.position.clone().sub(orbit.target)
+   const distance=offset.length()
+   const factor=action.type==='closer'?.79:1.26
+   const next=Math.max(orbit.minDistance,Math.min(orbit.maxDistance,distance*factor))
+   if(distance>0)camera.position.copy(orbit.target).addScaledVector(offset,next/distance)
+  }
+  orbit.update()
+ },[action,camera,worldNumber])
  return null
 }
 const TREEHOUSE_BUILD_ORDER=[0,27,...Array.from({length:26},(_,i)=>i+1),28,29]
@@ -164,6 +234,8 @@ function WorldScene({points,worldNumber,adventureCount,onDiscover,theme='day'}:{
 export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',adventureCount=0,theme='day'}:{points:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;adventureCount?:number;theme?:'day'|'night'}) {
  const panelRef=useRef<HTMLDivElement>(null)
  const[storyMessage,setStoryMessage]=useState('')
+ const[cameraAction,setCameraAction]=useState<CameraAction>({id:0,type:'reset'})
+ const doCamera=(type:CameraAction['type'])=>setCameraAction(prev=>({id:prev.id+1,type}))
  async function toggleFullscreen() {
   const element=panelRef.current
   if(!element)return
@@ -172,7 +244,7 @@ export function World3D({points,worldNumber=1,spiritualPoints=0,soundEnabled=tru
  }
  const unlocked=unlockedWorldObjects(points)
  const next=nextWorldObject(points)
- return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран">⛶ На весь экран</button></div><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><FocusCamera worldNumber={worldNumber}/><WorldScene points={points} worldNumber={worldNumber} adventureCount={adventureCount} onDiscover={setStoryMessage} theme={theme}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
+ return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><div className="world3d-camera-buttons" role="group" aria-label="Управление камерой 3D-мира"><button type="button" onClick={()=>doCamera('farther')} aria-label="Отдалить 3D-мир" title="Отдалить">−</button><button type="button" onClick={()=>doCamera('closer')} aria-label="Приблизить 3D-мир" title="Приблизить">+</button><button type="button" onClick={()=>doCamera('reset')} aria-label="Вернуть первоначальный вид 3D-мира" title="Вернуть вид">↺</button><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран" title="На весь экран">⛶</button></div></div><p className="world3d-gesture-hint">Проведи пальцем, чтобы повернуть · два пальца для масштаба · двойное касание для сброса</p><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><WorldCameraControls worldNumber={worldNumber} action={cameraAction}/><WorldScene points={points} worldNumber={worldNumber} adventureCount={adventureCount} onDiscover={setStoryMessage} theme={theme}/></Canvas></Suspense><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
  {worldNumber===1&&adventureCount>0&&<div className="world3d-adventures"><strong>🌱 Постройки истории</strong><span>{adventureCount>=1?'🌻 Цветник':null}{adventureCount>=4?' · 📚 Читальный уголок':null}{adventureCount>=10?' · 🏮 Фонарик друзей':null}</span><button type="button" onClick={()=>setStoryMessage('За прохождение истории на полянке появились новые предметы. Нажми на них в 3D-мире!')}>Исследовать</button></div>}
  {storyMessage&&<div className="world3d-story-message" role="status">{storyMessage}<button onClick={()=>setStoryMessage('')} aria-label="Закрыть подсказку">×</button></div>}
  <div className="world3d-bottom"><span>{worldNumber===1?'🏡 Домик на поляне':'🌳 Домик на дереве'} · {unlocked.length}/30 открыто</span><strong>{Math.min(points,WORLD_01_END)} / {WORLD_01_END} ✨</strong></div>

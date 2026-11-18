@@ -232,6 +232,36 @@ async function run(role,browser){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ // Camera controls should be present for every role, and must not corrupt the 3D scene.
+ if(!approvalQA){
+  const orbit=page.getByRole('group',{name:'Управление камерой 3D-мира'});
+  await page.locator('.world3d-viewport canvas').waitFor({state:'visible',timeout:15000});
+  check('3D world camera controls visible',await orbit.count()===1);
+  check('3D world camera has zoom in/out, reset and fullscreen',
+   await orbit.getByRole('button',{name:'Приблизить 3D-мир'}).count()===1 &&
+   await orbit.getByRole('button',{name:'Отдалить 3D-мир'}).count()===1 &&
+   await orbit.getByRole('button',{name:'Вернуть первоначальный вид 3D-мира'}).count()===1 &&
+   await orbit.getByRole('button',{name:'Развернуть 3D-мир на весь экран'}).count()===1);
+  await orbit.getByRole('button',{name:'Приблизить 3D-мир'}).click();
+  await orbit.getByRole('button',{name:'Отдалить 3D-мир'}).click();
+  await orbit.getByRole('button',{name:'Вернуть первоначальный вид 3D-мира'}).click();
+  const canvas=page.locator('.world3d-viewport canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  const bounds=await canvas.boundingBox();
+  if(bounds){
+   await page.mouse.move(bounds.x+bounds.width*.45,bounds.y+bounds.height*.45);
+   await page.mouse.down();
+   await page.mouse.move(bounds.x+bounds.width*.64,bounds.y+bounds.height*.55,{steps:6});
+   await page.mouse.up();
+  }
+  check('3D orbit gesture leaves render healthy',await canvas.isVisible()&&counters.errors.length===0);
+  if(role==='child'){
+   await page.setViewportSize({width:320,height:700});
+   const row=await orbit.boundingBox();
+   check('3D camera toolbar fits narrow phone screen',!!row&&row.x>=0&&row.x+row.width<=321);
+   await page.setViewportSize({width:390,height:860});
+  }
+ }
  if(approvalQA){
   const queue=page.getByRole('region',{name:'Ждёт вашего решения'});
   check('home queue is parent only',await queue.count()===(role==='parent'?1:0));
@@ -289,6 +319,7 @@ async function run(role,browser){
    await advance.click();await page.waitForTimeout(450);
    check('advance persisted',counters.rpc.some(x=>x.name==='advance_my_world'));
    check('world2 available',await page.getByRole('button',{name:/Домик на дереве/}).isEnabled());
+   check('second 3D world retains camera controls',await page.getByRole('group',{name:'Управление камерой 3D-мира'}).count()===1);
    check('living island event',await page.getByRole('region',{name:'Приключение острова и семейный альбом'}).count()>0);
    const story=page.getByRole('region',{name:'История белочки на семь дней'});
    check('7 story chapters',await story.locator('.island-story-days button').count()===7);
