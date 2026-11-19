@@ -1,7 +1,7 @@
 import {miroRoute} from './miroRoute'
 
 export type DecorId='flowerpot'|'lamp'|'bench'|'flowerbed'|'mailbox'
-export type DecorPosition={x:number;z:number}
+export type DecorPosition={x:number;z:number;rotation?:number}
 export type DecorLayout=Partial<Record<DecorId,DecorPosition>>
 export type DecorSpec={id:DecorId;title:string;unlock:number;radius:number;default:DecorPosition}
 export const DECOR_SPECS:Record<1|2,DecorSpec[]>={
@@ -30,7 +30,7 @@ export function readDecorLayout(storageKey:string):DecorLayout{
    const position=parsed[id]
    if(!position||typeof position!=='object')continue
    const {x,z}=position as {x:unknown;z:unknown}
-   if(typeof x==='number'&&Number.isFinite(x)&&typeof z==='number'&&Number.isFinite(z)&&Math.abs(x)<=2.9&&Math.abs(z)<=2.3)output[id]={x,z}
+   if(typeof x==='number'&&Number.isFinite(x)&&typeof z==='number'&&Number.isFinite(z)&&Math.abs(x)<=2.9&&Math.abs(z)<=2.3){const rotation=(position as {rotation?:unknown}).rotation;output[id]={x,z,...(typeof rotation==='number'&&Number.isFinite(rotation)?{rotation:((rotation%360)+360)%360}:{})}}
   }
   return output
  }catch{return {}}

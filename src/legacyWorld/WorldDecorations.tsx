@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useRef} from 'react'
 import {useFrame} from '@react-three/fiber'
 import {RoundedBoxGeometry} from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+import {Mesh,Material,MeshStandardMaterial} from 'three'
 import type {Group} from 'three'
 import {DECOR_SPECS,decorPosition} from './worldDecor'
 import type {DecorId,DecorLayout} from './worldDecor'
@@ -52,10 +53,10 @@ function DecorationModel({id,lightOn}:{id:DecorId;lightOn:boolean}){
   </group>
  }
 }
-function Decoration({id,at,selected,lightsOn,onSelect}:{id:DecorId;at:{x:number;z:number};selected:boolean;lightsOn:boolean;onSelect:()=>void}){
+function Decoration({id,at,selected,lightsOn,onSelect}:{id:DecorId;at:{x:number;z:number;rotation?:number};selected:boolean;lightsOn:boolean;onSelect:()=>void}){
  const ref=useRef<Group>(null)
- useFrame(({clock})=>{if(ref.current&&selected)ref.current.rotation.y=Math.sin(clock.elapsedTime*1.6)*.08})
- return <group ref={ref} position={[at.x,0,at.z]} onClick={e=>{if(e.delta>9)return;e.stopPropagation();onSelect()}}>
+ useFrame(({clock})=>{if(ref.current)ref.current.rotation.y=((at.rotation??0)*Math.PI/180)+(selected?Math.sin(clock.elapsedTime*1.6)*.025:0)})
+ return <group ref={ref} position={[at.x,0,at.z]} rotation={[0,(at.rotation??0)*Math.PI/180,0]} onClick={e=>{if(e.delta>9)return;e.stopPropagation();onSelect()}}>
   <DecorationModel id={id} lightOn={lightsOn}/>
   {selected&&<mesh position={[0,.10,0]} rotation={[-Math.PI/2,0,0]} raycast={()=>null}>
    <ringGeometry args={[.57,.64,34]}/><meshBasicMaterial color="#f8ed70" transparent opacity={.82} depthWrite={false}/>
@@ -65,5 +66,28 @@ function Decoration({id,at,selected,lightsOn,onSelect}:{id:DecorId;at:{x:number;
 export function WorldDecorations({world,points,layout,selected,lightsOn,onSelect}:{world:1|2;points:number;layout:DecorLayout;selected:DecorId|null;lightsOn:boolean;onSelect:(id:DecorId)=>void}){
  return <group name="Moveable island decorations">
   {DECOR_SPECS[world].filter(x=>points>=x.unlock).map(spec=><Decoration key={spec.id} id={spec.id} at={decorPosition(world,layout,spec.id)} selected={selected===spec.id} lightsOn={lightsOn} onSelect={()=>onSelect(spec.id)}/>)}
+ </group>
+}
+
+/** Transparent placement ghost (green = allowed, coral = collision). The real object stays put until confirmation. */
+export function PreviewDecoration({id,at,valid,lightsOn}:{id:DecorId;at:{x:number;z:number;rotation:number};valid:boolean;lightsOn:boolean}){
+ const ref=useRef<Group>(null)
+ useEffect(()=>{
+  const changed:{mesh:Mesh;original:Material;ghost:Material}[]=[]
+  ref.current?.traverse(node=>{
+   if(!(node instanceof Mesh)||Array.isArray(node.material)||!(node.material instanceof MeshStandardMaterial))return
+   const original=node.material,ghost=original.clone()
+   ghost.transparent=true;ghost.opacity=.48;ghost.depthWrite=false
+   if(!valid)ghost.color.lerp(ghost.color.clone().set('#ff7373'),.55)
+   node.material=ghost
+   changed.push({mesh:node,original,ghost})
+  })
+  return()=>{for(const item of changed){item.mesh.material=item.original;item.ghost.dispose()}}
+ },[id,valid])
+ return <group ref={ref} name="Decoration placement preview" position={[at.x,.018,at.z]} rotation={[0,at.rotation*Math.PI/180,0]} raycast={()=>null}>
+  <DecorationModel id={id} lightOn={lightsOn}/>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,.07,0]} raycast={()=>null}>
+   <ringGeometry args={[.44,.54,36]}/><meshBasicMaterial color={valid?'#80f6af':'#ff605d'} side={2} transparent opacity={.92} depthWrite={false}/>
+  </mesh>
  </group>
 }

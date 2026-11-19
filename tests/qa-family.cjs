@@ -10,6 +10,7 @@ const approvalQA=process.env.QA_FOCUS==='parent-approvals';
 const worldInspectQA=process.env.QA_FOCUS==='world-inspect';
 const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
+const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
 const qaTask='a1100000-0000-4000-8000-000000000002';
 const qaNotice='a1100000-0000-4000-8000-000000000003';
@@ -22,6 +23,7 @@ let healthRequests=[{id:'d9999999-9999-4999-8999-000000000001',family_id:ids.fam
  status:'pending',created_at:'2026-11-09T07:00:00Z'}];
 
 const privateDaily=new Map();
+const decorCloud=new Map();
 async function syntheticEpub(){
  const zip=new JSZip();
  const weekdays=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
@@ -67,6 +69,10 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860},hasTouch:process.env.QA_TOUCH==='1',isMobile:process.env.QA_TOUCH==='1'});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
+ if(worldConflictQA){
+  decorCloud.set(ids.child+':1',{family_id:ids.family,child_id:ids.child,world_number:1,layout:{flowerpot:{x:.9,z:-1.45,rotation:90}}});
+  await ctx.addInitScript(({key})=>localStorage.setItem(key,JSON.stringify({flowerpot:{x:-.5,z:1.15,rotation:45}})),{key:'moymir-world-decor-v1:'+encodeURIComponent(ids.child)+':w1'});
+ }
  let geographyAttempts=[];
  let healthNetworkBlocked=false;
  let qaDailyStatus='pending';
@@ -102,6 +108,21 @@ async function run(role,browser){
     if(name==='moymir_family_overview')return resp({worldPoints:earnedMock,balance:1700,earned:earnedMock,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
+  if(name==='moymir_world_decor_layouts'){
+   if(method==='GET'){
+    const worldId=(url.searchParams.get('world_number')||'').replace('eq.','');
+    const child=(url.searchParams.get('child_id')||'').replace('eq.','');
+    const found=decorCloud.get(child+':'+worldId)||null;
+    return resp(found,true);
+   }
+   if(method==='POST'||method==='PATCH'){
+    const item=request.postDataJSON();
+    const record=Array.isArray(item)?item[0]:item;
+    decorCloud.set(record.child_id+':'+record.world_number,record);
+    counters.restWrites.push({name,method,record});
+    return resp([]);
+   }
+  }
   if(['moymir_health_plan','moymir_health_daily','moymir_health_garden','moymir_health_meal_requests'].includes(name)){
     if(healthNetworkBlocked)return route.abort('failed');
     const single=request.headers()['accept']?.includes('vnd.pgrst.object')||false;
@@ -237,6 +258,23 @@ async function run(role,browser){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ if(worldConflictQA){
+  const editor=page.locator('.world3d-decoration-editor');await editor.locator('summary').click();
+  const warning=editor.locator('.world3d-cloud-conflict');await warning.waitFor({state:'visible',timeout:6000});
+  check('independent phone and cloud layouts prompt a conflict instead of silent overwrite',await warning.getByText('Найдены два варианта острова').isVisible());
+  const key='moymir-world-decor-v1:'+encodeURIComponent(ids.child)+':w1';
+  check('existing local layout preserved before a decision',await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}').flowerpot?.rotation===45,key));
+  if(role==='parent'){
+   await warning.getByRole('button',{name:'☁️ Взять из облака'}).click();
+   check('choosing cloud restores cloud rotation 90',await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}').flowerpot?.rotation===90,key));
+  }else{
+   await warning.getByRole('button',{name:'📱 Оставить этот телефон'}).click();
+   await page.waitForFunction(()=>!document.querySelector('.world3d-cloud-conflict'),undefined,{timeout:5000});
+   check('choosing phone uploads local layout to family cloud',decorCloud.get(ids.child+':1')?.layout?.flowerpot?.rotation===45);
+  }
+  check('conflict solution retains balance and works without render errors',await page.getByText(/Баланс: 1700/).count()>0&&counters.errors.length===0);
+  return;
+ }
  if(worldDecorQA){
   const editor=page.locator('.world3d-decoration-editor');
   check('decorating controls exist',await editor.count()===1);
@@ -251,33 +289,46 @@ async function run(role,browser){
   if(!bounds)throw Error('3D canvas bounds unavailable');
   const camera=new PerspectiveCamera(37,bounds.width/bounds.height,.1,100);
   camera.position.set(6.3,7.2,9);camera.lookAt(0,.55,0);camera.updateMatrixWorld();
-  const hit=new Vector3(-.5,.09,1.35).project(camera);
+  const hit=new Vector3(-.5,.09,1.10).project(camera);
   const clickX=bounds.x+(1+hit.x)*bounds.width*.5;
   const clickY=bounds.y+(1-hit.y)*bounds.height*.5;
   if(process.env.QA_TOUCH==='1')await page.touchscreen.tap(clickX,clickY);
   else await page.mouse.click(clickX,clickY);
+  const key='moymir-world-decor-v1:'+encodeURIComponent(ids.child)+':w1';
+  check('position is only previewed until confirmation',await page.evaluate(key=>!localStorage.getItem(key)||!JSON.parse(localStorage.getItem(key)).flowerpot,key));
+  check('greenhouse editor lets player rotate 45 degrees',await editor.getByRole('button',{name:'↻ Повернуть 45°'}).count()===1);
+  await editor.getByRole('button',{name:'↻ Повернуть 45°'}).click();
+  check('confirm location enabled for available lawn',await editor.getByRole('button',{name:'✓ Подтвердить место'}).isEnabled(),await editor.locator('.world3d-preview-hint').innerText());
+  await editor.getByRole('button',{name:'✓ Подтвердить место'}).click();
   await editor.locator('.world3d-decor-status').waitFor({state:'visible',timeout:3500});
   const note=await editor.locator('.world3d-decor-status').innerText();
-  check('placing flowerpot on empty lawn saved',note.includes('сохранено'),note);
-  const key='moymir-world-decor-v1:'+encodeURIComponent(ids.child)+':w1';
+  check('placing flowerpot on empty lawn saved after confirmation',note.includes('сохранено'),note);
   const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}'),key);
-  check('layout saved to child-specific first-world key',saved.flowerpot&&Math.abs(saved.flowerpot.x+.5)<.17&&Math.abs(saved.flowerpot.z-1.35)<.17,JSON.stringify(saved));
+  check('layout saves coordinates and rotation in child-specific first-world key',saved.flowerpot&&Math.abs(saved.flowerpot.x+.5)<.17&&Math.abs(saved.flowerpot.z-1.20)<.17&&saved.flowerpot.rotation===45,JSON.stringify(saved));
+  await page.waitForFunction(()=>document.querySelector('.world3d-decoration-editor small')?.textContent?.includes('синхронизированы'),undefined,{timeout:5000});
+  check('cloud layout includes same child world and rotation',decorCloud.get(ids.child+':1')?.layout?.flowerpot?.rotation===45);
   check('placing decor leaves family score unchanged',await page.getByText(/Баланс: 1700/).count()>0&&counters.restWrites.every(x=>x.name!=='point_ledger'));
   await page.reload({waitUntil:'domcontentloaded'});
   await page.getByText(/Прежний прогресс подключён/).first().waitFor();
   await page.locator('.world3d-viewport canvas').waitFor();
   const after=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}'),key);
   check('decor layout persists after app reload',JSON.stringify(saved)===JSON.stringify(after));
+  await page.evaluate(key=>localStorage.removeItem(key),key);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(key=>JSON.parse(localStorage.getItem(key)||'{}').flowerpot?.rotation===45,key,{timeout:7000});
+  check('cloud restores decoration after local cache disappears',await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}').flowerpot.rotation===45,key));
   const editor2=page.locator('.world3d-decoration-editor');await editor2.locator('summary').click();
   await editor2.locator('.world3d-decor-item').filter({hasText:'Горшок с цветами'}).getByRole('button',{name:/Вернуть/}).click();
   check('return to original location resets custom layout',await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}').flowerpot===undefined,key));
+  await page.waitForTimeout(300);
+  check('cloud reset also removes moved flowerpot',decorCloud.get(ids.child+':1')?.layout?.flowerpot===undefined);
   if(role==='child'){
    await page.getByRole('button',{name:'🌳 Открыть второй мир'}).click();
    await page.getByRole('button',{name:/Домик на дереве/}).waitFor({state:'visible'});
    const editor3=page.locator('.world3d-decoration-editor');await editor3.locator('summary').click();
    check('second world keeps locked decorations locked',await editor3.getByText(/🔒 480 баллов/).count()>0&&await editor3.getByRole('button',{name:'Переставить'}).count()===0);
   }else check('parent cannot unlock second world without child confirmation',await page.getByRole('button',{name:/Домик на дереве/}).isDisabled());
-  check('first world customization does not affect second world',await page.evaluate(()=>localStorage.getItem('moymir-world-decor-v1:'+encodeURIComponent('22222222-2222-4222-8222-222222222222')+':w2')===null));
+  check('first world customization does not affect second world',await page.evaluate(()=>{const raw=localStorage.getItem('moymir-world-decor-v1:'+encodeURIComponent('22222222-2222-4222-8222-222222222222')+':w2');return !raw||Object.keys(JSON.parse(raw)).length===0}));
   check('all decor interactions are free of rendering errors',counters.errors.length===0);
   return;
  }
@@ -336,6 +387,11 @@ async function run(role,browser){
   await selected.getByRole('button',{name:'🐾 Погладить собачку'}).click();
   check('3D dog can bark repeatedly without damaging world',await selected.isVisible()&&counters.errors.length===0);
   check('flying Miro reacts to dog interaction',await page.locator('.miro-flight-zone .miro-speech').innerText().then(x=>x.includes('пёс')));
+  check('3D dog gets play and rest controls',await selected.getByRole('button',{name:'🎾 Играть с мячиком'}).count()===1&&await selected.getByRole('button',{name:'😴 Дать отдохнуть'}).count()===1);
+  await selected.getByRole('button',{name:'🎾 Играть с мячиком'}).click();
+  check('ball play makes dog activity visible',await page.locator('.world3d-dog-speech').innerText().then(x=>x.includes('догоняет мячик')));
+  await selected.getByRole('button',{name:'😴 Дать отдохнуть'}).click();
+  check('dog can rest after playing without resetting progress',await page.locator('.world3d-dog-speech').innerText().then(x=>x.includes('прилегла'))&&counters.errors.length===0);
   if(process.env.QA_SHOT==='1'&&role==='child'){await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();await page.waitForTimeout(500);await page.screenshot({path:'/tmp/moymir3816_dog_screen.png'});}
   await picker.getByRole('button',{name:'🏡 Домик на поляне'}).click();
   check('3D house selection shows contextual actions',await selected.isVisible()&&await selected.getByRole('button',{name:'🚪 Закрыть дверь'}).count()===1&&await selected.getByRole('button',{name:'💡 Выключить свет'}).count()===1);

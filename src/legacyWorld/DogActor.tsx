@@ -11,19 +11,23 @@ function Ear({x}:{x:number}){
   <Ellipsoid at={[0,-.15,.075]} radius={.10} scale={[.56,1.35,.3]} color="#cb8c64"/>
  </group>
 }
-export function DogActor({points,reactTick=0}:{points:number;reactTick?:number}){
+export function DogActor({points,reactTick=0,playTick=0,restTick=0}:{points:number;reactTick?:number;playTick?:number;restTick?:number}){
  const root=useRef<Group>(null),body=useRef<Group>(null)
  const face=useRef<Group>(null),tail=useRef<Group>(null)
  const frontLeft=useRef<Group>(null),frontRight=useRef<Group>(null)
  const backLeft=useRef<Group>(null),backRight=useRef<Group>(null)
- const eyes=useRef<Group>(null),mouth=useRef<Group>(null)
- const travel=useRef(0),pause=useRef(0),barking=useRef(0)
- useEffect(()=>{if(reactTick>0){pause.current=1.35;barking.current=1.35}},[reactTick])
+ const eyes=useRef<Group>(null),mouth=useRef<Group>(null),ball=useRef<Group>(null)
+ const travel=useRef(0),pause=useRef(0),barking=useRef(0),playing=useRef(0),resting=useRef(0)
+ useEffect(()=>{if(reactTick>0){pause.current=1.35;barking.current=1.35;resting.current=0}},[reactTick])
+ useEffect(()=>{if(playTick>0){playing.current=5.2;resting.current=0;pause.current=0}},[playTick])
+ useEffect(()=>{if(restTick>0){resting.current=6;playing.current=0;pause.current=6}},[restTick])
  useFrame(({clock},dt)=>{
   const t=clock.elapsedTime
   pause.current=Math.max(0,pause.current-dt)
   barking.current=Math.max(0,barking.current-dt)
-  if(pause.current===0)travel.current+=Math.min(dt,.05)
+  playing.current=Math.max(0,playing.current-dt)
+  resting.current=Math.max(0,resting.current-dt)
+  if(pause.current===0)travel.current+=Math.min(dt,.05)*(playing.current>0?2.2:1)
   const progress=(travel.current%29)/29
   const [x,y,z]=dogPathPosition(progress,points)
   const [nx,,nz]=dogPathPosition((progress+.001)%1,points)
@@ -33,18 +37,23 @@ export function DogActor({points,reactTick=0}:{points:number;reactTick?:number})
    const dx=nx-x,dz=nz-z
    if(Math.hypot(dx,dz)>.0003)root.current.rotation.y=Math.atan2(dx,dz)
   }
-  if(body.current)body.current.position.y=.015+Math.abs(Math.sin(t*11))*(isBench?.009:.033)+(barking.current>0?.045*Math.abs(Math.sin(t*16)):0)
+  if(body.current){body.current.position.y=resting.current>0?-.075:.015+Math.abs(Math.sin(t*11))*(isBench?.009:.033)+(barking.current>0?.045*Math.abs(Math.sin(t*16)):0);body.current.rotation.x=resting.current>0?-.12:0}
   if(face.current)face.current.rotation.z=barking.current>0?Math.sin(t*12)*.16:Math.sin(t*1.7)*.09
   if(mouth.current)mouth.current.scale.y=barking.current>0?1.2+Math.abs(Math.sin(t*18))*.7:1
-  if(tail.current)tail.current.rotation.y=Math.sin(t*(barking.current>0?18:10))*(barking.current>0?.9:.65)
-  const stride=isBench?.11:.44
+  if(tail.current)tail.current.rotation.y=Math.sin(t*(barking.current>0||playing.current>0?18:10))*(barking.current>0||playing.current>0?.9:.65)
+  const stride=resting.current>0?.02:isBench?.11:playing.current>0?.66:.44
   if(frontLeft.current)frontLeft.current.rotation.x=Math.sin(t*13)*stride
   if(frontRight.current)frontRight.current.rotation.x=-Math.sin(t*13)*stride
   if(backLeft.current)backLeft.current.rotation.x=-Math.sin(t*13)*stride
   if(backRight.current)backRight.current.rotation.x=Math.sin(t*13)*stride
-  if(eyes.current)eyes.current.scale.y=1-.85*Math.pow(Math.max(0,Math.cos(t*1.42)),48)
+  if(eyes.current)eyes.current.scale.y=resting.current>0?.10:1-.85*Math.pow(Math.max(0,Math.cos(t*1.42)),48)
+  if(ball.current){ball.current.visible=playing.current>0;ball.current.position.set(0,.22+Math.abs(Math.sin(t*8))*.24,.75+Math.sin(t*3)*.25)}
  })
  return <group ref={root} position={[2.25,0,.37]} scale={.56}>
+  <group ref={ball} visible={false} raycast={()=>null}>
+   <mesh><sphereGeometry args={[.17,12,10]}/><meshStandardMaterial color="#ffb94e" roughness={.55}/></mesh>
+   <mesh rotation={[0,0,Math.PI/4]}><torusGeometry args={[.143,.027,6,18]}/><meshStandardMaterial color="#f3f0cb"/></mesh>
+  </group>
   <group ref={body}>
    <Ellipsoid at={[0,.45,-.12]} radius={.38} scale={[.73,.78,1.18]} color="#d99a5f"/>
    <Ellipsoid at={[0,.43,.23]} radius={.28} scale={[.72,.88,.56]} color="#f7d1a0"/>

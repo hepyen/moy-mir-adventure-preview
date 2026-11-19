@@ -65,3 +65,14 @@
 .world3d-decor-cancel{margin-top:8px;background:#84674e}
 .world3d-decoration-editor .world3d-decor-status{color:#174d32;font-size:12px;font-weight:750;padding:8px 10px;background:#ddf4e5;border-radius:9px;margin-top:10px}
 @media(max-width:370px){.world3d-decor-item{gap:5px;padding:6px}.world3d-decor-item button{padding:7px 8px;font-size:11px}}
+/* Stage 3.1: preview, rotate, confirm. Preserve 44px targets on narrow Android screens. */
+.world3d-decor-preview-controls{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 6px}
+.world3d-decor-preview-controls button{background:#287452;color:#fff;border:0;border-radius:10px;padding:9px 13px;min-height:44px;font-size:12px;font-weight:750;touch-action:manipulation}
+.world3d-decor-preview-controls button:disabled{background:#9fb3ab;opacity:.65}
+.world3d-decor-preview-controls .world3d-decor-cancel{margin:0;background:#866b57}
+
+.world3d-decoration-editor .world3d-preview-hint{color:#234f3c;font-weight:800;margin:8px 0;padding:7px 9px;border-radius:8px;background:#daefe0;font-size:11px}
+
+.world3d-cloud-conflict{margin:10px 0;padding:11px;border:1px solid #eab26a;border-radius:11px;background:#fff4dc;color:#684922}
+.world3d-cloud-conflict strong{font-size:13px}.world3d-cloud-conflict p{margin:5px 0 8px}
+.world3d-cloud-conflict button{margin:3px 6px 3px 0;padding:9px 11px;min-height:42px;border:0;border-radius:8px;background:#866141;color:white;font-size:12px;font-weight:700}
