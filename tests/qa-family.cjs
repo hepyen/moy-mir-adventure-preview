@@ -19,6 +19,7 @@ const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
+const englishResetAudioQA=process.env.QA_FOCUS==='english-reset-audio';
 const subjectTutorQA=process.env.QA_FOCUS==='subject-tutors';
 const practiceQA=process.env.QA_FOCUS==='subject-practice';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
@@ -79,6 +80,18 @@ async function run(role,browser){
  const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860},hasTouch:process.env.QA_TOUCH==='1',isMobile:process.env.QA_TOUCH==='1'});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
+ if(englishResetAudioQA){
+  await ctx.addInitScript(()=>{
+   window.__qaAudioStarted=0;window.__qaAudioDuration=0;window.__qaAudioSource='';
+   const native=HTMLMediaElement.prototype.play;
+   HTMLMediaElement.prototype.play=function(){
+    this.addEventListener('playing',()=>{window.__qaAudioStarted++;window.__qaAudioDuration=this.duration;window.__qaAudioSource=this.src},{once:true});
+    return native.call(this);
+   };
+  });
+  const old='eeeeeeee-eeee-4eee-8eee-000000000077';
+  await ctx.addInitScript(({key})=>localStorage.setItem(key,JSON.stringify({first:[0,...Array(29).fill(null)],last:[0,...Array(29).fill(null)],wrong:[1,...Array(29).fill(0)],mastered:Array(30).fill(false)})),{key:'moymir-english-draft:'+old});
+ }
  if(worldConflictQA){
   decorCloud.set(ids.child+':1',{family_id:ids.family,child_id:ids.child,world_number:1,layout:{flowerpot:{x:.9,z:-1.45,rotation:90}}});
   await ctx.addInitScript(({key})=>localStorage.setItem(key,JSON.stringify({flowerpot:{x:-.5,z:1.15,rotation:45}})),{key:'moymir-world-decor-v1:'+encodeURIComponent(ids.child)+':w1'});
@@ -97,6 +110,11 @@ async function run(role,browser){
  let practiceNetworkFailures=practiceQA&&role==='child'?1:0;
  const practiceRows=practiceQA&&role==='parent'?[{id:'f4444444-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,subject:'matematicas',chapter:'enteros',level:'mixed',score:9,total:12,completed_at:new Date().toISOString(),attempted_ids:[],wrong_ids:[],duration_seconds:410}]:[];
  let englishSessions=role==='parent'?[{id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1',family_id:ids.family,child_id:ids.child,lesson_key:'to-be',activity_day:today,started_at:new Date(Date.now()-920000).toISOString(),finished_at:new Date().toISOString(),status:'completed',score:5,total_questions:6,points_awarded:30,answers:[1,0,2,1,1,1]},{id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2',family_id:ids.family,child_id:ids.child,lesson_key:'diagnostic',activity_day:today,started_at:new Date().toISOString(),finished_at:new Date().toISOString(),status:'completed',score:14,total_questions:18,points_awarded:0,answers:englishAnswers.diagnostic}]:[];
+ if(role==='child'&&englishResetAudioQA){
+   englishSessions.unshift({id:'eeeeeeee-eeee-4eee-8eee-000000000076',family_id:ids.family,child_id:ids.child,lesson_key:'eng2:to-be',activity_day:today,started_at:new Date(Date.now()-1800000).toISOString(),finished_at:new Date(Date.now()-900000).toISOString(),status:'completed',score:22,total_questions:30,points_awarded:30,answers:englishAnswers['eng2:to-be']});
+   englishSessions.unshift({id:'eeeeeeee-eeee-4eee-8eee-000000000077',family_id:ids.family,child_id:ids.child,lesson_key:'eng2:to-be',activity_day:today,started_at:new Date(Date.now()-600000).toISOString(),finished_at:null,status:'in_progress',score:null,total_questions:30,points_awarded:0,active_seconds:210,answers:null});
+   englishCredit=30;
+  }
  if(role==='parent'&&subjectTutorQA)englishSessions.unshift({id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',family_id:ids.family,child_id:ids.child,lesson_key:'lengua:categorias',activity_day:today,started_at:new Date(Date.now()-920000).toISOString(),finished_at:new Date().toISOString(),status:'completed',score:4,total_questions:6,points_awarded:30,answers:[1,0,1,1,0,2]});
  const playOverview=()=>({balance:playBalance,dailyLimit:playCap,todayUsed:playSessions.filter(x=>['active','finished'].includes(x.status)).reduce((n,x)=>n+x.minutes,0)});
 
@@ -121,7 +139,17 @@ async function run(role,browser){
     if(name==='moymir_study_heartbeat'){
      const row=englishSessions.find(x=>x.id===request.postDataJSON().p_session);
      if(!row||row.child_id!==ids.child||!row.lesson_key.startsWith('eng2:'))return resp({error:'Not allowed'});
-     return resp({active_seconds:englishTutorQA?900:0,required_seconds:900,status:'active'});
+     if(englishTutorQA||englishResetAudioQA)row.active_seconds=900;
+     return resp({active_seconds:row.active_seconds||0,required_seconds:900,status:'active'});
+    }
+    if(name==='moymir_english_restart'){
+     const key=request.postDataJSON().p_lesson;
+     if(!englishAnswers[key])return resp({error:'Unknown lesson'});
+     const old=englishSessions.find(x=>x.lesson_key===key&&x.status==='in_progress');
+     if(old){old.status='abandoned';old.finished_at=new Date().toISOString()}
+     const row={id:'eeeeeeee-eeee-4eee-8eee-'+String(++englishSessionSerial).padStart(12,'0'),family_id:ids.family,child_id:ids.child,lesson_key:key,activity_day:today,started_at:new Date().toISOString(),finished_at:null,status:'in_progress',score:null,total_questions:englishAnswers[key].length,points_awarded:0,active_seconds:0,answers:null};
+     englishSessions.unshift(row);
+     return resp({id:row.id,started_at:row.started_at,lesson_key:key,resumed:false,restarted:true,previous_session_id:old?.id||null});
     }
     if(name==='moymir_english_begin'){
      const key=request.postDataJSON().p_lesson;
@@ -134,8 +162,8 @@ async function run(role,browser){
      const body=request.postDataJSON();const row=englishSessions.find(x=>x.id===body.p_session&&x.status==='in_progress');
      if(!row)return resp({error:'Already completed'});
      const answers=body.p_answers,correct=englishAnswers[row.lesson_key],score=answers.filter((x,i)=>x===correct[i]).length;
-     if(row.lesson_key!=='diagnostic'&&!row.lesson_key.endsWith(':diagnostic')&&Date.now()-Date.parse(row.started_at)<900000)return resp({status:'waiting',remaining_seconds:900,score,total:correct.length});
-     const awarded=row.lesson_key!=='diagnostic'&&!row.lesson_key.endsWith(':diagnostic')&&!englishSessions.some(x=>x!==row&&x.lesson_key===row.lesson_key&&x.points_awarded===30)?30:0;
+     if(row.lesson_key!=='diagnostic'&&!row.lesson_key.endsWith(':diagnostic')&&(row.lesson_key.startsWith('eng2:')?(row.active_seconds||0)<900:Date.now()-Date.parse(row.started_at)<900000))return resp({status:'waiting',remaining_seconds:900,score,total:correct.length});
+     const awarded=row.lesson_key!=='diagnostic'&&!row.lesson_key.endsWith(':diagnostic')&&!englishSessions.some(x=>x!==row&&x.lesson_key.replace(/^eng2:/,'')===row.lesson_key.replace(/^eng2:/,'')&&x.points_awarded===30)?30:0;
      Object.assign(row,{status:'completed',finished_at:new Date().toISOString(),answers,score,points_awarded:awarded});englishCredit+=awarded;
      return resp({status:'completed',score,total:correct.length,points_awarded:awarded,correct_answers:correct})
     }
@@ -313,7 +341,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  try{
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
- check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
  if(practiceQA){
   await page.getByRole('button',{name:/Учёба/}).last().click();
   const entry=page.locator('.subjects-entry');await entry.locator('summary').click();
@@ -459,6 +487,61 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   check('new subjects leave no React exception',counters.errors.length===0,counters.errors.join(' | '));
   return;
  }
+ if(englishResetAudioQA){
+  await page.getByRole('button',{name:/Учёба/}).last().click();
+  const entry=page.locator('.english-entry');await entry.getByRole('button').click();
+  const portal=page.getByRole('dialog',{name:'Английский с Миро'});await portal.waitFor();
+  if(role==='parent'){
+   check('parent has no controls to reset child lessons',await portal.locator('.english-restart-actions').count()===0);
+   await portal.getByRole('button',{name:'Закрыть репетитора'}).click();return
+  }
+  const first=portal.locator('.english-lesson').first();
+  await first.getByText(/Прежний результат в истории: 22\/30/).waitFor({state:'visible',timeout:7000});
+  check('previous completed score remains visible in historical report',await first.getByText(/Прежний результат в истории: 22\/30/).count()===1);
+  await first.getByRole('button',{name:/Продолжить/}).click();
+  await portal.getByText('Вопрос 1 из 30').waitFor();
+  check('unfinished answers are intentionally resumed',await portal.locator('.guided-feedback').getByText(/Ещё одна попытка/).count()===1);
+  await portal.getByRole('button',{name:/Сначала/}).click();
+  const confirm=page.getByRole('alertdialog',{name:'Начать английский урок с начала'});await confirm.waitFor();
+  check('restart asks child to confirm clearing draft',await confirm.getByText(/незавершённые ответы будут очищены/).count()===1);
+  await confirm.getByRole('button',{name:'Да, начать с нуля'}).click();
+  await portal.locator('.guided-feedback').waitFor({state:'hidden',timeout:7000});
+  await portal.getByText('Вопрос 1 из 30').waitFor();
+  check('restart resets all selected answers',await portal.locator('.guided-feedback').count()===0&&await portal.locator('.english-quiz-meta').innerText().then(x=>x.includes('Разобрано: 0/30')));
+  check('old unfinished session was abandoned, completed result preserved',englishSessions.some(x=>x.id.endsWith('77')&&x.status==='abandoned')&&englishSessions.some(x=>x.id.endsWith('76')&&x.status==='completed'&&x.points_awarded===30));
+  const play=portal.getByRole('button',{name:'Прослушать пример 1'});
+  await play.click();
+  await page.waitForFunction(()=>window.__qaAudioStarted>=1,null,{timeout:9000});
+  const audio=await page.evaluate(()=>({src:window.__qaAudioSource,duration:window.__qaAudioDuration,count:window.__qaAudioStarted}));
+  check('MP3 plays after real touch tap and has nonzero audio duration',audio.duration>.4&&audio.src.includes('/english/audio/')&&audio.count>=1);
+  check('no sound error shown after playback',await portal.locator('.english-audio-error').count()===0);
+  await portal.getByRole('button',{name:'← К темам'}).click();
+  const warning=page.getByRole('alertdialog',{name:'Предупреждение о незавершённом уроке'});
+  await warning.getByRole('button',{name:'Выйти и сохранить ответы'}).click();
+  const row=portal.locator('.english-lesson').first();
+  check('resume and start over controls both available',await row.getByRole('button',{name:/Продолжить/}).count()===1&&await row.getByRole('button',{name:/Начать заново/}).count()===1);
+  await row.getByRole('button',{name:/Начать заново/}).click();
+  await confirm.getByRole('button',{name:'Да, начать с нуля'}).click();
+  await portal.getByText('Вопрос 1 из 30').waitFor();
+  check('list restart also resets first question',await portal.locator('.guided-feedback').count()===0);
+  const active=englishSessions.find(x=>x.lesson_key==='eng2:to-be'&&x.status==='in_progress');
+  const lesson=ENGLISH_LESSONS[0];
+  for(let i=0;i<30;i++){
+   const order=shuffledEnglishChoices(lesson.questions[i],active.id,i);
+   await portal.locator('.english-options button').nth(order.indexOf(lesson.questions[i].correct)).click();
+   if(i<29)await portal.getByRole('button',{name:'Следующий →'}).click();
+  }
+  await portal.getByRole('button',{name:'Завершить урок и получить 30 баллов'}).click();
+  await portal.getByText(/Урок завершён. За повторение/).waitFor();
+  check('repeated same-day lesson does not award extra 30',englishCredit===30&&englishSessions.some(x=>x.id===active.id&&x.points_awarded===0));
+  await portal.getByRole('button',{name:/Повторить весь урок с начала/}).click();
+  await confirm.getByRole('button',{name:'Да, начать с нуля'}).click();
+  await portal.getByText('Вопрос 1 из 30').waitFor();
+  check('restart from completed results begins a blank lesson',await portal.locator('.english-results').count()===0&&await portal.locator('.english-quiz-meta').innerText().then(x=>x.includes('Разобрано: 0/30')));
+  check('completed history remains available to parent',englishSessions.some(x=>x.id===active.id&&x.status==='completed')&&englishSessions.some(x=>x.id.endsWith('76')&&x.status==='completed'));
+  check('sound and restart create no JS exceptions',counters.errors.length===0,counters.errors.join(' | '));
+  return;
+ }
  if(englishTutorQA){
   await page.getByRole('button',{name:/Учёба/}).last().click();
   const entry=page.locator('.english-entry');
@@ -486,8 +569,8 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    await portal.getByText('Диагностика завершена. Миро подготовил план занятий.').waitFor();
    check('diagnostic does not award points',englishCredit===0);
    check('diagnostic report explains individual answers',await portal.locator('.english-review').count()===18);
-   await portal.getByRole('button',{name:'К следующему уроку →'}).click();
-   await portal.locator('.english-lesson').first().getByRole('button',{name:'Начать'}).click();
+   await portal.getByRole('button',{name:'К списку тем →'}).click();
+   await portal.locator('.english-lesson').first().getByRole('button',{name:/Начать с первого вопроса/}).click();
    await portal.getByText('Вопрос 1 из 30').waitFor({state:'visible',timeout:4000});
    check('English lesson has 30 meaningful questions rather than six',await portal.locator('.english-rule').isVisible()&&await portal.getByText('Вопрос 1 из 30').count()===1);
    await portal.locator('.english-ai').getByRole('button',{name:'Открыть'}).click();
@@ -511,8 +594,8 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    await portal.getByRole('button',{name:'← К темам'}).click();
    await warn.waitFor({state:'visible'});
    await warn.getByRole('button',{name:'Выйти и сохранить ответы'}).click();
-   await portal.locator('.english-lesson').first().getByRole('button',{name:'Продолжить'}).waitFor({state:'visible',timeout:6000});
-   await portal.locator('.english-lesson').first().getByRole('button',{name:'Продолжить'}).click();
+   await portal.locator('.english-lesson').first().getByRole('button',{name:/Продолжить/}).waitFor({state:'visible',timeout:6000});
+   await portal.locator('.english-lesson').first().getByRole('button',{name:/Продолжить/}).click();
    await portal.getByText('Вопрос 1 из 30').waitFor();
    check('incomplete English lesson reopens with original error intact',await portal.locator('.guided-feedback').getByText(/Ещё одна попытка/).count()===1);
    await portal.locator('.english-options button').nth(firstOrder.indexOf(first.correct)).click();
@@ -527,7 +610,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('completed 15-minute learning lesson awards exactly 30 points',englishCredit===30&&englishSessions.some(x=>x.lesson_key==='eng2:to-be'&&x.points_awarded===30&&x.score===29));
    check('results include 30 explanations and preserve initial error',await portal.locator('.english-review').count()===30&&await portal.locator('.english-review.incorrect').count()===1);
    check('English credit added once to the family server overview',englishCredit===30);
-   await portal.getByRole('button',{name:'К следующему уроку →'}).click();
+   await portal.getByRole('button',{name:'К списку тем →'}).click();
    check('lesson history recorded on the server',await portal.locator('.english-history').getByText('Am, is, are').count()===1);
    await portal.getByRole('button',{name:'Закрыть репетитора'}).click();
    check('learning did not crash school screen',await entry.isVisible());
