@@ -1,7 +1,8 @@
+import {expandEnglishLessons} from './expandedLessons'
 export type EnglishQuestion={prompt:string;options:[string,string,string];correct:number;explain:string;topic:string}
 export type EnglishLesson={id:string;title:string;level:string;intro:string;rule:string;examples:string[];questions:EnglishQuestion[]}
 const q=(topic:string,lines:[string,string,string,string,number,string][]):EnglishQuestion[]=>lines.map(([prompt,a,b,c,correct,explain])=>({prompt,options:[a,b,c],correct,explain,topic}))
-export const LESSONS:EnglishLesson[]=[
+export const LEGACY_LESSONS:EnglishLesson[]=[
  {id:'to-be',title:'Am, is, are',level:'A1 · Начало',intro:'Говорим, кто мы, где находимся и как себя чувствуем.',rule:'I am (I’m), he/she/it is, you/we/they are. В отрицании: am not / isn’t / aren’t.',examples:['I am twelve. — Мне двенадцать.','She is at school. — Она в школе.','They are happy. — Они рады.'],questions:q('to-be',[
  ['I ___ a student.','are','am','is',1,'С местоимением I используем am.'],
  ['She ___ my friend.','is','are','am',0,'She — третье лицо единственного числа, поэтому is.'],
@@ -60,17 +61,18 @@ export const LESSONS:EnglishLesson[]=[
  ['___ are you happy? — Because it is Friday.','Who','What','Why',2,'Why спрашивает о причине.']])}
 ]
 const diagnosticQuestions:EnglishQuestion[]=[
- LESSONS[0].questions[0],LESSONS[0].questions[3],LESSONS[0].questions[4],
- LESSONS[1].questions[0],LESSONS[1].questions[2],
- LESSONS[2].questions[0],LESSONS[2].questions[2],LESSONS[2].questions[4],
- LESSONS[3].questions[0],LESSONS[3].questions[3],
- LESSONS[4].questions[0],LESSONS[4].questions[2],
- LESSONS[5].questions[0],LESSONS[5].questions[1],
- LESSONS[6].questions[0],LESSONS[6].questions[3],
- LESSONS[7].questions[0],LESSONS[7].questions[4],
+ LEGACY_LESSONS[0].questions[0],LEGACY_LESSONS[0].questions[3],LEGACY_LESSONS[0].questions[4],
+ LEGACY_LESSONS[1].questions[0],LEGACY_LESSONS[1].questions[2],
+ LEGACY_LESSONS[2].questions[0],LEGACY_LESSONS[2].questions[2],LEGACY_LESSONS[2].questions[4],
+ LEGACY_LESSONS[3].questions[0],LEGACY_LESSONS[3].questions[3],
+ LEGACY_LESSONS[4].questions[0],LEGACY_LESSONS[4].questions[2],
+ LEGACY_LESSONS[5].questions[0],LEGACY_LESSONS[5].questions[1],
+ LEGACY_LESSONS[6].questions[0],LEGACY_LESSONS[6].questions[3],
+ LEGACY_LESSONS[7].questions[0],LEGACY_LESSONS[7].questions[4],
 ]
+export const LESSONS=expandEnglishLessons(LEGACY_LESSONS)
 export const DIAGNOSTIC:EnglishLesson={id:'diagnostic',title:'Проверка уровня',level:'18 заданий · без оценки',intro:'Миро выяснит, с каких тем тебе лучше начать. Ошибаться можно: это помогает составить план.',rule:'Прочитай каждое предложение и выбери подходящий вариант. В конце получишь объяснения и план.',examples:['Выбирай сам. Подсказки будут после завершения.'],questions:diagnosticQuestions}
-export const ALL_ENGLISH_LESSONS=[DIAGNOSTIC,...LESSONS]
+export const ALL_ENGLISH_LESSONS=[DIAGNOSTIC,...LESSONS,...LEGACY_LESSONS]
 export const findEnglishLesson=(key:string)=>ALL_ENGLISH_LESSONS.find(x=>x.id===key)
 /** New option arrangement for every session; the selected value is always the canonical option ID. */
 export function shuffledEnglishChoices(q:EnglishQuestion,sessionId:string,index:number){

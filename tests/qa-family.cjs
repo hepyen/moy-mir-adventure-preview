@@ -1,6 +1,13 @@
 const {chromium}=require('playwright-core');
 const JSZip=require('jszip');
 const {PerspectiveCamera,Vector3}=require('three');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {buildSync}=require('esbuild');
+const lessonTmp=fs.mkdtempSync(path.join(os.tmpdir(),'moymir43-test-'));
+const lessonFile=path.join(lessonTmp,'lessons.cjs');
+fs.writeFileSync(lessonFile,buildSync({entryPoints:[path.resolve(__dirname,'../src/english/lessons.ts')],bundle:true,format:'cjs',platform:'node',write:false}).outputFiles[0].contents);
+const {LESSONS:ENGLISH_LESSONS,shuffledEnglishChoices}=require(lessonFile);
+fs.rmSync(lessonTmp,{recursive:true,force:true});
 const BASE=process.env.QA_BASE_URL||'http://127.0.0.1:5248/';
 const ids={parent:'11111111-1111-4111-8111-111111111111',child:'22222222-2222-4222-8222-222222222222',family:'33333333-3333-4333-8333-333333333333',task:'44444444-4444-4444-8444-444444444444',daily:'55555555-5555-4555-8555-555555555555',reward:'66666666-6666-4666-8666-666666666666'};
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -85,6 +92,7 @@ async function run(role,browser){
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
+ for(const englishLesson of ENGLISH_LESSONS)englishAnswers[englishLesson.id]=englishLesson.questions.map(q=>q.correct);
  const {getPracticeBank,allPractice}=await import('../src/subjects/practiceBank.ts');
  let practiceNetworkFailures=practiceQA&&role==='child'?1:0;
  const practiceRows=practiceQA&&role==='parent'?[{id:'f4444444-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,subject:'matematicas',chapter:'enteros',level:'mixed',score:9,total:12,completed_at:new Date().toISOString(),attempted_ids:[],wrong_ids:[],duration_seconds:410}]:[];
@@ -110,6 +118,11 @@ async function run(role,browser){
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
   if(url.pathname.includes('/functions/v1/moymir2-miro-ai'))return resp({answer:'Hello! Let us practise English. What do you like to do after school?'});
   if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});
+    if(name==='moymir_study_heartbeat'){
+     const row=englishSessions.find(x=>x.id===request.postDataJSON().p_session);
+     if(!row||row.child_id!==ids.child||!row.lesson_key.startsWith('eng2:'))return resp({error:'Not allowed'});
+     return resp({active_seconds:englishTutorQA?900:0,required_seconds:900,status:'active'});
+    }
     if(name==='moymir_english_begin'){
      const key=request.postDataJSON().p_lesson;
      if(!englishAnswers[key])return resp({error:'Unknown lesson'});
@@ -409,14 +422,29 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
      await portal.locator('.english-chat-msg.assistant').waitFor();
      check('French AI tutor answers',await portal.locator('.english-chat-msg.assistant').innerText().then(x=>x.includes('Hello!')));
     }
+    const row=englishSessions.find(x=>x.lesson_key===subject.lessons[0].id&&x.status==='in_progress');
+    if(!row)throw Error('Missing subject session');
     for(let i=0;i<6;i++){
-     await portal.locator('.english-options button').first().click();
+     const question=subject.lessons[0].questions[i],order=shuffledEnglishChoices(question,row.id,i);
+     if(i===0&&subject.id==='historia'){
+      await portal.locator('.english-options button').nth(order.indexOf((question.correct+1)%3)).click();
+      await portal.getByText(/Ещё одна попытка/).waitFor();
+      check('history tutor explains the incorrect answer immediately',await portal.locator('.guided-feedback').getByText('Правило:',{exact:false}).count()===1&&await portal.locator('.guided-feedback').getByText('Объяснение:',{exact:false}).count()===1);
+      check('cannot skip correction before understanding it',await portal.getByRole('button',{name:'Следующий →'}).isDisabled());
+      await portal.getByRole('button',{name:'Закрыть предмет'}).click();
+      const warning=page.getByRole('alertdialog',{name:'Предупреждение о незавершённом уроке'});
+      await warning.waitFor({state:'visible'});
+      check('early exit warns child about lost reward and preserved answers',await warning.getByText(/30 баллов пока не начислятся/).count()===1);
+      await warning.getByRole('button',{name:'Продолжить занятие'}).click();
+     }
+     await portal.locator('.english-options button').nth(order.indexOf(question.correct)).click();
      if(i<5)await portal.getByRole('button',{name:'Следующий →'}).click();
     }
     await portal.getByRole('button',{name:'Завершить урок (+30)'}).click();
     await portal.getByText(/Сервер начислил \+30 баллов/).waitFor();
     check(subject.name+' earns exactly 30 verified points',englishSessions.some(s=>s.lesson_key===subject.lessons[0].id&&s.points_awarded===30));
     check(subject.name+' offers six explanations',await portal.locator('.english-review').count()===6);
+    if(subject.id==='historia')check('original wrong historical answer is retained in parent report',englishSessions.find(x=>x.lesson_key===subject.lessons[0].id)?.score===5);
     await portal.getByRole('button',{name:'К списку тем →'}).click();
     check(subject.name+' history visible',await portal.locator('.english-history').count()===1);
    }
@@ -460,20 +488,44 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('diagnostic report explains individual answers',await portal.locator('.english-review').count()===18);
    await portal.getByRole('button',{name:'К следующему уроку →'}).click();
    await portal.locator('.english-lesson').first().getByRole('button',{name:'Начать'}).click();
-   await portal.getByText('Вопрос 1 из 6').waitFor({state:'visible',timeout:4000});
-   check('15-minute learning lesson includes study rules and questions',await portal.locator('.english-rule').isVisible()&&await portal.getByText('Вопрос 1 из 6').count()===1);
+   await portal.getByText('Вопрос 1 из 30').waitFor({state:'visible',timeout:4000});
+   check('English lesson has 30 meaningful questions rather than six',await portal.locator('.english-rule').isVisible()&&await portal.getByText('Вопрос 1 из 30').count()===1);
    await portal.locator('.english-ai').getByRole('button',{name:'Открыть'}).click();
    await portal.getByRole('button',{name:'Поговорим на английском'}).click();
    await portal.locator('.english-chat-msg.assistant').waitFor();
    check('AI English conversation returns a reply',await portal.locator('.english-chat-msg.assistant').innerText().then(x=>x.includes('Hello!')));
-   for(let i=0;i<6;i++){
-    await portal.locator('.english-options button').first().click();
-    if(i<5)await portal.getByRole('button',{name:'Следующий →'}).click();
+   const target=ENGLISH_LESSONS[0];
+   const row=englishSessions.find(x=>x.lesson_key===target.id&&x.status==='in_progress');
+   if(!row)throw Error('New English 30-question session missing');
+   const first=target.questions[0],firstOrder=shuffledEnglishChoices(first,row.id,0);
+   await portal.locator('.english-options button').nth(firstOrder.indexOf((first.correct+1)%3)).click();
+   await portal.locator('.guided-feedback').getByText(/Ещё одна попытка/).waitFor();
+   check('English Miro immediately explains wrong choice with rule and reason',await portal.locator('.guided-feedback').getByText(/Правило/).count()>0&&await portal.locator('.guided-feedback').getByText(/Объяснение/).count()>0);
+   check('English cannot skip an uncorrected mistake',await portal.getByRole('button',{name:'Следующий →'}).isDisabled());
+   await portal.getByRole('button',{name:'Закрыть репетитора'}).click();
+   const warn=page.getByRole('alertdialog',{name:'Предупреждение о незавершённом уроке'});
+   await warn.waitFor({state:'visible'});
+   check('warning explicitly says 30 points will not be issued on early exit',await warn.getByText(/30 баллов пока не начислятся/).isVisible());
+   await warn.getByRole('button',{name:'Продолжить занятие'}).click();
+   check('staying returns to unfinished question',await portal.getByText('Вопрос 1 из 30').isVisible());
+   await portal.getByRole('button',{name:'← К темам'}).click();
+   await warn.waitFor({state:'visible'});
+   await warn.getByRole('button',{name:'Выйти и сохранить ответы'}).click();
+   await portal.locator('.english-lesson').first().getByRole('button',{name:'Продолжить'}).waitFor({state:'visible',timeout:6000});
+   await portal.locator('.english-lesson').first().getByRole('button',{name:'Продолжить'}).click();
+   await portal.getByText('Вопрос 1 из 30').waitFor();
+   check('incomplete English lesson reopens with original error intact',await portal.locator('.guided-feedback').getByText(/Ещё одна попытка/).count()===1);
+   await portal.locator('.english-options button').nth(firstOrder.indexOf(first.correct)).click();
+   check('correction is taught without rewriting the first answer',await portal.locator('.guided-feedback').getByText(/Теперь правильно/).count()===1);
+   for(let i=1;i<30;i++){
+    await portal.getByRole('button',{name:'Следующий →'}).click();
+    const q=target.questions[i],order=shuffledEnglishChoices(q,row.id,i);
+    await portal.locator('.english-options button').nth(order.indexOf(q.correct)).click();
    }
    await portal.getByRole('button',{name:'Завершить урок и получить 30 баллов'}).click();
    await portal.getByText(/\+30 баллов добавлено в семейный баланс/).waitFor();
-   check('completed 15-minute learning lesson awards exactly 30 points',englishCredit===30&&englishSessions.some(x=>x.lesson_key==='to-be'&&x.points_awarded===30));
-   check('results include explanations for every answer',await portal.locator('.english-review').count()===6);
+   check('completed 15-minute learning lesson awards exactly 30 points',englishCredit===30&&englishSessions.some(x=>x.lesson_key==='eng2:to-be'&&x.points_awarded===30&&x.score===29));
+   check('results include 30 explanations and preserve initial error',await portal.locator('.english-review').count()===30&&await portal.locator('.english-review.incorrect').count()===1);
    check('English credit added once to the family server overview',englishCredit===30);
    await portal.getByRole('button',{name:'К следующему уроку →'}).click();
    check('lesson history recorded on the server',await portal.locator('.english-history').getByText('Am, is, are').count()===1);

@@ -5,7 +5,7 @@ import {Browser} from '@capacitor/browser';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {playSound} from './sounds';
 import './system.css';
-const APP_VERSION='4.2.0';
+const APP_VERSION='4.3.0';
 const ALARM_NATIVE_FEATURE=3813;
 const alarmNative=registerPlugin<{getState():Promise<{featureVersion?:number}>}>('MiroAlarm');
 const BASE_VERSION='3.3.0';

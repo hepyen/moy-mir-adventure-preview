@@ -1,7 +1,8 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react'
 import {supabase} from '../lib/supabase'
 import type {useFamilyCloud} from '../lib/useFamilyCloud'
-import {shuffledEnglishChoices} from '../english/lessons'
+import {GuidedQuiz,LeaveLessonWarning,blankGuided,restoreGuided,recordGuidedChoice,readyToSubmit} from '../english/guidedFeedback'
+import type {GuidedProgress} from '../english/guidedFeedback'
 import type {EnglishLesson} from '../english/lessons'
 import {SUBJECTS,getSubjectLesson} from './subjects'
 import {PracticeTrainer} from './PracticeTrainer'
@@ -51,9 +52,10 @@ function SubjectTutor({subject,cloud,onClose}:{subject:SubjectSpec;cloud:Cloud;o
  const[history,setHistory]=useState<Attempt[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false)
  const[error,setError]=useState(''),[notice,setNotice]=useState('')
  const[lesson,setLesson]=useState<EnglishLesson|null>(null),[session,setSession]=useState<Session|null>(null),[index,setIndex]=useState(0)
- const[answers,setAnswers]=useState<(number|null)[]>([]),[result,setResult]=useState<Result|null>(null),[now,setNow]=useState(Date.now())
+ const[guided,setGuided]=useState<GuidedProgress>(()=>blankGuided(0)),[leaveAction,setLeaveAction]=useState<'close'|'list'|null>(null),[result,setResult]=useState<Result|null>(null),[now,setNow]=useState(Date.now())
  const[aiOpen,setAiOpen]=useState(false),[aiBusy,setAiBusy]=useState(false),[draft,setDraft]=useState(''),[messages,setMessages]=useState<Message[]>([]),[voiceBusy,setVoiceBusy]=useState(false)
  const voiceStop=useRef<(()=>void)|null>(null)
+ const answers=guided.first
  const completed=history.filter(x=>x.status==='completed'),totalAwards=completed.reduce((n,x)=>n+x.points_awarded,0)
  const diagnostic=completed.find(x=>x.lesson_key===subject.diagnostic.id)
  const analysis=useMemo(()=>subjectWeakness(subject,history),[subject,history])
@@ -75,14 +77,13 @@ function SubjectTutor({subject,cloud,onClose}:{subject:SubjectSpec;cloud:Cloud;o
    if(!data?.id||!data?.started_at)throw Error('Сервер не открыл занятие')
    const next=data as Session
    setSession(next);setLesson(l);setNow(Date.now());setIndex(0);setResult(null)
-   let draftAnswers:unknown=[];try{draftAnswers=JSON.parse(localStorage.getItem('moymir-subject-draft:'+next.id)||'[]')}catch{}
-   const arr=Array.isArray(draftAnswers)?draftAnswers:[]
-   setAnswers(Array.from({length:l.questions.length},(_,i)=>typeof arr[i]==='number'&&[0,1,2].includes(arr[i])?arr[i]:null))
+   let draftAnswers:unknown=null;try{draftAnswers=JSON.parse(localStorage.getItem('moymir-subject-draft:'+next.id)||'null')}catch{}
+   setGuided(restoreGuided(draftAnswers,l.questions.length))
   }catch(e){setError(e instanceof Error?e.message:'Не удалось начать урок')}finally{setBusy(false)}
  }
- function choose(option:number){if(!lesson||!session||result)return;const changed=Array.from({length:lesson.questions.length},(_,i)=>answers[i]??null);changed[index]=option;setAnswers(changed);try{localStorage.setItem('moymir-subject-draft:'+session.id,JSON.stringify(changed))}catch{}}
+ function choose(option:number){if(!lesson||!session||result)return;setGuided(prev=>{const next=recordGuidedChoice(prev,index,option,lesson.questions[index],lesson.id.endsWith(':diagnostic'));try{localStorage.setItem('moymir-subject-draft:'+session.id,JSON.stringify(next))}catch{};return next})}
  async function finish(){
-  if(!lesson||!session||busy||secondsLeft>0||answers.some(x=>x===null)||answers.length!==lesson.questions.length)return
+  if(!lesson||!session||busy||secondsLeft>0||!readyToSubmit(guided,lesson.questions.length))return
   setBusy(true);setError('')
   try{
    const {data,error:e}=await supabase.rpc('moymir_english_finish',{p_session:session.id,p_answers:answers});if(e)throw e
@@ -94,7 +95,10 @@ function SubjectTutor({subject,cloud,onClose}:{subject:SubjectSpec;cloud:Cloud;o
    await Promise.all([updateHistory(),cloud.refresh()])
   }catch(e){setError('Не удалось сохранить результат. Проверь интернет. '+(e instanceof Error?e.message:''))}finally{setBusy(false)}
  }
- function goBack(){setLesson(null);setSession(null);setIndex(0);setAnswers([]);setResult(null);setAiOpen(false);setMessages([]);setError('');setNotice('')}
+ function goBack(){setLesson(null);setSession(null);setIndex(0);setGuided(blankGuided(0));setResult(null);setAiOpen(false);setMessages([]);setError('');setNotice('');void updateHistory()}
+ function requestExit(action:'close'|'list'){if(session&&!result){setLeaveAction(action);return}if(action==='close')onClose();else goBack()}
+ function confirmLeave(){const action=leaveAction;setLeaveAction(null);if(action==='close')onClose();else goBack()}
+ useEffect(()=>{if(!session||result)return;const protect=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue=''};window.addEventListener('beforeunload',protect);return()=>window.removeEventListener('beforeunload',protect)},[session?.id,result])
  async function askAI(sample?:string){
   const text=(sample??draft).trim().slice(0,800);if(!text||aiBusy)return
   setAiBusy(true);setError('');setDraft('')
@@ -109,33 +113,33 @@ function SubjectTutor({subject,cloud,onClose}:{subject:SubjectSpec;cloud:Cloud;o
   }catch(e){setError((e instanceof Error?e.message:'Внешний ИИ не отвечает')+'. Уроки и оценивание продолжат работать без ИИ.')}finally{setAiBusy(false)}
  }
  function dictate(){if(voiceBusy){voiceStop.current?.();setVoiceBusy(false);return}const stop=startVoice(subject.language,text=>{setDraft(text.slice(0,800));setVoiceBusy(false)},()=>setVoiceBusy(false),text=>{setError(text);setVoiceBusy(false)});if(stop){voiceStop.current=stop;setVoiceBusy(true)}}
- const q=lesson?.questions[index],order=q&&session?shuffledEnglishChoices(q,session.id,index):[0,1,2]
- const complete=lesson&&answers.length===lesson.questions.length&&answers.every(x=>x!==null)
+ const complete=lesson?readyToSubmit(guided,lesson.questions.length):false
  const aiPanel=(<section className="english-ai"><div className="english-ai-heading"><div><h3>🤖 Спроси Миро</h3><p>Попроси объяснить правило или решить похожий пример по шагам.</p></div><button type="button" onClick={()=>setAiOpen(v=>!v)}>{aiOpen?'Скрыть':'Открыть'}</button></div>{aiOpen&&<><div className="english-ai-prompts"><button type="button" onClick={()=>void askAI('Объясни тему «'+(lesson?.title||subject.name)+'» простыми словами и задай мне один вопрос.')}>Объясни ещё раз</button><button type="button" onClick={()=>void askAI('Дай похожую задачу по теме «'+(lesson?.title||subject.name)+'» без подсказки ответа.')}>Потренируемся</button></div><div className="english-chat-log" role="log">{messages.length?messages.map((m,i)=><div key={i} className={'english-chat-msg '+m.role}>{m.content}{m.role==='assistant'&&<button type="button" onClick={()=>speak(m.content,'ru-RU')}>🔊 Прочитать</button>}</div>):<p>Задай вопрос на русском или по-испански. Миро поможет разобраться.</p>}</div><form className="english-chat-input" onSubmit={e=>{e.preventDefault();void askAI()}}><input aria-label="Вопрос репетитору" value={draft} maxLength={800} onChange={e=>setDraft(e.target.value)} placeholder="Напиши вопрос или ответ…"/><button type="button" aria-label="Голосовой ввод" onClick={dictate}>{voiceBusy?'⏹':'🎙️'}</button><button type="submit" disabled={!draft.trim()||aiBusy}>{aiBusy?'…':'Отправить'}</button></form><small>Сообщения передаются внешнему бесплатному ИИ, поэтому не вводи персональные данные. Если сервис недоступен, основные упражнения продолжат работать.</small></>}</section>)
  return <div className="english-portal" role="dialog" aria-modal="true" aria-label={'Репетитор '+subject.name}><div className="english-shell subjects-shell">
-  <header className="english-top"><div><small>{subject.emoji} 1º ESO · REPASO</small><h2>{subject.name}</h2></div><button type="button" aria-label="Закрыть предмет" onClick={onClose}>✕</button></header>
+  <header className="english-top"><div><small>{subject.emoji} 1º ESO · REPASO</small><h2>{subject.name}</h2></div><button type="button" aria-label="Закрыть предмет" onClick={()=>requestExit('close')}>✕</button></header>
   {error&&<p className="english-alert" role="alert">{error}</p>}{notice&&<p className="english-good" role="status">{notice}</p>}
   {!lesson&&<>
    <div className="english-hero subjects-hero"><h3>{child?'Учимся с Миро!':'Успехи Ильи'}</h3><p>{subject.description} Тексты и задания соответствуют базовым темам 1º ESO, объяснения доступны на русском.</p><div className="english-hero-stats"><span>📘 {subject.lessons.length} темы</span><span>✓ {completed.length} занятий</span><span>🏅 {totalAwards} баллов</span></div></div>
    {loading&&<p>Загружаем результаты…</p>}
-   {child&&<><div className="english-notice"><strong>15 минут занятий = 30 баллов</strong><span>Реши все шесть вопросов учебного урока. Баллы не зависят от оценки. За повторение той же темы в один день повторных баллов нет.</span></div>
+   {child&&<><div className="english-notice"><strong>15 минут занятий = 30 баллов</strong><span>Разбери все вопросы учебного урока. Баллы не зависят от оценки. За повторение той же темы в один день повторных баллов нет.</span></div>
     {!diagnostic?<button type="button" className="english-diagnostic" disabled={busy} onClick={()=>void begin(subject.diagnostic)}>🎯 Пройти диагностику <span>{subject.diagnostic.questions.length} вопросов · без баллов</span></button>:<div className="english-recommend"><strong>Диагностика: {diagnostic.score}/{diagnostic.total_questions} ({pct(diagnostic.score||0,diagnostic.total_questions)}%)</strong><span>Следующее занятие: <b>{analysis.next.title}</b>.</span><button type="button" onClick={()=>void begin(subject.diagnostic)} disabled={busy}>Повторить диагностику</button></div>}</>}
    {!child&&<div className="english-recommend"><strong>Отчёт для родителя</strong><span>Здесь сохраняются результаты занятий, трудные темы и реальные начисления. Содержание переписки с ИИ не сохраняется.</span>{analysis.weak.length>0&&<p>Рекомендуем повторить: {analysis.weak.join(', ')}</p>}</div>}
    {['lengua','matematicas','historia','biologia'].includes(subject.id)&&<PracticeTrainer subject={subject.id as MainSubject} childId={cloud.childId||''} familyId={cloud.familyId||''} readonly={!child}/>}
    <h3 className="english-heading">{child?'📖 Выбери тему':'📊 Темы и результаты'}</h3>
-   <div className="english-lessons">{subject.lessons.map((l,i)=>{const last=completed.find(x=>x.lesson_key===l.id);return <article className="english-lesson" key={l.id}><div className="english-lesson-number">{i+1}</div><div><strong>{l.title}</strong><small>{l.level}</small><p>{l.intro}</p>{last&&<em>Последний результат: {last.score}/{last.total_questions} · {last.points_awarded?'+30 баллов':'повторение'}</em>}</div>{child&&<button type="button" disabled={busy} onClick={()=>void begin(l)}>{last?'Повторить':'Начать'}</button>}</article>})}</div>
+   <div className="english-lessons">{subject.lessons.map((l,i)=>{const last=completed.find(x=>x.lesson_key===l.id);return <article className="english-lesson" key={l.id}><div className="english-lesson-number">{i+1}</div><div><strong>{l.title}</strong><small>{l.level}</small><p>{l.intro}</p>{last&&<em>Последний результат: {last.score}/{last.total_questions} · {last.points_awarded?'+30 баллов':'повторение'}</em>}</div>{child&&<button type="button" disabled={busy} onClick={()=>void begin(l)}>{history.some(r=>r.lesson_key===l.id&&r.status==='in_progress')?'Продолжить':last?'Повторить':'Начать'}</button>}</article>})}</div>
    {completed.length>0&&<section className="english-history"><h3>📈 История занятий</h3>{completed.slice(0,20).map(s=><div key={s.id}><span>{getSubjectLesson(s.lesson_key)?.title||s.lesson_key}</span><small>{new Date(s.started_at).toLocaleDateString('ru-RU',{timeZone:'Europe/Madrid'})}</small><b>{s.score}/{s.total_questions}</b><strong>{s.points_awarded?'+30 🏅':'—'}</strong></div>)}</section>}
    {child&&aiPanel}
   </>}
   {lesson&&session&&<>
-   <div className="english-session-top"><button type="button" onClick={goBack}>← Темы</button><div><strong>{lesson.title}</strong><small>{subject.short}</small></div><span className={'english-clock '+(secondsLeft===0?'ready':'')}>{lesson.id.endsWith(':diagnostic')?'Диагностика':'⏱ '+timeFmt(secondsLeft)}</span></div>
+   <div className="english-session-top"><button type="button" onClick={()=>requestExit('list')}>← Темы</button><div><strong>{lesson.title}</strong><small>{subject.short}</small></div><span className={'english-clock '+(secondsLeft===0?'ready':'')}>{lesson.id.endsWith(':diagnostic')?'Диагностика':'⏱ '+timeFmt(secondsLeft)}</span></div>
    {!result&&<><section className="english-rule"><strong>📖 Разбираем тему</strong><p>{lesson.rule}</p>{lesson.examples.map((example,i)=><div key={i}><span>{example}</span><button type="button" onClick={()=>speak(example.split(' — ')[0],subject.language)} aria-label={'Прослушать пример '+(i+1)}>🔊</button></div>)}</section>
-    <section className="english-quiz"><div className="english-quiz-meta"><strong>Вопрос {index+1} из {lesson.questions.length}</strong><span>Ответов: {answers.filter(a=>a!==null).length}/{lesson.questions.length}</span></div><div className="english-progress"><span style={{width:Math.round(answers.filter(a=>a!==null).length/lesson.questions.length*100)+'%'}}/></div><h3>{q?.prompt}</h3><div className="english-options">{order.map((canonical,j)=><button type="button" key={canonical} aria-pressed={answers[index]===canonical} className={answers[index]===canonical?'active':''} onClick={()=>choose(canonical)}><span>{String.fromCharCode(65+j)}</span>{q?.options[canonical]}</button>)}</div><p className="english-hint">Сначала попробуй сам. После окончания Миро объяснит ошибки.</p><div className="english-quiz-nav"><button type="button" disabled={index===0} onClick={()=>setIndex(v=>v-1)}>← Назад</button>{index<lesson.questions.length-1?<button type="button" disabled={answers[index]===null} onClick={()=>setIndex(v=>v+1)}>Следующий →</button>:<button type="button" disabled={!complete||busy||secondsLeft>0} onClick={()=>void finish()}>{busy?'Проверяем…':secondsLeft>0?'Завершить через '+timeFmt(secondsLeft):lesson.id.endsWith(':diagnostic')?'Узнать результат':'Завершить урок (+30)'}</button>}</div></section>
+    <GuidedQuiz lesson={lesson} sessionId={session.id} progress={guided} index={index} onChoose={choose} onBack={()=>setIndex(v=>v-1)} onNext={()=>setIndex(v=>v+1)} onFinish={()=>void finish()} busy={busy} secondsLeft={secondsLeft} diagnostic={lesson.id.endsWith(':diagnostic')} finishLabel={lesson.id.endsWith(':diagnostic')?'Узнать результат':'Завершить урок (+30)'} teacherRequest={prompt=>{setAiOpen(true);void askAI(prompt)}}/>
     {secondsLeft>0&&<p className="english-study-tip">Чтобы получить баллы, изучай объяснения и потренируйся с Миро. Сервер отсчитывает время урока даже после переключения вкладок, но начисляет награду только после ответов.</p>}
    </>}
    {result&&<section className="english-results"><div className="english-results-hero"><span>🎓</span><h3>{result.score}/{result.total} правильных ответов</h3><p>{result.points_awarded===30?'+30 баллов за занятие!':lesson.id.endsWith(':diagnostic')?'Диагностика завершена, подготовим занятия.':'Урок сохранён. Можно повторить трудные вопросы.'}</p></div><h4>Разбор заданий</h4>{lesson.questions.map((question,i)=>{const good=result.answers[i]===result.correct_answers[i];return <div key={i} className={'english-review '+(good?'correct':'incorrect')}><strong>{good?'✓':'↗'} {question.prompt}</strong><p>Твой ответ: {question.options[result.answers[i]]}</p>{!good&&<p>Правильно: <b>{question.options[result.correct_answers[i]]}</b></p>}<small>{question.explain}</small></div>})}<button type="button" className="english-start-again" onClick={goBack}>К списку тем →</button></section>}
    {aiPanel}
   </>}
+  {leaveAction&&lesson&&<LeaveLessonWarning lesson={lesson} secondsLeft={secondsLeft} progress={guided} onStay={()=>setLeaveAction(null)} onLeave={confirmLeave}/>}
   <footer className="english-footer">{subject.curriculum} · Баллы за занятия подтверждаются сервером.</footer>
  </div></div>
 }
