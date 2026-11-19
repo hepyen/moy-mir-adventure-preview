@@ -48,3 +48,20 @@
 .world3d-dog-speech{background:#fff4da;color:#624521;border-radius:12px;padding:10px 12px;margin:9px 6px;font-size:12px;font-weight:750}
 
 .world3d-miro-greeting{position:absolute;top:12px;left:12px;right:12px;z-index:8;max-width:295px;pointer-events:none;background:#ecffffed;color:#175a6d;padding:10px 12px;border:1px solid #a0e9ec;border-radius:12px;box-shadow:0 5px 15px #17495b30;font-size:12px;font-weight:750;line-height:1.45}
+
+/* Stage 3: arranging unlocked decorations without purchasing or spending points. */
+.world3d-decoration-editor{margin:9px 5px;border:1px solid #aedcbb;border-radius:13px;background:#eaf8ef;color:#265139;padding:0 11px 11px;font-size:12px}
+.world3d-decoration-editor summary{cursor:pointer;padding:12px 2px;font-size:14px;font-weight:850;touch-action:manipulation}
+.world3d-decoration-editor p{line-height:1.5;margin:4px 0 10px}
+.world3d-decoration-editor>small{display:block;margin-top:10px;color:#567969}
+.world3d-decor-items{display:flex;flex-direction:column;gap:7px}
+.world3d-decor-item{display:flex;align-items:center;gap:7px;padding:8px;background:#f9fffb;border:1px solid #c4dfcf;border-radius:10px;min-height:47px}
+.world3d-decor-item.selected{border-color:#3aab76;background:#d7f4df}
+.world3d-decor-item span{flex:1;min-width:0;font-size:12px;font-weight:750}
+.world3d-decor-item button,.world3d-decor-cancel{background:#287452;border:0;border-radius:9px;color:#fff;padding:8px 11px;min-height:38px;font-size:12px;font-weight:800;touch-action:manipulation}
+.world3d-decor-item button[aria-pressed=true]{background:#0c4932}
+.world3d-decor-item button[aria-label^='Вернуть']{background:#bfe4c9;color:#20543a;min-width:36px;font-size:17px}
+.world3d-decor-item small{font-size:11px;color:#7a817a}
+.world3d-decor-cancel{margin-top:8px;background:#84674e}
+.world3d-decoration-editor .world3d-decor-status{color:#174d32;font-size:12px;font-weight:750;padding:8px 10px;background:#ddf4e5;border-radius:9px;margin-top:10px}
+@media(max-width:370px){.world3d-decor-item{gap:5px;padding:6px}.world3d-decor-item button{padding:7px 8px;font-size:11px}}

@@ -7,12 +7,13 @@ import type { Group } from 'three'
 import { WORLD_01_OBJECTS, nextWorldObject, unlockedWorldObjects, WORLD_01_END } from './world01'
 import './World3D.css'
 import { MiroRobot } from './MiroRobot'
-import {MiroWalker3D} from './MiroWalker3D'
-import {playMiroChirp} from './miroSound'
 import { AnimatedTreehousePiece } from './TreehouseWorld'
 import { TREEHOUSE_STAGES } from './treehouseStages'
 import { DogActor } from './DogActor'
 import {playDogBark} from './dogSound'
+import {WorldDecorations} from './WorldDecorations'
+import {DECOR_SPECS,decorPosition,layoutStorageKey,readDecorLayout,saveDecorLayout,validateDecorSpot} from './worldDecor'
+import type {DecorId,DecorLayout} from './worldDecor'
 import {meadowSpot,treehouseSpot,TREEHOUSE_BUILD_ORDER} from './worldSpots'
 import type {WorldSpot} from './worldSpots'
 
@@ -116,6 +117,8 @@ function HappyDog({points,barkTick}:{points:number;barkTick:number}) {
  return <DogActor points={points} reactTick={barkTick}/>
 }
 function Extras({part,points,doorOpen,lightsOn,treeShake,barkTick}:{part:string;points:number;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number}){
+ // Moveable objects are drawn by WorldDecorations so they have one physical location.
+ if(['lamp','bench','flowerbed','mailbox'].includes(part))return null
  switch(part){
  case 'grass':return <group>{[[-2,0,-1],[2,0,-1],[-2,0,.8],[.2,0,1.9],[-.7,0,1.2]].map(([x,y,z],i)=><Ball key={i} position={[x,y+.08,z]} size={.13} color="#38b94b"/>)}</group>
  case 'flowers':return <group>{[[-2.2,-.5],[-2.1,.35],[-.85,1.4],[-1.9,1.4]].map(([x,z],i)=><Flower key={i} x={x} z={z} tint={i%2?'#fff0b5':'#ff65a6'}/>)}</group>
@@ -280,36 +283,67 @@ function AdventureDecor({count,onDiscover}:{count:number;onDiscover:(label:strin
   </group>}
  </group>
 }
-function WorldScene({points,earnedPoints,worldNumber,spiritualPoints,reactionTick,adventureCount,onDiscover,onInspect,onRobotTalk,onMiroGreet,doorOpen,lightsOn,treeShake,barkTick,theme='day'}:{points:number;earnedPoints:number;worldNumber:1|2;spiritualPoints:number;reactionTick:number;adventureCount:number;onDiscover:(label:string)=>void;onInspect:(part:string)=>void;onRobotTalk:()=>void;onMiroGreet:(message:string)=>void;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;theme?:'day'|'night'}) {
+function WorldScene({points,worldNumber,adventureCount,onDiscover,onInspect,doorOpen,lightsOn,treeShake,barkTick,decorLayout,decorSelected,onDecorSelect,onDecorPlace,theme='day'}:{points:number;worldNumber:1|2;adventureCount:number;onDiscover:(label:string)=>void;onInspect:(part:string)=>void;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;decorLayout:DecorLayout;decorSelected:DecorId|null;onDecorSelect:(id:DecorId)=>void;onDecorPlace:(x:number,z:number)=>void;theme?:'day'|'night'}) {
  const island=useRef<Group>(null)
  useFrame(({clock})=>{if(island.current)island.current.position.y=Math.sin(clock.elapsedTime*.7)*.045})
  return <><color attach="background" args={[theme==='night'?'#11294c':'#87ddf4']}/><ambientLight intensity={theme==='night'?0.6:0.72}/><hemisphereLight args={[theme==='night'?'#839ccf':'#e6f8ff',theme==='night'?'#335d64':'#75b86e',theme==='night'?0.68:0.95]}/><directionalLight position={[-4,9,6]} color={theme==='night'?'#c6daff':'#ffffff'} intensity={theme==='night'?1.2:2.15} castShadow shadow-mapSize={[512,512]}/>
- <group ref={island}>
+ <group ref={island} onClick={decorSelected?e=>{if(e.delta>9)return;e.stopPropagation();onDecorPlace(e.point.x,e.point.z)}:undefined}>
   <Block position={[0,-.34,0]} size={[5.8,.67,4.5]} color="#9d623f" round={.39}/>
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
   {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} onInspect={onInspect}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points} doorOpen={doorOpen} lightsOn={lightsOn} onInspect={index=>onInspect('treehouse-'+index)}/>)}
   {worldNumber===1&&<AdventureDecor count={adventureCount} onDiscover={onDiscover}/>}
-  <MiroWalker3D worldNumber={worldNumber} points={points} earnedPoints={earnedPoints} spiritualPoints={spiritualPoints} reactionTick={reactionTick} onTalk={onRobotTalk} onGreeting={onMiroGreet}/>
+  <WorldDecorations world={worldNumber} points={points} layout={decorLayout} selected={decorSelected} lightsOn={lightsOn} onSelect={onDecorSelect}/>
  </group>
  </>
 }
-export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',adventureCount=0,theme='day'}:{points:number;earnedPoints?:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;adventureCount?:number;theme?:'day'|'night'}) {
+export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',decorOwnerId=userId,adventureCount=0,theme='day'}:{points:number;earnedPoints?:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;decorOwnerId?:string;adventureCount?:number;theme?:'day'|'night'}) {
  const panelRef=useRef<HTMLDivElement>(null)
  const[storyMessage,setStoryMessage]=useState('')
  const[selected,setSelected]=useState<WorldSpot|null>(null)
+ const decorWorld=(worldNumber===2?2:1) as 1|2
+ const decorKey=layoutStorageKey(decorOwnerId,decorWorld)
+ const[decorState,setDecorState]=useState<{key:string;layout:DecorLayout}>(()=>({key:decorKey,layout:readDecorLayout(decorKey)}))
+ const decorLayout=decorState.key===decorKey?decorState.layout:readDecorLayout(decorKey)
+ const[decorSelected,setDecorSelected]=useState<DecorId|null>(null)
+ const[decorMessage,setDecorMessage]=useState('')
+ useEffect(()=>{setDecorState({key:decorKey,layout:readDecorLayout(decorKey)});setDecorSelected(null);setDecorMessage('')},[decorKey])
+ const chooseDecoration=(id:DecorId)=>{
+  if(!DECOR_SPECS[decorWorld].some(s=>s.id===id&&points>=s.unlock))return
+  setDecorSelected(id)
+  setSelected(null)
+  const item=DECOR_SPECS[decorWorld].find(s=>s.id===id)
+  setDecorMessage(`Выбран предмет «${item?.title||id}». Коснись свободного участка травы, чтобы поставить его.`)
+ }
+ const placeDecoration=(x:number,z:number)=>{
+  if(!decorSelected)return
+  const roundedX=Math.round(x*100)/100,roundedZ=Math.round(z*100)/100
+  const reason=validateDecorSpot(decorWorld,points,decorLayout,decorSelected,roundedX,roundedZ)
+  if(reason){setDecorMessage(`⛔ ${reason} Выбери другое место.`);return}
+  const next={...decorLayout,[decorSelected]:{x:roundedX,z:roundedZ}}
+  const saved=saveDecorLayout(decorKey,next)
+  setDecorState({key:decorKey,layout:next})
+  setDecorSelected(null)
+  setDecorMessage(saved?'✅ Украшение переставлено и сохранено на этом устройстве.':'⚠️ Украшение переставлено, но сохранить его на устройстве не удалось.')
+  onMiroGreet('🤖 Илья, ты здорово обустраиваешь наш остров!')
+ }
+ const resetDecoration=(id:DecorId)=>{
+  const next={...decorLayout};delete next[id]
+  const saved=saveDecorLayout(decorKey,next)
+  setDecorState({key:decorKey,layout:next})
+  setDecorSelected(null)
+  setDecorMessage(saved?'↺ Предмет возвращён на первоначальное место.':'⚠️ Место восстановлено, но сохранить его не удалось.')
+ }
  const[doorOpen,setDoorOpen]=useState(false)
  const[lightsOn,setLightsOn]=useState(false)
  const[treeShake,setTreeShake]=useState(0)
  const[barkTick,setBarkTick]=useState(0)
  const[dogSpeech,setDogSpeech]=useState(false)
- const[robotChatSignal,setRobotChatSignal]=useState(0)
- const[robotReactionTick,setRobotReactionTick]=useState(0)
+ const[announcementId,setAnnouncementId]=useState(0)
  const[miroGreeting,setMiroGreeting]=useState('')
  const greetingTimer=useRef<number|null>(null)
- const onMiroGreet=useCallback((text:string)=>{setMiroGreeting(text);if(greetingTimer.current!==null)window.clearTimeout(greetingTimer.current);greetingTimer.current=window.setTimeout(()=>setMiroGreeting(''),4800)},[])
+ const onMiroGreet=useCallback((text:string)=>{setMiroGreeting(text);setAnnouncementId(n=>n+1);if(greetingTimer.current!==null)window.clearTimeout(greetingTimer.current);greetingTimer.current=window.setTimeout(()=>setMiroGreeting(''),4800)},[])
  useEffect(()=>()=>{if(greetingTimer.current!==null)window.clearTimeout(greetingTimer.current)},[])
- const onRobotTalk=()=>{playMiroChirp(1,soundEnabled);setRobotChatSignal(n=>n+1)}
- const reactToAction=(message:string)=>{setRobotReactionTick(n=>n+1);onMiroGreet(message)}
+ const reactToAction=(message:string)=>onMiroGreet(message)
  const toggleDoor=()=>{setDoorOpen(open=>!open);reactToAction('🤖 Миро заметил, что ты открыл или закрыл дверь!')}
  const toggleLights=()=>{setLightsOn(on=>!on);reactToAction('🤖 Теперь в нашем домике ещё уютнее!')}
  useEffect(()=>{if(!barkTick)return;setDogSpeech(true);const hide=window.setTimeout(()=>setDogSpeech(false),2400);return()=>window.clearTimeout(hide)},[barkTick])
@@ -320,7 +354,13 @@ export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoint
  const doorUnlocked=points>=(worldNumber===1?600:700)
  const lightsUnlocked=points>=(worldNumber===1?650:750)
  const inspect=(part:string)=>{
-  const spot=worldNumber===1?meadowSpot(part):treehouseSpot(Number(part.replace('treehouse-','')))
+  const movable=DECOR_SPECS[decorWorld].find(spec=>spec.id===part)
+  const at=movable?decorPosition(decorWorld,decorLayout,movable.id):null
+  const spot:WorldSpot=movable&&at?{
+   id:movable.id,title:movable.title,subtitle:'Украшение острова',kind:movable.id==='lamp'?'light':'decoration',
+   target:[at.x,.7,at.z],distance:5.4,
+   description:'В разделе «Украсить мой остров» можно переставить предмет. Место сохраняется на этом устройстве.'
+  }:(worldNumber===1?meadowSpot(part):treehouseSpot(Number(part.replace('treehouse-',''))))
   setSelected(spot)
   doCamera('focus',spot.target,spot.distance)
   if(spot.kind==='dog')greetDog()
@@ -342,8 +382,18 @@ export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoint
  }
  const unlocked=unlockedWorldObjects(points)
  const next=nextWorldObject(points)
- return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><div className="world3d-camera-buttons" role="group" aria-label="Управление камерой 3D-мира"><button type="button" onClick={()=>doCamera('farther')} aria-label="Отдалить 3D-мир" title="Отдалить">−</button><button type="button" onClick={()=>doCamera('closer')} aria-label="Приблизить 3D-мир" title="Приблизить">+</button><button type="button" onClick={()=>doCamera('reset')} aria-label="Вернуть первоначальный вид 3D-мира" title="Вернуть вид">↺</button><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран" title="На весь экран">⛶</button></div></div><p className="world3d-gesture-hint">Проведи пальцем, чтобы повернуть · два пальца для масштаба · двойное касание для сброса</p><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><WorldCameraControls worldNumber={worldNumber} action={cameraAction}/><WorldScene points={points} earnedPoints={earnedPoints} worldNumber={worldNumber as 1|2} spiritualPoints={spiritualPoints} reactionTick={robotReactionTick} adventureCount={adventureCount} onDiscover={setStoryMessage} onInspect={inspect} onRobotTalk={onRobotTalk} onMiroGreet={onMiroGreet} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} theme={theme}/></Canvas></Suspense>{miroGreeting&&<div role="status" className="world3d-miro-greeting">{miroGreeting}</div>}<MiroRobot worldPoints={earnedPoints} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId} in3D openRequest={robotChatSignal}/></div>
+ return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><div className="world3d-camera-buttons" role="group" aria-label="Управление камерой 3D-мира"><button type="button" onClick={()=>doCamera('farther')} aria-label="Отдалить 3D-мир" title="Отдалить">−</button><button type="button" onClick={()=>doCamera('closer')} aria-label="Приблизить 3D-мир" title="Приблизить">+</button><button type="button" onClick={()=>doCamera('reset')} aria-label="Вернуть первоначальный вид 3D-мира" title="Вернуть вид">↺</button><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран" title="На весь экран">⛶</button></div></div><p className="world3d-gesture-hint">Проведи пальцем, чтобы повернуть · два пальца для масштаба · двойное касание для сброса</p><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><WorldCameraControls worldNumber={worldNumber} action={cameraAction}/><WorldScene points={points} worldNumber={decorWorld} adventureCount={adventureCount} onDiscover={setStoryMessage} onInspect={inspect} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} decorLayout={decorLayout} decorSelected={decorSelected} onDecorSelect={id=>decorSelected?chooseDecoration(id):inspect(id)} onDecorPlace={placeDecoration} theme={theme}/></Canvas></Suspense><MiroRobot worldPoints={earnedPoints} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId} announcement={miroGreeting} announcementId={announcementId}/></div>
  {dogSpeech&&<p className="world3d-dog-speech" role="status">🐶 Гав-гав! Собачка рада тебя видеть!</p>}
+ <details className="world3d-decoration-editor" aria-label="Украсить 3D-остров"><summary>🎨 Украсить мой остров</summary>
+  <p>Выбери открытый предмет и коснись свободной травы на острове. Оставь свободными проходы, домик и пруд. Перестановка бесплатная.</p>
+  <div className="world3d-decor-items">{DECOR_SPECS[decorWorld].map(spec=><div key={spec.id} className={'world3d-decor-item '+(decorSelected===spec.id?'selected':'')}>
+   <span>{spec.title}</span>
+   {points>=spec.unlock?<><button type="button" onClick={()=>chooseDecoration(spec.id)} aria-pressed={decorSelected===spec.id}>Переставить</button><button type="button" onClick={()=>resetDecoration(spec.id)} aria-label={'Вернуть '+spec.title+' на прежнее место'}>↺</button></>:<small>🔒 {spec.unlock} баллов</small>}
+  </div>)}</div>
+  {decorSelected&&<button type="button" className="world3d-decor-cancel" onClick={()=>{setDecorSelected(null);setDecorMessage('Редактирование отменено.')}}>Отменить перестановку</button>}
+  {decorMessage&&<p role="status" className="world3d-decor-status">{decorMessage}</p>}
+  <small>Положение сохраняется отдельно для каждого острова на этом устройстве.</small>
+ </details>
  <details className="world3d-object-picker"><summary>🔎 Рассмотреть постройки</summary><div className="world3d-object-picker-list">{spotlightAvailable.map(part=>{const spot=worldNumber===1?meadowSpot(part):treehouseSpot(Number(part.replace('treehouse-','')));return <button type="button" key={part} onClick={()=>inspect(part)}>{spot.title}</button>})}</div></details>
  {selected&&<section className="world3d-inspect" aria-label="Осмотр постройки"><div className="world3d-inspect-head"><div><strong>{selected.title}</strong><span>{selected.subtitle}</span></div><button type="button" onClick={()=>{setSelected(null);doCamera('reset')}} aria-label="Закрыть осмотр и вернуться к общему виду">×</button></div><p>{selected.description}</p><div className="world3d-inspect-actions"><button type="button" onClick={()=>doCamera('focus',selected.target,selected.distance)}>🔎 Приблизить</button>{doorUnlocked&&['home','door','light'].includes(selected.kind)&&<button type="button" onClick={toggleDoor}>{doorOpen?'🚪 Закрыть дверь':'🚪 Открыть дверь'}</button>}{lightsUnlocked&&['home','door','light'].includes(selected.kind)&&<button type="button" onClick={toggleLights}>{lightsOn?'💡 Выключить свет':'💡 Включить свет'}</button>}{selected.kind==='dog'&&<button type="button" onClick={greetDog}>🐾 Погладить собачку</button>}{doorUnlocked&&['home','door'].includes(selected.kind)&&<button type="button" onClick={peekInside}>👀 Заглянуть внутрь</button>}<button type="button" onClick={()=>doCamera('reset')}>↺ Общий вид</button></div></section>}
  {worldNumber===1&&adventureCount>0&&<div className="world3d-adventures"><strong>🌱 Постройки истории</strong><span>{adventureCount>=1?'🌻 Цветник':null}{adventureCount>=4?' · 📚 Читальный уголок':null}{adventureCount>=10?' · 🏮 Фонарик друзей':null}</span><button type="button" onClick={()=>setStoryMessage('За прохождение истории на полянке появились новые предметы. Нажми на них в 3D-мире!')}>Исследовать</button></div>}

@@ -10,7 +10,7 @@ const ENDPOINT='https://ueqtitxbvsnqmbudwxwu.supabase.co/functions/v1/moymir2-mi
 const MAX_HISTORY=14
 const INITIAL:Turn={role:'assistant',content:'Привет! Я Миро, твой помощник. Можешь спросить меня о математике, испанском, английском, уроках или о нашем острове. Чем помочь?'}
 function savedHistory(userId:string):Turn[]{try{const saved=JSON.parse(localStorage.getItem('moymir30-ai-chat:'+userId)||'null');return Array.isArray(saved)&&saved.length?saved.slice(-MAX_HISTORY):[INITIAL]}catch{return [INITIAL]}}
-export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId='guest',in3D=false,openRequest=0}:{worldPoints:number;spiritualPoints:number;soundEnabled?:boolean;userId?:string;in3D?:boolean;openRequest?:number}){
+export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId='guest',announcement='',announcementId=0}:{worldPoints:number;spiritualPoints:number;soundEnabled?:boolean;userId?:string;announcement?:string;announcementId?:number}){
  const [expanded,setExpanded]=useState(false)
  useEffect(()=>{setMusicDucked(expanded);return()=>setMusicDucked(false)},[expanded])
  const [face,setFace]=useState<'smile'|'wink'|'wow'>('smile')
@@ -32,7 +32,7 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId=
  useEffect(()=>{const question=sessionStorage.getItem('moymir-miro-next-question');if(question){sessionStorage.removeItem('moymir-miro-next-question');setDraft(question);setExpanded(true)}},[])
  useEffect(()=>{if(worldPoints>previousWorld.current){setFace('wow');setMessage('Ура! Наш мир становится красивее! ✨')}previousWorld.current=worldPoints},[worldPoints])
  useEffect(()=>{if(spiritualPoints>previousSpiritual.current){setFace('smile');setMessage('Отлично! Ещё один хороший шаг! 🌱')}previousSpiritual.current=spiritualPoints},[spiritualPoints])
- useEffect(()=>{if(openRequest>0){setFace('wink');setExpanded(true);setMessage(null)}},[openRequest])
+ useEffect(()=>{if(announcementId>0&&announcement){setFace('wink');setMessage(announcement)}},[announcementId,announcement])
  function open(){playMiroChirp(sounds.current++,soundEnabled);setFace('wink');setExpanded(true);setMessage(null)}
  function close(){setExpanded(false);setError('');setFace('smile')}
  async function send(question:string){
@@ -67,11 +67,6 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId=
   <div className="miro-ai-note"><span>Простые подсказки работают без интернета. Сложные ответы даёт онлайн-нейросеть. Миро может ошибаться: проверяй решения.</span><button onClick={()=>{if(confirm('Очистить историю вопросов Миро?'))setHistory([INITIAL])}}>Очистить чат</button></div>
   </section>
  </div>,document.body):null
- if(in3D)return <div className="miro-world-control" aria-label="Помощник Миро внутри 3D-мира">
-  {message&&<div className="miro-speech" role="status">{message}<button type="button" onClick={()=>setMessage(null)} aria-label="Закрыть сообщение Миро">×</button></div>}
-  <button type="button" className="miro-world-talk" onClick={open} aria-label="Позвать Миро и открыть чат">🤖 Позвать Миро</button>
-  {overlay}
- </div>
  return <div className="miro-flight-zone" aria-label="Летающий робот Миро"><div className="miro-orbit">
   {message&&<div className="miro-speech" role="status">{message}<button type="button" onClick={()=>setMessage(null)}>×</button></div>}
   <button type="button" className={'miro-robot miro-'+face} onClick={open} aria-label="Открыть чат с Миро" title="Нажми, чтобы поговорить с нейросетью">{robot}</button>

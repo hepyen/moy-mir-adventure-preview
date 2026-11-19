@@ -9,6 +9,7 @@ let failures=0;
 const approvalQA=process.env.QA_FOCUS==='parent-approvals';
 const worldInspectQA=process.env.QA_FOCUS==='world-inspect';
 const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
+const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
 const qaTask='a1100000-0000-4000-8000-000000000002';
 const qaNotice='a1100000-0000-4000-8000-000000000003';
@@ -236,11 +237,55 @@ async function run(role,browser){
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ if(worldDecorQA){
+  const editor=page.locator('.world3d-decoration-editor');
+  check('decorating controls exist',await editor.count()===1);
+  await editor.locator('summary').click();
+  check('first world offers five earned decorations',await editor.locator('.world3d-decor-item').count()===5&&await editor.getByRole('button',{name:'Переставить'}).count()===5);
+  check('flying original Miro remains on the island',await page.locator('.miro-flight-zone .miro-robot svg').count()===1);
+  await editor.locator('.world3d-decor-item').filter({hasText:'Горшок с цветами'}).getByRole('button',{name:'Переставить'}).click();
+  check('flowerpot enters placement mode',await editor.getByRole('button',{name:'Отменить перестановку'}).count()===1);
+  const canvas=page.locator('.world3d-viewport canvas');
+  await canvas.scrollIntoViewIfNeeded();
+  const bounds=await canvas.boundingBox();
+  if(!bounds)throw Error('3D canvas bounds unavailable');
+  const camera=new PerspectiveCamera(37,bounds.width/bounds.height,.1,100);
+  camera.position.set(6.3,7.2,9);camera.lookAt(0,.55,0);camera.updateMatrixWorld();
+  const hit=new Vector3(-.5,.09,1.35).project(camera);
+  const clickX=bounds.x+(1+hit.x)*bounds.width*.5;
+  const clickY=bounds.y+(1-hit.y)*bounds.height*.5;
+  if(process.env.QA_TOUCH==='1')await page.touchscreen.tap(clickX,clickY);
+  else await page.mouse.click(clickX,clickY);
+  await editor.locator('.world3d-decor-status').waitFor({state:'visible',timeout:3500});
+  const note=await editor.locator('.world3d-decor-status').innerText();
+  check('placing flowerpot on empty lawn saved',note.includes('сохранено'),note);
+  const key='moymir-world-decor-v1:'+encodeURIComponent(ids.child)+':w1';
+  const saved=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}'),key);
+  check('layout saved to child-specific first-world key',saved.flowerpot&&Math.abs(saved.flowerpot.x+.5)<.17&&Math.abs(saved.flowerpot.z-1.35)<.17,JSON.stringify(saved));
+  check('placing decor leaves family score unchanged',await page.getByText(/Баланс: 1700/).count()>0&&counters.restWrites.every(x=>x.name!=='point_ledger'));
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByText(/Прежний прогресс подключён/).first().waitFor();
+  await page.locator('.world3d-viewport canvas').waitFor();
+  const after=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}'),key);
+  check('decor layout persists after app reload',JSON.stringify(saved)===JSON.stringify(after));
+  const editor2=page.locator('.world3d-decoration-editor');await editor2.locator('summary').click();
+  await editor2.locator('.world3d-decor-item').filter({hasText:'Горшок с цветами'}).getByRole('button',{name:/Вернуть/}).click();
+  check('return to original location resets custom layout',await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'{}').flowerpot===undefined,key));
+  if(role==='child'){
+   await page.getByRole('button',{name:'🌳 Открыть второй мир'}).click();
+   await page.getByRole('button',{name:/Домик на дереве/}).waitFor({state:'visible'});
+   const editor3=page.locator('.world3d-decoration-editor');await editor3.locator('summary').click();
+   check('second world keeps locked decorations locked',await editor3.getByText(/🔒 480 баллов/).count()>0&&await editor3.getByRole('button',{name:'Переставить'}).count()===0);
+  }else check('parent cannot unlock second world without child confirmation',await page.getByRole('button',{name:/Домик на дереве/}).isDisabled());
+  check('first world customization does not affect second world',await page.evaluate(()=>localStorage.getItem('moymir-world-decor-v1:'+encodeURIComponent('22222222-2222-4222-8222-222222222222')+':w2')===null));
+  check('all decor interactions are free of rendering errors',counters.errors.length===0);
+  return;
+ }
  if(worldMilestoneQA){
   earnedMock+=30;
   await page.locator('.mw-cloud-syncbar button').first().click();
-  await page.locator('.world3d-miro-greeting').waitFor({state:'visible',timeout:12000});
-  check('Miro reacts to earned points after the 1600-point building cap',await page.locator('.world3d-miro-greeting').innerText().then(t=>t.includes('Ура, Илья')));
+  await page.locator('.miro-flight-zone .miro-speech').waitFor({state:'visible',timeout:12000});
+  check('Flying Miro reacts to earned points after the 1600-point building cap',await page.locator('.miro-speech').innerText().then(t=>t.includes('Ура')));
   check('more earned points do not change completed first-world building stages',await page.locator('.world3d-bottom').innerText().then(t=>t.includes('1600 / 1600')));
   check('Miro achievement notification does not throw renderer errors',counters.errors.length===0);
   return;
@@ -256,10 +301,6 @@ async function run(role,browser){
    await page.screenshot({path:'/tmp/moymir3816_initial_screen.png'});
    await page.waitForTimeout(3000);
    await page.screenshot({path:'/tmp/moymir3816_moving_screen.png'});
-  }
-  if(process.env.QA_FOCUS==='world-inspect'){
-   await page.locator('.world3d-miro-greeting').waitFor({state:'visible',timeout:14000});
-   check('3D Miro walks to the house and greets Ilya',await page.locator('.world3d-miro-greeting').innerText().then(t=>t.includes('Привет, Илья')));
   }
   check('3D world camera has zoom in/out, reset and fullscreen',
    await orbit.getByRole('button',{name:'Приблизить 3D-мир'}).count()===1 &&
@@ -283,18 +324,18 @@ async function run(role,browser){
   check('3D object picker appears',await picker.count()===1);
   await picker.locator('summary').click();
   check('3D lists only unlocked island decorations',await picker.getByRole('button').count()===8);
-  check('3D Miro replaces old floating SVG',await page.locator('.miro-world-control').count()===1&&await page.locator('.miro-flight-zone').count()===0);
-  await page.getByRole('button',{name:'Позвать Миро и открыть чат'}).click();
-  check('3D Miro uses original assistant dialog',await page.getByRole('dialog',{name:/Миро/}).isVisible());
+  check('original flying Miro restored without a second robot',await page.locator('.miro-flight-zone .miro-robot svg').count()===1&&await page.locator('.miro-world-control').count()===0);
+  await page.getByRole('button',{name:'Открыть чат с Миро'}).dispatchEvent('click');
+  check('flying Miro uses original assistant dialog',await page.getByRole('dialog',{name:/Миро/}).isVisible());
   await page.getByRole('button',{name:'Уменьшить Миро'}).click();
-  check('robot assistant returns to walking view',await page.getByRole('dialog',{name:/Миро/}).count()===0);
+  check('assistant returns to flying companion',await page.getByRole('dialog',{name:/Миро/}).count()===0);
   const selected=page.getByRole('region',{name:'Осмотр постройки'});
   await picker.getByRole('button',{name:'🐶 Собачка'}).click();
   await page.locator('.world3d-dog-speech').waitFor({state:'visible',timeout:2500});
   check('3D dog reacts with bark and petting action',await selected.getByRole('button',{name:'🐾 Погладить собачку'}).count()===1&&await page.locator('.world3d-dog-speech').isVisible());
   await selected.getByRole('button',{name:'🐾 Погладить собачку'}).click();
   check('3D dog can bark repeatedly without damaging world',await selected.isVisible()&&counters.errors.length===0);
-  check('3D Miro reacts to dog interaction',await page.locator('.world3d-miro-greeting').innerText().then(x=>x.includes('пёс')));
+  check('flying Miro reacts to dog interaction',await page.locator('.miro-flight-zone .miro-speech').innerText().then(x=>x.includes('пёс')));
   if(process.env.QA_SHOT==='1'&&role==='child'){await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();await page.waitForTimeout(500);await page.screenshot({path:'/tmp/moymir3816_dog_screen.png'});}
   await picker.getByRole('button',{name:'🏡 Домик на поляне'}).click();
   check('3D house selection shows contextual actions',await selected.isVisible()&&await selected.getByRole('button',{name:'🚪 Закрыть дверь'}).count()===1&&await selected.getByRole('button',{name:'💡 Выключить свет'}).count()===1);
@@ -304,7 +345,8 @@ async function run(role,browser){
   if(process.env.QA_SHOT==='1'&&role==='child'){await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();await page.waitForTimeout(900);await page.screenshot({path:'/tmp/moymir3816_house_screen.png'});}
   await selected.getByRole('button',{name:'🚪 Закрыть дверь'}).click();
   check('3D house door can be toggled',await selected.getByRole('button',{name:'🚪 Открыть дверь'}).count()===1);
-  check('3D Miro reacts to door interaction',await page.locator('.world3d-miro-greeting').innerText().then(x=>x.includes('дверь')));
+  await page.waitForFunction(()=>document.querySelector('.miro-flight-zone .miro-speech')?.textContent?.includes('открыл или закрыл дверь'),undefined,{timeout:3000});
+  check('flying Miro reacts to door interaction',await page.locator('.miro-flight-zone .miro-speech').innerText().then(x=>x.includes('дверь')));
   await selected.getByRole('button',{name:'💡 Выключить свет'}).click();
   check('3D house lights can be toggled',await selected.getByRole('button',{name:'💡 Включить свет'}).count()===1);
   await picker.getByRole('button',{name:'🌳 Яблоня'}).click();
@@ -401,9 +443,7 @@ async function run(role,browser){
    const secondInspect=page.getByRole('region',{name:'Осмотр постройки'});
    check('second world offers focus on earned parts',await secondInspect.isVisible()&&await secondInspect.getByText('🌲 Большое дерево').count()===1);
    if(process.env.QA_SHOT==='1'){await page.locator('.world3d-viewport').scrollIntoViewIfNeeded();await page.screenshot({path:'/tmp/moymir3816_treehouse_screen.png'});}
-   check('second world has a real walking Miro model and accessible chat',await page.locator('.miro-world-control').count()===1&&await page.locator('.miro-flight-zone').count()===0);
-   await page.locator('.world3d-miro-greeting').waitFor({state:'visible',timeout:16000});
-   check('second-world Miro follows its path and greets before treehouse completion',await page.locator('.world3d-miro-greeting').innerText().then(t=>t.includes('Скоро здесь появится домик')));
+   check('second world keeps original floating Miro with working chat',await page.locator('.miro-flight-zone .miro-robot svg').count()===1&&await page.locator('.miro-world-control').count()===0);
    check('second world does not unlock door/light interactions early',await secondInspect.getByRole('button',{name:/дверь|свет/}).count()===0);
    await secondInspect.getByRole('button',{name:'Закрыть осмотр и вернуться к общему виду'}).click();
    check('living island event',await page.getByRole('region',{name:'Приключение острова и семейный альбом'}).count()>0);
