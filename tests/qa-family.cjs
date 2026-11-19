@@ -13,6 +13,7 @@ const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
 const subjectTutorQA=process.env.QA_FOCUS==='subject-tutors';
+const practiceQA=process.env.QA_FOCUS==='subject-practice';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
 const qaTask='a1100000-0000-4000-8000-000000000002';
 const qaNotice='a1100000-0000-4000-8000-000000000003';
@@ -84,6 +85,9 @@ async function run(role,browser){
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
+ const {getPracticeBank,allPractice}=await import('../src/subjects/practiceBank.ts');
+ let practiceNetworkFailures=practiceQA&&role==='child'?1:0;
+ const practiceRows=practiceQA&&role==='parent'?[{id:'f4444444-1111-4111-8111-111111111111',family_id:ids.family,child_id:ids.child,subject:'matematicas',chapter:'enteros',level:'mixed',score:9,total:12,completed_at:new Date().toISOString(),attempted_ids:[],wrong_ids:[],duration_seconds:410}]:[];
  let englishSessions=role==='parent'?[{id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1',family_id:ids.family,child_id:ids.child,lesson_key:'to-be',activity_day:today,started_at:new Date(Date.now()-920000).toISOString(),finished_at:new Date().toISOString(),status:'completed',score:5,total_questions:6,points_awarded:30,answers:[1,0,2,1,1,1]},{id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2',family_id:ids.family,child_id:ids.child,lesson_key:'diagnostic',activity_day:today,started_at:new Date().toISOString(),finished_at:new Date().toISOString(),status:'completed',score:14,total_questions:18,points_awarded:0,answers:englishAnswers.diagnostic}]:[];
  if(role==='parent'&&subjectTutorQA)englishSessions.unshift({id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',family_id:ids.family,child_id:ids.child,lesson_key:'lengua:categorias',activity_day:today,started_at:new Date(Date.now()-920000).toISOString(),finished_at:new Date().toISOString(),status:'completed',score:4,total_questions:6,points_awarded:30,answers:[1,0,1,1,0,2]});
  const playOverview=()=>({balance:playBalance,dailyLimit:playCap,todayUsed:playSessions.filter(x=>['active','finished'].includes(x.status)).reduce((n,x)=>n+x.minutes,0)});
@@ -133,6 +137,15 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     if(name==='moymir_family_overview')return resp({worldPoints:earnedMock+englishCredit,balance:1700+englishCredit,earned:earnedMock+englishCredit,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
+  if(name==='moymir_subject_practice_attempts'){
+   if(method==='GET'){const subject=url.searchParams.get('subject')?.replace('eq.','');return resp(subject?practiceRows.filter(x=>x.subject===subject):practiceRows)}
+   if(method==='POST'){
+    if(practiceNetworkFailures>0){practiceNetworkFailures--;return route.abort('failed')}
+    const item=request.postDataJSON();const record=Array.isArray(item)?item[0]:item;
+    if(!practiceRows.some(x=>x.id===record.id))practiceRows.unshift(record);
+    counters.restWrites.push({name,method,record});return resp([])
+   }
+  }
   if(name==='moymir_english_sessions'&&method==='GET'){
    const filter=url.searchParams.get('lesson_key');
    const found=filter?.startsWith('in.(')?new Set(filter.slice(4,-1).split(',')):null;
@@ -288,6 +301,65 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ if(practiceQA){
+  await page.getByRole('button',{name:/Учёба/}).last().click();
+  const entry=page.locator('.subjects-entry');await entry.locator('summary').click();
+  for(const subj of ['lengua','matematicas','historia','biologia']){
+   const spec=SUBJECTS.find(s=>s.id===subj);
+   await entry.getByRole('button',{name:'Репетитор '+spec.name}).click();
+   const portal=page.getByRole('dialog',{name:'Репетитор '+spec.name});
+   const practice=portal.locator('.practice-section');await practice.waitFor();
+   check(subj+' large bank available',await practice.getByText('256 упражнений').count()===1&&await practice.locator('.practice-chapter').count()===8);
+   if(role==='parent'){
+    check(subj+' parent has no practice start controls',await practice.getByRole('button',{name:/Практика /}).count()===0);
+    if(subj==='matematicas'){
+     await page.waitForFunction(()=>{const t=document.querySelector('.practice-section .practice-stats')?.textContent||'';return t.includes('12')},undefined,{timeout:5000});
+     check('parent sees child practice report across devices',await practice.locator('.practice-stats').innerText().then(x=>x.includes('12')&&x.includes('75%')));
+    }
+   }else{
+    const ch=getPracticeBank(subj)[0],button=practice.getByRole('button',{name:'Практика '+ch.title});
+    await button.click();
+    const questionArea=practice.locator('.practice-task');await questionArea.waitFor();
+    check(subj+' requires typed answer instead of A B C',await questionArea.locator('input').count()===1&&await questionArea.locator('button[aria-pressed]').count()===0);
+    const seen=[];
+    for(let i=0;i<12;i++){
+     const text=await questionArea.locator('h4').innerText();
+     const item=ch.items.find(q=>q.prompt===text);if(!item)throw Error('No matching original practice prompt '+text);
+     seen.push(item.id);
+     if(i===0&&subj==='matematicas'){
+      await questionArea.locator('input').fill('nonrespuesta');
+      await questionArea.getByRole('button',{name:'Проверить'}).click();
+      check('incorrect free answer gets a second chance',await questionArea.getByText(/Пока неверно/).count()===1);
+     }
+     await questionArea.locator('input').fill(item.answer);
+     await questionArea.getByRole('button',{name:'Проверить'}).click();
+     await questionArea.getByText(/✓ Верно!/).waitFor();
+     await questionArea.getByRole('button',{name:i===11?'Завершить':'Следующее →'}).click();
+    }
+    await practice.locator('.practice-finish').waitFor();
+    check(subj+' completed 12 typed answer questions',await practice.locator('.practice-finish h4').innerText().then(x=>x.includes(subj==='matematicas'?'11/12':'12/12')));
+    if(subj==='lengua'){
+     const pendingKey='moymir-practice-pending-v1:'+encodeURIComponent(ids.child)+':lengua';
+     await page.waitForFunction(key=>(JSON.parse(localStorage.getItem(key)||'[]')).length===1,pendingKey,{timeout:4000});
+     check('offline practice retains a pending report on device',await page.evaluate(key=>JSON.parse(localStorage.getItem(key)||'[]').length===1,pendingKey));
+     await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+     await page.waitForFunction(key=>(JSON.parse(localStorage.getItem(key)||'[]')).length===0,pendingKey,{timeout:5000});
+     check('online recovery uploads offline practice report',practiceRows.some(x=>x.subject==='lengua'&&x.total===12));
+    }else await page.waitForTimeout(150);
+    check(subj+' practice results synced without point rewards',practiceRows.some(x=>x.subject===subj&&x.total===12)&&englishCredit===0);
+    await practice.locator('.practice-finish').getByRole('button',{name:'К темам'}).click();
+    await button.click();
+    const nextText=await practice.locator('.practice-task h4').innerText();
+    check(subj+' repeats use new bank items before old ones',!seen.some(id=>ch.items.find(q=>q.id===id)?.prompt===nextText));
+    await practice.locator('.practice-exit').click();
+   }
+   await portal.getByRole('button',{name:'Закрыть предмет'}).click();
+  }
+  await page.getByRole('button',{name:/Мир/}).last().click();
+  check('practice does not change the child balance',englishCredit===0&&await page.getByText(/Баланс: 1700/).count()>0);
+  check('practice tutor has no JavaScript exceptions',counters.errors.length===0,counters.errors.join(' | '));
+  return;
+ }
  if(subjectTutorQA){
   await page.getByRole('button',{name:/Учёба/}).last().click();
   const entry=page.locator('.subjects-entry');

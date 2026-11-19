@@ -4,6 +4,8 @@ import type {useFamilyCloud} from '../lib/useFamilyCloud'
 import {shuffledEnglishChoices} from '../english/lessons'
 import type {EnglishLesson} from '../english/lessons'
 import {SUBJECTS,getSubjectLesson} from './subjects'
+import {PracticeTrainer} from './PracticeTrainer'
+import type {MainSubject} from './practiceBank'
 import type {SubjectSpec} from './subjects'
 import './SubjectTutors.css'
 import '../english/EnglishTutor.css'
@@ -119,6 +121,7 @@ function SubjectTutor({subject,cloud,onClose}:{subject:SubjectSpec;cloud:Cloud;o
    {child&&<><div className="english-notice"><strong>15 минут занятий = 30 баллов</strong><span>Реши все шесть вопросов учебного урока. Баллы не зависят от оценки. За повторение той же темы в один день повторных баллов нет.</span></div>
     {!diagnostic?<button type="button" className="english-diagnostic" disabled={busy} onClick={()=>void begin(subject.diagnostic)}>🎯 Пройти диагностику <span>{subject.diagnostic.questions.length} вопросов · без баллов</span></button>:<div className="english-recommend"><strong>Диагностика: {diagnostic.score}/{diagnostic.total_questions} ({pct(diagnostic.score||0,diagnostic.total_questions)}%)</strong><span>Следующее занятие: <b>{analysis.next.title}</b>.</span><button type="button" onClick={()=>void begin(subject.diagnostic)} disabled={busy}>Повторить диагностику</button></div>}</>}
    {!child&&<div className="english-recommend"><strong>Отчёт для родителя</strong><span>Здесь сохраняются результаты занятий, трудные темы и реальные начисления. Содержание переписки с ИИ не сохраняется.</span>{analysis.weak.length>0&&<p>Рекомендуем повторить: {analysis.weak.join(', ')}</p>}</div>}
+   {['lengua','matematicas','historia','biologia'].includes(subject.id)&&<PracticeTrainer subject={subject.id as MainSubject} childId={cloud.childId||''} familyId={cloud.familyId||''} readonly={!child}/>}
    <h3 className="english-heading">{child?'📖 Выбери тему':'📊 Темы и результаты'}</h3>
    <div className="english-lessons">{subject.lessons.map((l,i)=>{const last=completed.find(x=>x.lesson_key===l.id);return <article className="english-lesson" key={l.id}><div className="english-lesson-number">{i+1}</div><div><strong>{l.title}</strong><small>{l.level}</small><p>{l.intro}</p>{last&&<em>Последний результат: {last.score}/{last.total_questions} · {last.points_awarded?'+30 баллов':'повторение'}</em>}</div>{child&&<button type="button" disabled={busy} onClick={()=>void begin(l)}>{last?'Повторить':'Начать'}</button>}</article>})}</div>
    {completed.length>0&&<section className="english-history"><h3>📈 История занятий</h3>{completed.slice(0,20).map(s=><div key={s.id}><span>{getSubjectLesson(s.lesson_key)?.title||s.lesson_key}</span><small>{new Date(s.started_at).toLocaleDateString('ru-RU',{timeZone:'Europe/Madrid'})}</small><b>{s.score}/{s.total_questions}</b><strong>{s.points_awarded?'+30 🏅':'—'}</strong></div>)}</section>}
