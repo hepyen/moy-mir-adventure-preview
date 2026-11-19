@@ -10,6 +10,7 @@ import '../../pioneer/PioneerEntry.css';
 import './CloudPanels.css';
 import {ApprovalCard,taskApprovals} from '../../features/ParentApprovals';
 import {reviewAnchor} from '../../notifications/destinations';
+import {PLAYSTATION_30_REWARD_ID,playStationClaimedToday} from '../../playtime/PlayStationGift';
 type Cloud=ReturnType<typeof useFamilyCloud>;
 const day=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 export function CloudSignIn({cloud}:{cloud:Cloud}){
@@ -125,12 +126,32 @@ function RewardEditor({cloud,item}:{cloud:Cloud;item:CloudItem}){
   {edit&&<form className="mw-inline-editor" onSubmit={e=>void save(e)}><label>Название<input required maxLength={160} minLength={2} value={title} onChange={e=>setTitle(e.target.value)}/></label><label>Стоимость 🪙<input type="number" min={1} max={100000} required value={cost} onChange={e=>setCost(Number(e.target.value))}/></label><label className="mw-inline-check"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)}/>Награда доступна Илье</label><button disabled={busy}>{busy?'Сохраняем…':'Сохранить награду'}</button>{error&&<small role="alert" className="mw-cloud-error">{error}</small>}</form>}
  </div>;
 }
+function StoreRewardButton({cloud,item,reserved}:{cloud:Cloud;item:CloudItem;reserved:number}){
+ const[busy,setBusy]=useState(false),[warning,setWarning]=useState(''),[success,setSuccess]=useState('');
+ const gift=item.id===PLAYSTATION_30_REWARD_ID;
+ const claimed=gift&&playStationClaimedToday(cloud.rewardRequests);
+ const pending=cloud.rewardRequests.some(r=>r.reward_id===item.id&&r.status==='pending'&&(!gift||(r.requested_at&&new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(r.requested_at))===day())));
+ const insufficient=cloud.balance-reserved<(item.cost||0);
+ const disabled=busy||(!claimed&&(insufficient||pending));
+ async function order(){
+  if(busy)return;
+  setSuccess('');setWarning('');
+  if(claimed){setWarning('🎮 Илья, ты уже активировал подарок «30 минут PlayStation» сегодня. Повторно заказать его нельзя. Завтра можно получить ещё 30 минут, а накопленное время не сгорает.');return}
+  setBusy(true);
+  try{await cloud.rpc('request_reward',{p_reward:item.id});setSuccess(gift?'Запрос на подарок отправлен родителю. Сегодня повторить его уже нельзя.':'Запрос отправлен родителю.');}
+  catch(e){const raw=e instanceof Error?e.message:'Не удалось оформить подарок';setWarning(gift&&(/уже активировал|once|duplicate|unique/i).test(raw)?'🎮 Ты уже активировал 30 минут PlayStation сегодня. Дождись завтра.':raw)}
+  finally{setBusy(false)}
+ }
+ return <span className="mw-cloud-action mw-gift-purchase"><button type="button" disabled={disabled} onClick={()=>void order()}>{busy?'Отправляем…':claimed?'🎮 Заказать снова':pending?'Ожидает родителя':'Заказать'}</button>
+ {gift&&<small className="mw-gift-daily-note">{claimed?'Сегодня подарок уже запрошен · повтор завтра':'Один подарок на 30 минут в день · время копится'}</small>}
+ {warning&&<small className="mw-gift-warning" role="alert">{warning}</small>}{success&&<small className="mw-gift-success" role="status">{success}</small>}</span>
+}
 export function CloudShop({cloud}:{cloud:Cloud}){
  const[title,setTitle]=useState(''),[cost,setCost]=useState('100');
  const reserved=cloud.rewardRequests.filter(x=>x.status==='pending').reduce((n,x)=>n+Number(x.cost_snapshot),0);
- return <><section className="mw-greeting"><div className="mw-eyebrow">ПРЕЖНИЙ МАГАЗИН НАГРАД</div><h1>Сокровища острова 🎁</h1><p>Те же призы и цены, что и в действующем семейном приложении.</p></section>
+ return <><section className="mw-greeting"><div className="mw-eyebrow">ПРЕЖНИЙ МАГАЗИН НАГРАД</div><h1>Сокровища острова 🎁</h1><p>Подарок «30 минут PlayStation» можно запросить один раз в день. После одобрения родителем минуты попадают в копилку и накапливаются.</p></section>
  <div className="mw-wallet"><span>ДОСТУПНО</span><strong>🪙 {Math.max(0,cloud.balance-reserved)}</strong><p>Всего {cloud.balance} · Зарезервировано {reserved}</p></div>
- <div className="mw-reward-grid">{cloud.rewards.filter(x=>cloud.role==='parent'||x.active!==false).map(x=><article className="mw-reward" key={x.id}><div className="mw-reward-icon">🎁</div><h3>{x.title}</h3>{x.active===false&&<small>Приостановлена</small>}<div className="mw-reward-foot"><strong>🪙 {x.cost}</strong>{cloud.role==='child'&&<Action disabled={cloud.balance-reserved<(x.cost||0)||cloud.rewardRequests.some(r=>r.reward_id===x.id&&r.status==='pending')} run={()=>cloud.rpc('request_reward',{p_reward:x.id})}>Заказать</Action>}</div>{cloud.role==='parent'&&<RewardEditor cloud={cloud} item={x}/>}</article>)}</div>
+ <div className="mw-reward-grid">{cloud.rewards.filter(x=>cloud.role==='parent'||x.active!==false).map(x=><article className="mw-reward" key={x.id}><div className="mw-reward-icon">🎁</div><h3>{x.title}</h3>{x.active===false&&<small>Приостановлена</small>}<div className="mw-reward-foot"><strong>🪙 {x.cost}</strong>{cloud.role==='child'&&<StoreRewardButton cloud={cloud} item={x} reserved={reserved}/>}</div>{cloud.role==='parent'&&<RewardEditor cloud={cloud} item={x}/>}</article>)}</div>
  {cloud.role==='parent'&&<section className="mw-panel mw-cloud-form"><h3>Добавить награду</h3><form onSubmit={e=>{e.preventDefault();void cloud.rpc('create_reward',{p_family:cloud.familyId,p_title:title,p_cost:Number(cost)}).then(()=>setTitle('')).catch(e=>alert(e.message))}}><input required maxLength={160} value={title} onChange={e=>setTitle(e.target.value)} placeholder="Название награды"/><input type="number" min={1} max={100000} required value={cost} onChange={e=>setCost(e.target.value)}/><button type="submit">Добавить</button></form></section>}
  <section className="mw-panel" id="review-rewards"><h3>История заказов</h3>{cloud.rewardRequests.map(r=><div className="mw-cloud-line" key={r.id} id={reviewAnchor('reward',r.id)} tabIndex={-1}><div><strong>{cloud.rewards.find(x=>x.id===r.reward_id)?.title||'Награда'}</strong><small>{r.status==='approved'?'✓ Выдано':r.status==='pending'?'⏳ Ожидает родителя':'Отклонено'} · {r.cost_snapshot} баллов {r.mystery_prize?' · '+r.mystery_prize:''}</small></div>{cloud.role==='parent'&&r.status==='pending'&&<><Action run={()=>cloud.rpc('review_reward',{p_request:r.id,p_approve:true})}>✓</Action><Action run={()=>cloud.rpc('review_reward',{p_request:r.id,p_approve:false})}>✕</Action></>}</div>)}{!cloud.rewardRequests.length&&<p>Покупок пока нет.</p>}</section>
  </>;

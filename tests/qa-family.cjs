@@ -20,6 +20,7 @@ const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
 const englishResetAudioQA=process.env.QA_FOCUS==='english-reset-audio';
+const playstationGiftQA=process.env.QA_FOCUS==='playstation-gift';
 const subjectTutorQA=process.env.QA_FOCUS==='subject-tutors';
 const practiceQA=process.env.QA_FOCUS==='subject-practice';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
@@ -100,6 +101,11 @@ async function run(role,browser){
  let healthNetworkBlocked=false;
  let qaDailyStatus='pending';
  const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;let playBalance=60,playCap=30,storyDone=[];
+ const giftRewardId='604c860d-2121-4abc-a2ad-af3385b2c882';
+ const giftOrders=playstationGiftQA?(role==='parent'?
+ [{id:'a1400000-0000-4000-8000-000000000001',reward_id:giftRewardId,cost_snapshot:60,requested_at:new Date().toISOString(),status:'pending',mystery_prize:null}]:
+ [{id:'a1400000-0000-4000-8000-000000000002',reward_id:giftRewardId,cost_snapshot:60,requested_at:new Date(Date.now()-86400000).toISOString(),status:'pending',mystery_prize:null}]):[];
+ let giftSeq=2;
  let playSessions=role==='parent'?[{id:'91111111-1111-4111-8111-111111111111',minutes:10,status:'pending',requested_at:new Date().toISOString(),started_at:null}]:[];
  let earnedMock=1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
@@ -168,6 +174,23 @@ async function run(role,browser){
      return resp({status:'completed',score,total:correct.length,points_awarded:awarded,correct_answers:correct})
     }
 if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)qaDailyStatus=request.postDataJSON().p_approve?'approved':'rejected';if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
+    if(playstationGiftQA&&name==='request_reward'){
+     const id=request.postDataJSON().p_reward;
+     if(id!==giftRewardId)return resp({error:'Unrecognized test reward'});
+     const already=giftOrders.some(x=>x.reward_id===id&&new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(x.requested_at))===today);
+     if(already)return route.fulfill({status:400,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({message:'Илья, ты уже активировал подарок сегодня',code:'22023'})});
+     const row={id:'a1400000-0000-4000-8000-'+String(++giftSeq).padStart(12,'0'),reward_id:id,cost_snapshot:60,requested_at:new Date().toISOString(),status:'pending',mystery_prize:null};
+     giftOrders.unshift(row);return resp(row.id)
+    }
+    if(playstationGiftQA&&name==='review_reward'){
+     const req=giftOrders.find(x=>x.id===request.postDataJSON().p_request);
+     if(!req)return resp({error:'Not found'});
+     if(req.status==='pending'){
+      req.status=request.postDataJSON().p_approve?'approved':'rejected';
+      if(req.status==='approved')playBalance+=30;
+     }
+     return resp(req.status)
+    }
     if(name==='moymir_playtime_set_limit'){playCap=Number(request.postDataJSON()?.p_daily);return resp(true)}
     if(name==='moymir_playtime_grant'){playBalance+=Number(request.postDataJSON()?.p_minutes);return resp(true)}
     if(name==='moymir_playtime_request'){const minutes=Number(request.postDataJSON()?.p_minutes);playSessions=[{id:'92222222-2222-4222-8222-222222222222',minutes,status:'pending',requested_at:new Date().toISOString(),started_at:null}];return resp(playSessions[0].id)}
@@ -321,8 +344,8 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    case 'daily_chore_completions':data=approvalQA?[{id:qaDaily,template_id:ids.daily,activity_date:today,status:qaDailyStatus}]:[];break;
    case 'tasks':data=[{id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child},{id:'77777777-7777-4777-8777-777777777777',title:'Без исполнителя',points:10,assigned_child:null}];break;
    case 'task_submissions':data=approvalQA?[{id:qaTask,task_id:ids.task,child_id:ids.child,activity_date:qaYesterday,status:'pending'}]:[];break;
-   case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true},{id:'b2222222-2222-4222-8222-222222222222',title:'Неактивная награда',cost:200,active:false}];break;
-   case 'reward_requests':data=approvalQA?[{id:qaReward,reward_id:ids.reward,cost_snapshot:80,status:'pending'}]:[];break;
+   case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true},{id:'b2222222-2222-4222-8222-222222222222',title:'Неактивная награда',cost:200,active:false},...(playstationGiftQA?[{id:giftRewardId,title:'30 минут PlayStation',cost:60,active:true}]:[])];break;
+   case 'reward_requests':data=playstationGiftQA?giftOrders:approvalQA?[{id:qaReward,reward_id:ids.reward,cost_snapshot:80,status:'pending'}]:[];break;
    case 'behavior_points':data=[];break;
    case 'spiritual_activity_records':data=[...(spiritualAward?[{id:'a4444444-4444-4444-8444-444444444444',activity_date:dateToday,step_id:'daily-text',points:10}]:[]),...(growthAward?[{id:'a6666666-6666-4666-8666-666666666666',activity_date:dateToday,step_id:'growth-focus',points:20}]:[])];break;
    case 'spiritual_point_requests':data=[];break;
@@ -485,6 +508,43 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('all subjects contribute to family balance',await page.getByText(/Баланс: 1970/).count()===1);
   }
   check('new subjects leave no React exception',counters.errors.length===0,counters.errors.join(' | '));
+  return;
+ }
+ if(playstationGiftQA){
+  await page.getByRole('button',{name:/Магазин/}).last().click();
+  const shop=page.getByRole('heading',{name:'Сокровища острова 🎁'});
+  await shop.waitFor();
+  const reward=page.locator('.mw-reward').filter({hasText:'30 минут PlayStation'});
+  await reward.waitFor();
+  const bank=page.getByRole('region',{name:'Копилка игрового времени'});
+  await bank.waitFor();
+  check('30-minute gift shown at original 60-coin price',await reward.getByText('🪙 60').count()===1);
+  await bank.locator('.playbank-hours').getByText('1 ч',{exact:true}).waitFor({timeout:9000});
+  check('wallet shows banked hours separately from daily spending limit',await bank.locator('.playbank-hours').innerText()==='1 ч'&&await bank.getByText('Дневной предел').count()>0);
+  if(role==='parent'){
+   const parentOrders=page.getByRole('heading',{name:'История заказов'}).locator('..');
+   const old=parentOrders.locator('.mw-cloud-line').filter({hasText:'30 минут PlayStation'});
+   await old.getByRole('button',{name:'✓'}).click();
+   await bank.getByText('90 мин',{exact:true}).waitFor({timeout:8000});
+   check('one approved shop gift adds exactly 30 accumulated minutes',playBalance===90&&await bank.getByText('1 ч 30 мин').count()===1);
+   check('gift approval is recorded as approved',giftOrders.some(x=>x.status==='approved')&&await parentOrders.getByText(/✓ Выдано/).count()>0);
+  }else{
+   check('pending gift from yesterday does not block a new day',await reward.getByRole('button',{name:'Заказать'}).count()===1);
+   await reward.getByRole('button',{name:'Заказать'}).click();
+   await reward.getByText(/Сегодня подарок уже запрошен/).waitFor();
+   check('first request sent to server',counters.rpc.filter(x=>x.name==='request_reward').length===1&&giftOrders.filter(x=>x.status==='pending').length===2);
+   const oldCount=counters.rpc.filter(x=>x.name==='request_reward').length;
+   await reward.getByRole('button',{name:/Заказать снова/}).click();
+   const warning=reward.getByRole('alert');await warning.waitFor();
+   check('repeat request gives immediate warning without reaching server',await warning.innerText().then(x=>x.includes('уже активировал'))&&counters.rpc.filter(x=>x.name==='request_reward').length===oldCount);
+   const pending=giftOrders.find(x=>x.status==='pending');pending.status='approved';playBalance+=30;
+   await page.evaluate(()=>window.dispatchEvent(new Event('focus')));
+   await bank.getByText('90 мин',{exact:true}).waitFor({timeout:10000});
+   check('parent-approved 30 minutes accumulate in bank',await bank.getByText('1 ч 30 мин').count()===1);
+   await reward.getByRole('button',{name:/Заказать снова/}).click();
+   check('approval does not reopen daily claim',counters.rpc.filter(x=>x.name==='request_reward').length===oldCount&&await warning.isVisible());
+  }
+  check('gift rule does not cause JS crashes',counters.errors.length===0,counters.errors.join(' | '));
   return;
  }
  if(englishResetAudioQA){

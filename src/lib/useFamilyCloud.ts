@@ -54,7 +54,7 @@ export function useFamilyCloud(){
      supabase.from('tasks').select('id,title,points,assigned_child').eq('family_id',fid),
      r==='parent'?taskRows.or('activity_date.gte.'+since+',status.eq.pending'):taskRows.gte('activity_date',since),
      supabase.from('rewards').select('id,title,cost,active').eq('family_id',fid),
-     supabase.from('reward_requests').select('id,reward_id,cost_snapshot,status,mystery_prize').eq('family_id',fid).eq('child_id',child),
+     supabase.from('reward_requests').select('id,reward_id,cost_snapshot,status,mystery_prize,requested_at').eq('family_id',fid).eq('child_id',child),
      supabase.from('behavior_points').select('id,amount,category,reason,cancelled_at,created_at').eq('family_id',fid).eq('child_id',child),
      supabase.from('spiritual_activity_records').select('id,activity_date,step_id,points').eq('family_id',fid).eq('child_id',child).gte('activity_date',new Date(Date.parse(today()+'T12:00:00Z')-6*86400000).toISOString().slice(0,10)),
      supabase.from('spiritual_point_requests').select('id,title,proposed_points,approved_points,status').eq('family_id',fid).eq('child_id',child),
