@@ -12,6 +12,7 @@ const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
+const subjectTutorQA=process.env.QA_FOCUS==='subject-tutors';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
 const qaTask='a1100000-0000-4000-8000-000000000002';
 const qaNotice='a1100000-0000-4000-8000-000000000003';
@@ -80,8 +81,11 @@ async function run(role,browser){
  const counters={rpc:[],restPosts:[],restWrites:[],errors:[]}; let world=1;let spiritualAward=0;let backpackChecked=false;let growthChoice=null;let growthAward=0;let playBalance=60,playCap=30,storyDone=[];
  let playSessions=role==='parent'?[{id:'91111111-1111-4111-8111-111111111111',minutes:10,status:'pending',requested_at:new Date().toISOString(),started_at:null}]:[];
  let earnedMock=1700,englishCredit=0,englishSessionSerial=0;
+ const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
+ for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
  let englishSessions=role==='parent'?[{id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1',family_id:ids.family,child_id:ids.child,lesson_key:'to-be',activity_day:today,started_at:new Date(Date.now()-920000).toISOString(),finished_at:new Date().toISOString(),status:'completed',score:5,total_questions:6,points_awarded:30,answers:[1,0,2,1,1,1]},{id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2',family_id:ids.family,child_id:ids.child,lesson_key:'diagnostic',activity_day:today,started_at:new Date().toISOString(),finished_at:new Date().toISOString(),status:'completed',score:14,total_questions:18,points_awarded:0,answers:englishAnswers.diagnostic}]:[];
+ if(role==='parent'&&subjectTutorQA)englishSessions.unshift({id:'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3',family_id:ids.family,child_id:ids.child,lesson_key:'lengua:categorias',activity_day:today,started_at:new Date(Date.now()-920000).toISOString(),finished_at:new Date().toISOString(),status:'completed',score:4,total_questions:6,points_awarded:30,answers:[1,0,1,1,0,2]});
  const playOverview=()=>({balance:playBalance,dailyLimit:playCap,todayUsed:playSessions.filter(x=>['active','finished'].includes(x.status)).reduce((n,x)=>n+x.minutes,0)});
 
  await ctx.route('https://ueqtitxbvsnqmbudwxwu.supabase.co/**',async route=>{
@@ -113,8 +117,8 @@ async function run(role,browser){
      const body=request.postDataJSON();const row=englishSessions.find(x=>x.id===body.p_session&&x.status==='in_progress');
      if(!row)return resp({error:'Already completed'});
      const answers=body.p_answers,correct=englishAnswers[row.lesson_key],score=answers.filter((x,i)=>x===correct[i]).length;
-     if(row.lesson_key!=='diagnostic'&&Date.now()-Date.parse(row.started_at)<900000)return resp({status:'waiting',remaining_seconds:900,score,total:correct.length});
-     const awarded=row.lesson_key!=='diagnostic'&&!englishSessions.some(x=>x!==row&&x.lesson_key===row.lesson_key&&x.points_awarded===30)?30:0;
+     if(row.lesson_key!=='diagnostic'&&!row.lesson_key.endsWith(':diagnostic')&&Date.now()-Date.parse(row.started_at)<900000)return resp({status:'waiting',remaining_seconds:900,score,total:correct.length});
+     const awarded=row.lesson_key!=='diagnostic'&&!row.lesson_key.endsWith(':diagnostic')&&!englishSessions.some(x=>x!==row&&x.lesson_key===row.lesson_key&&x.points_awarded===30)?30:0;
      Object.assign(row,{status:'completed',finished_at:new Date().toISOString(),answers,score,points_awarded:awarded});englishCredit+=awarded;
      return resp({status:'completed',score,total:correct.length,points_awarded:awarded,correct_answers:correct})
     }
@@ -129,7 +133,11 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     if(name==='moymir_family_overview')return resp({worldPoints:earnedMock+englishCredit,balance:1700+englishCredit,earned:earnedMock+englishCredit,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
-  if(name==='moymir_english_sessions'&&method==='GET')return resp(englishSessions);
+  if(name==='moymir_english_sessions'&&method==='GET'){
+   const filter=url.searchParams.get('lesson_key');
+   const found=filter?.startsWith('in.(')?new Set(filter.slice(4,-1).split(',')):null;
+   return resp(found?englishSessions.filter(s=>found.has(s.lesson_key)):englishSessions);
+  }
   if(name==='moymir_world_decor_layouts'){
    if(method==='GET'){
     const worldId=(url.searchParams.get('world_number')||'').replace('eq.','');
@@ -280,6 +288,77 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(/Баланс: 1700/).count()>0);
+ if(subjectTutorQA){
+  await page.getByRole('button',{name:/Учёба/}).last().click();
+  const entry=page.locator('.subjects-entry');
+  check('school tutors are compact until opened',await entry.locator('summary').isVisible()&&await entry.locator('.subjects-grid button').first().isHidden());
+  await entry.locator('summary').click();
+  check('all nine school subjects visible',await entry.locator('.subjects-grid button').count()===9&&await entry.locator('.subjects-grid button').first().isVisible());
+  check('English tutor and geography exam remain separate',await page.locator('.english-entry').count()===1&&await page.locator('.geo-entry').count()===1);
+  for(const subject of SUBJECTS){
+   await entry.getByRole('button',{name:'Репетитор '+subject.name}).click();
+   const portal=page.getByRole('dialog',{name:'Репетитор '+subject.name});
+   await portal.waitFor({state:'visible'});
+   check(subject.name+' shows its own syllabus',await portal.locator('.english-lesson').count()===subject.lessons.length);
+   if(role==='parent'){
+    check(subject.name+' cannot start child lessons as parent',await portal.locator('.english-lesson button').count()===0);
+    if(subject.id==='lengua'){
+     await portal.locator('.english-history').waitFor({state:'visible',timeout:4500});
+     check('parent sees Lengua grades and 30-point award',await portal.locator('.english-history').getByText('Clases de palabras').count()===1&&await portal.locator('.english-history').getByText('+30 🏅').count()===1);
+    }
+   }else{
+    if(subject.id==='historia'){
+     await portal.locator('.english-ai').getByRole('button',{name:'Открыть'}).click();
+     await portal.getByRole('button',{name:'Объясни ещё раз'}).click();
+     await portal.locator('.english-chat-msg.assistant').waitFor();
+     check('history Miro AI conversation available without timed quiz',await portal.locator('.english-chat-msg.assistant').count()===1);
+    }
+    if(subject.id==='matematicas'){
+     const beforeDiagnosticCredit=englishCredit;
+     await portal.getByRole('button',{name:/Пройти диагностику/}).click();
+     await portal.getByText('Вопрос 1 из 12').waitFor({state:'visible',timeout:5000});
+     check('Mathematics diagnostic has 12 questions',await portal.getByText('Вопрос 1 из 12').count()===1);
+     for(let i=0;i<subject.diagnostic.questions.length;i++){
+      await portal.locator('.english-options button').first().click();
+      if(i<subject.diagnostic.questions.length-1)await portal.getByRole('button',{name:'Следующий →'}).click();
+     }
+     await portal.getByRole('button',{name:'Узнать результат'}).click();
+     await portal.locator('.english-good').filter({hasText:'Диагностика завершена'}).waitFor();
+     check('Mathematics diagnostic grants no points',englishCredit===beforeDiagnosticCredit);
+     check('Mathematics results include explanations for all answers',await portal.locator('.english-review').count()===subject.diagnostic.questions.length);
+     await portal.getByRole('button',{name:'К списку тем →'}).click();
+    }
+    await portal.locator('.english-lesson').first().getByRole('button',{name:'Начать'}).click();
+    await portal.getByText('Вопрос 1 из 6').waitFor({state:'visible',timeout:5000});
+    check(subject.name+' opens a guided lesson',await portal.locator('.english-rule').isVisible()&&await portal.getByText('Вопрос 1 из 6').count()===1);
+    if(subject.id==='frances'){
+     await portal.locator('.english-ai').getByRole('button',{name:'Открыть'}).click();
+     await portal.getByRole('button',{name:'Объясни ещё раз'}).click();
+     await portal.locator('.english-chat-msg.assistant').waitFor();
+     check('French AI tutor answers',await portal.locator('.english-chat-msg.assistant').innerText().then(x=>x.includes('Hello!')));
+    }
+    for(let i=0;i<6;i++){
+     await portal.locator('.english-options button').first().click();
+     if(i<5)await portal.getByRole('button',{name:'Следующий →'}).click();
+    }
+    await portal.getByRole('button',{name:'Завершить урок (+30)'}).click();
+    await portal.getByText(/Сервер начислил \+30 баллов/).waitFor();
+    check(subject.name+' earns exactly 30 verified points',englishSessions.some(s=>s.lesson_key===subject.lessons[0].id&&s.points_awarded===30));
+    check(subject.name+' offers six explanations',await portal.locator('.english-review').count()===6);
+    await portal.getByRole('button',{name:'К списку тем →'}).click();
+    check(subject.name+' history visible',await portal.locator('.english-history').count()===1);
+   }
+   await portal.getByRole('button',{name:'Закрыть предмет'}).click();
+  }
+  if(role==='child'){
+   check('nine independent 15-minute lesson awards total 270',englishCredit===270);
+   await page.getByRole('button',{name:/Мир/}).last().click();
+   await page.getByText(/Баланс: 1970/).waitFor();
+   check('all subjects contribute to family balance',await page.getByText(/Баланс: 1970/).count()===1);
+  }
+  check('new subjects leave no React exception',counters.errors.length===0,counters.errors.join(' | '));
+  return;
+ }
  if(englishTutorQA){
   await page.getByRole('button',{name:/Учёба/}).last().click();
   const entry=page.locator('.english-entry');

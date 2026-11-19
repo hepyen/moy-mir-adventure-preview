@@ -1,6 +1,7 @@
 import {BackpackAssistant} from './BackpackAssistant';
 import {GeographySection} from '../geography/GeographyGame';
 import {EnglishTutorEntry} from '../english/EnglishTutor';
+import {SubjectTutorsEntry} from '../subjects/SubjectTutors';
 import {Fragment,useEffect,useMemo,useState} from 'react';
 import type {useFamilyCloud} from '../lib/useFamilyCloud';
 import type {SchoolPrefs} from './useSchool';
@@ -50,6 +51,7 @@ export function SchoolHub({cloud,school,reminders,onAskMiro}:{cloud:Cloud;school
  return <>
  <section className="mw-greeting"><div className="mw-eyebrow">МОЯ ШКОЛА</div><h1>📚 Учёба</h1><p>Уроки, домашние задания и помощь Миро. Расписание заполняется вручную и сохраняется для обоих аккаунтов.</p></section>
  <EnglishTutorEntry cloud={cloud}/>
+ <SubjectTutorsEntry cloud={cloud}/>
  <GeographySection cloud={cloud}/>
  <div className="school-today"><div><span>HOY · {DAYS[today.weekday]}</span><strong>{todayLessons.length?`${todayLessons.length} clases`:'No hay clases hoy'}</strong></div><div className="school-chip">🎒</div></div>
  <section className="mw-panel school-card"><div className="school-heading"><h3>🗓️ Horario escolar</h3><button aria-label="Actualizar horario" title="Actualizar horario" onClick={()=>void school.refresh()}>↻</button></div>

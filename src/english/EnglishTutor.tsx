@@ -73,7 +73,7 @@ function EnglishTutor({cloud,onClose}:{cloud:Cloud;onClose:()=>void}){
  const lastPlacement=completed.find(x=>x.lesson_key==='diagnostic')
  const refreshHistory=useCallback(async()=>{
   if(!cloud.familyId||!cloud.childId)return
-  const result=await supabase.from('moymir_english_sessions').select('id,family_id,child_id,lesson_key,activity_day,started_at,finished_at,score,total_questions,status,points_awarded,answers').eq('family_id',cloud.familyId).eq('child_id',cloud.childId).order('started_at',{ascending:false}).limit(80)
+  const result=await supabase.from('moymir_english_sessions').select('id,family_id,child_id,lesson_key,activity_day,started_at,finished_at,score,total_questions,status,points_awarded,answers').eq('family_id',cloud.familyId).eq('child_id',cloud.childId).in('lesson_key',ALL_ENGLISH_LESSONS.map(l=>l.id)).order('started_at',{ascending:false}).limit(80)
   if(result.error)throw result.error
   setHistory((result.data??[]) as EnglishSession[])
  },[cloud.familyId,cloud.childId])
