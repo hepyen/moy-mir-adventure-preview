@@ -21,6 +21,8 @@ const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
 const englishResetAudioQA=process.env.QA_FOCUS==='english-reset-audio';
 const playstationGiftQA=process.env.QA_FOCUS==='playstation-gift';
+const taskManagementQA=process.env.QA_FOCUS==='task-management';
+const pioneerMobileQA=process.env.QA_FOCUS==='pioneer-mobile';
 const subjectTutorQA=process.env.QA_FOCUS==='subject-tutors';
 const practiceQA=process.env.QA_FOCUS==='subject-practice';
 const qaDaily='a1100000-0000-4000-8000-000000000001';
@@ -107,6 +109,19 @@ async function run(role,browser){
  [{id:'a1400000-0000-4000-8000-000000000002',reward_id:giftRewardId,cost_snapshot:60,requested_at:new Date(Date.now()-86400000).toISOString(),status:'pending',mystery_prize:null}]):[];
  let giftSeq=2;
  let playSessions=role==='parent'?[{id:'91111111-1111-4111-8111-111111111111',minutes:10,status:'pending',requested_at:new Date().toISOString(),started_at:null}]:[];
+ let taskRows=taskManagementQA?[
+  {id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child,active:true},
+  {id:'77777777-7777-4777-8777-777777777777',title:'Неиспользуемое дело',points:7,assigned_child:ids.child,active:false}
+ ]:null;
+ let taskSerial=0;
+ let dailyTemplates=taskManagementQA?[
+  {id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]},
+  {id:'e0000000-0000-4000-8000-000000000089',title:'Устаревшее ежедневное дело',points:8,icon:'🧹',active:false,weekdays:[0,1,2,3,4,5,6]}
+ ]:null;
+ let pioneerAttempts=0;
+ let pioneerActive=null;
+ let pioneerFailOnce=false;
+ const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
  let earnedMock=1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
@@ -147,6 +162,48 @@ async function run(role,browser){
      if(!row||row.child_id!==ids.child||!row.lesson_key.startsWith('eng2:'))return resp({error:'Not allowed'});
      if(englishTutorQA||englishResetAudioQA)row.active_seconds=900;
      return resp({active_seconds:row.active_seconds||0,required_seconds:900,status:'active'});
+    }
+    if(pioneerMobileQA&&name==='pioneer_state'){
+     if(pioneerFailOnce){pioneerFailOnce=false;return route.fulfill({status:403,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({message:'Недостаточно прав для загрузки библейской викторины',code:'42501'})})}
+     return resp(pioneerFakeState());
+    }
+    if(pioneerMobileQA&&name==='pioneer_begin'){
+     if(role==='parent')return route.fulfill({status:403,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({message:'Child only',code:'42501'})});
+     pioneerAttempts++;
+     pioneerActive={id:'a6000000-0000-4000-8000-000000000002',level:1,correct:0,slot:1,cycle:1,hints:{},deadline:new Date(Date.now()+30000).toISOString(),question:{id:51,text:'Кто построил ковчег?',number:1,choices:['Моисей','Ной','Давид','Иосиф']}};
+     return resp(pioneerActive.id)
+    }
+    if(pioneerMobileQA&&name==='pioneer_answer'){
+     const q=request.postDataJSON();if(!pioneerActive||q.p_attempt!==pioneerActive.id)return resp({error:'Invalid question'});
+     return resp({correct:true,answer:'Ной',reference:'Бытие 6:14',finished:false,status:'active',saved:0,newPoints:0});
+    }
+    if(pioneerMobileQA&&name==='pioneer_advance'){
+     if(pioneerActive)pioneerActive={...pioneerActive,correct:1,deadline:new Date(Date.now()+30000).toISOString(),question:{id:52,text:'Как звали брата Моисея?',number:2,choices:['Аарон','Иов','Иосиф','Павел']}};
+     return resp(new Date().toISOString());
+    }
+    if(pioneerMobileQA&&name==='pioneer_cashout'){
+     pioneerActive=null;return resp({saved:0,newPoints:0})
+    }
+    if(taskManagementQA&&name==='manage_family_task'){
+     if(role!=='parent')return route.fulfill({status:403,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({message:'Parent only',code:'42501'})});
+     const q=request.postDataJSON(),item=taskRows.find(x=>x.id===q.p_id);
+     if(!item)return resp({error:'Unknown task'});
+     Object.assign(item,{title:q.p_title,points:q.p_points,active:q.p_active});return resp(item.id)
+    }
+    if(taskManagementQA&&name==='manage_daily_chore'){
+     if(role!=='parent')return resp({error:'Parent only'});
+     const q=request.postDataJSON(),item=dailyTemplates.find(x=>x.id===q.p_id);
+     if(!item)return resp({error:'Unknown daily chore'});
+     Object.assign(item,{title:q.p_title,points:q.p_points,icon:q.p_icon,weekdays:q.p_weekdays,active:q.p_active});return resp(item.id)
+    }
+    if(taskManagementQA&&name==='create_family_task'){
+     const q=request.postDataJSON(),item={id:'f0000000-0000-4000-8000-'+String(++taskSerial).padStart(12,'0'),title:q.p_title,points:q.p_points,assigned_child:q.p_child,active:true};
+     taskRows.push(item);return resp(item.id)
+    }
+    if(taskManagementQA&&name==='submit_task'){
+     const q=request.postDataJSON(),item=taskRows.find(x=>x.id===q.p_task_id);
+     if(!item?.active)return route.fulfill({status:403,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({message:'Task unavailable',code:'42501'})});
+     return resp('ok')
     }
     if(name==='moymir_english_restart'){
      const key=request.postDataJSON().p_lesson;
@@ -340,9 +397,9 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    case 'moymir_growth_daily':data=growthAward?[{activity_date:dateToday,quality:growthChoice,points:20}]:[];break;
    case 'family_members': data=url.searchParams.get('role')==='eq.child'?[{user_id:ids.child}]:url.searchParams.has('user_id')?{family_id:ids.family,role}:[{user_id:ids.parent,role:'parent'},{user_id:ids.child,role:'child'}];break;
    case 'point_ledger': data=[{child_id:ids.child,delta:1700}];break;
-   case 'daily_chore_templates': data=[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]}];break;
+   case 'daily_chore_templates': data=dailyTemplates||[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]}];break;
    case 'daily_chore_completions':data=approvalQA?[{id:qaDaily,template_id:ids.daily,activity_date:today,status:qaDailyStatus}]:[];break;
-   case 'tasks':data=[{id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child},{id:'77777777-7777-4777-8777-777777777777',title:'Без исполнителя',points:10,assigned_child:null}];break;
+   case 'tasks':data=taskRows||[{id:ids.task,title:'Сделать уроки',points:20,active:true,assigned_child:ids.child},{id:'77777777-7777-4777-8777-777777777777',title:'Без исполнителя',points:10,active:true,assigned_child:null}];break;
    case 'task_submissions':data=approvalQA?[{id:qaTask,task_id:ids.task,child_id:ids.child,activity_date:qaYesterday,status:'pending'}]:[];break;
    case 'rewards':data=[{id:ids.reward,title:'Семейное кино',cost:80,active:true},{id:'b2222222-2222-4222-8222-222222222222',title:'Неактивная награда',cost:200,active:false},...(playstationGiftQA?[{id:giftRewardId,title:'30 минут PlayStation',cost:60,active:true}]:[])];break;
    case 'reward_requests':data=playstationGiftQA?giftOrders:approvalQA?[{id:qaReward,reward_id:ids.reward,cost_snapshot:80,status:'pending'}]:[];break;
@@ -365,6 +422,91 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(pioneerMobileQA){
+  await page.getByRole('button',{name:/Духовный рост/}).last().click();
+  const entry=page.locator('.pn-entry');await entry.waitFor();
+  check('pioneer entry is visible in spiritual-growth tab on mobile',await entry.getByRole('heading',{name:'Кто хочет стать пионером?'}).count()===1);
+  await entry.getByRole('button',{name:role==='child'?'▶ Играть':'📊 Результаты'}).click();
+  const portal=page.getByRole('dialog',{name:'Кто хочет стать пионером'});await portal.waitFor();
+  await portal.getByText('ГОТОВ ОТКРЫТЬ',{exact:false}).waitFor({state:'visible',timeout:7000});
+  check('pioneer quiz opens on narrow Android viewport',await portal.locator('.pn-lobby').count()===1&&await portal.isVisible());
+  if(role==='child'){
+   const level=portal.locator('.pn-level.open').first();await level.click();
+   await portal.getByText('Кто построил ковчег?').waitFor({state:'visible'});
+   check('child sees playable real first Bible question',pioneerAttempts===1&&await portal.locator('.pn-option').count()===4);
+   check('four answer buttons fit the phone without horizontal clipping',await portal.locator('.pn-option').first().evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=window.innerWidth+2&&r.width>200}));
+   await portal.getByRole('button',{name:'Б. Ной'}).click();
+   await portal.getByText('✨ Правильно!').waitFor();
+   check('answer submitted and Bible reference shown',counters.rpc.some(x=>x.name==='pioneer_answer')&&await portal.getByText(/Бытие 6:14/).count()===1);
+   await portal.getByRole('button',{name:/Следующий вопрос/}).click();
+   await portal.getByText('Как звали брата Моисея?').waitFor();
+   check('next Bible question opens after a correct answer',counters.rpc.some(x=>x.name==='pioneer_advance'));
+   await portal.getByRole('button',{name:/Выйти/}).click();
+   const confirm=portal.getByRole('alertdialog');await confirm.waitFor();
+   check('early exit requires confirmation without silently losing progress',await confirm.getByText(/Попытка завершится/).count()===1);
+   await confirm.getByRole('button',{name:'Да, выйти'}).click();
+   await portal.waitFor({state:'hidden'});
+   check('pioneer closes safely after confirmation',counters.rpc.some(x=>x.name==='pioneer_cashout'));
+   pioneerFailOnce=true;
+   await entry.getByRole('button',{name:'▶ Играть'}).click();
+   await portal.waitFor();await portal.getByText(/Недостаточно прав для загрузки/).waitFor({timeout:6000});
+   check('if API fails, phone shows a retry control instead of blank screen',await portal.getByRole('button',{name:'Повторить загрузку'}).count()===1);
+   await portal.getByRole('button',{name:'Повторить загрузку'}).click();
+   await portal.getByText('ГОТОВ ОТКРЫТЬ',{exact:false}).waitFor();
+   check('retry recovers Pioneer quiz after server becomes available',await portal.locator('.pn-level.open').count()===1);
+  }else{
+   check('parent can open Pioneer report without controls to play',await portal.getByText('Отчёт для родителя').count()===1&&await portal.locator('.pn-level').count()===0);
+  }
+  check('pioneer mobile quiz produces no JavaScript exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
+ if(taskManagementQA){
+  await page.getByRole('button',{name:/Дела/}).last().click();
+  await page.getByRole('heading',{name:role==='parent'?'Проверка заданий':'Мои дела'}).waitFor();
+  if(role==='parent'){
+   const manager=page.getByRole('group',{name:'Управление обычными делами'}).count();
+   const details=page.locator('details[aria-label="Управление обычными делами"]');
+   await details.locator('summary').click();
+   check('parent sees old and archived ordinary chores',await details.locator('.mw-family-task-editor').count()===2);
+   const ordinary=details.locator('.mw-family-task-editor').filter({hasText:'Сделать уроки'});
+   await ordinary.getByRole('button',{name:/Изменить/}).click();
+   await ordinary.getByLabel('Название дела').fill('Проверить школьный дневник');
+   await ordinary.getByLabel('Монеты за выполнение').fill('25');
+   await ordinary.getByRole('button',{name:'Сохранить изменения'}).click();
+   await details.getByText('Проверить школьный дневник').waitFor();
+   check('parent changes title and reward of an existing task',taskRows.some(x=>x.title==='Проверить школьный дневник'&&x.points===25));
+   const updated=details.locator('.mw-family-task-editor').filter({hasText:'Проверить школьный дневник'});
+   await updated.getByRole('button',{name:/Убрать из дел/}).click();
+   check('parent receives archive confirmation',await updated.getByText(/Прежние выполнения и заработанные баллы останутся/).count()===1);
+   await updated.getByRole('button',{name:'Да, убрать'}).click();
+   await updated.getByText('Убрано из списка').waitFor();
+   check('archived ordinary task is hidden from active list but retained in editor',!taskRows.find(x=>x.title==='Проверить школьный дневник').active&&await page.locator('.mw-chore').filter({hasText:'Проверить школьный дневник'}).count()===0);
+   await updated.getByRole('button',{name:/Восстановить/}).click();await updated.getByRole('button',{name:'Да, восстановить'}).click();
+   await page.locator('.mw-chore').filter({hasText:'Проверить школьный дневник'}).waitFor();
+   check('parent can restore archived ordinary task',taskRows.find(x=>x.title==='Проверить школьный дневник').active);
+   await page.getByPlaceholder('Название задания').fill('Новое дело для Ильи');
+   await page.getByRole('button',{name:'Создать задание'}).click();
+   await details.getByText('Новое дело для Ильи').waitFor();
+   check('parent adds an ordinary task and it appears in list',taskRows.some(x=>x.title==='Новое дело для Ильи'&&x.active));
+   const dailies=page.locator('details[aria-label="Управление ежедневными заданиями"]');await dailies.locator('summary').click();
+   const daily=dailies.locator('.mw-cloud-line').filter({hasText:'Заправить кровать'});
+   await daily.getByRole('button',{name:/Убрать из дел/}).click();await daily.getByRole('button',{name:'Да, убрать'}).click();
+   await daily.getByText(/Приостановлено/).waitFor();
+   check('parent hides a daily chore without deleting original record',dailyTemplates.find(x=>x.id===ids.daily).active===false);
+   await daily.getByRole('button',{name:/Восстановить/}).click();await daily.getByRole('button',{name:'Да, восстановить'}).click();
+   await daily.getByText(/Активно/).waitFor();
+   check('parent restores the daily chore with original name and points',dailyTemplates.find(x=>x.id===ids.daily).active&&dailyTemplates.find(x=>x.id===ids.daily).points===5);
+   await daily.getByRole('button',{name:'Изменить',exact:true}).click();
+   await daily.getByLabel('Название').fill('Заправить постель утром');
+   await daily.getByRole('button',{name:'Сохранить изменения'}).click();
+   await dailies.getByText('Заправить постель утром').waitFor();
+   check('parent can rename existing daily chore without losing history',dailyTemplates.find(x=>x.id===ids.daily).title==='Заправить постель утром'&&dailyTemplates.find(x=>x.id===ids.daily).active);
+  }else{
+   check('child does not see parental edit controls',await page.locator('details[aria-label="Управление обычными делами"]').count()===0&&await page.locator('details[aria-label="Управление ежедневными заданиями"]').count()===0);
+   check('archived ordinary and daily tasks are not presented as active',await page.getByText('Неиспользуемое дело').count()===0&&await page.getByText('Устаревшее ежедневное дело').count()===0);
+   check('child sees original active chores only',await page.locator('.mw-chore').filter({hasText:'Сделать уроки'}).count()===1&&await page.locator('.mw-chore').filter({hasText:'Заправить кровать'}).count()===1);
+  }
+  check('task edit/restore causes no JS exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(practiceQA){
   await page.getByRole('button',{name:/Учёба/}).last().click();
   const entry=page.locator('.subjects-entry');await entry.locator('summary').click();

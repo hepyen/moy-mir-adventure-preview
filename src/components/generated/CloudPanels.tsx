@@ -47,7 +47,7 @@ function DailySettings({cloud}:{cloud:Cloud}){
   finally{setBusy(false)}
  }
  return <details className="mw-panel mw-cloud-form" aria-label="Управление ежедневными заданиями"><summary>📆 Управление ежедневными заданиями ({cloud.dailyTemplates.length})</summary>
-  <p>Создавай дела на выбранные дни недели. Можно выключить старое задание без удаления истории.</p>
+  <p>Добавляй новые ежедневные дела, меняй названия и дни недели. Кнопка «Убрать из дел» скрывает задание у Ильи, не удаляя историю и баллы.</p>
   <form onSubmit={e=>void create(e)}>
    <input required maxLength={160} placeholder="Например, почистить зубы вечером" value={title} onChange={e=>setTitle(e.target.value)}/>
    <div className="mw-cloud-inline"><label>Значок<input aria-label="Значок ежедневного дела" maxLength={8} value={icon} onChange={e=>setIcon(e.target.value)}/></label>
@@ -59,6 +59,28 @@ function DailySettings({cloud}:{cloud:Cloud}){
   {cloud.dailyTemplates.map(t=><DailyTemplateEditor key={t.id} cloud={cloud} item={t} names={names}/>)}
  </details>
 }
+function ArchiveTaskAction({active,onChange,busy}:{active:boolean;onChange:(next:boolean)=>Promise<void>;busy:boolean}){
+ const[confirm,setConfirm]=useState(false),[pending,setPending]=useState(false),[error,setError]=useState('');
+ async function action(){if(busy||pending)return;setPending(true);setError('');try{await onChange(!active);setConfirm(false)}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить список')}finally{setPending(false)}}
+ return <div className="mw-task-archive-control">
+  {!confirm?<button type="button" className={active?'mw-task-remove':'mw-task-restore'} disabled={busy} onClick={()=>{setError('');setConfirm(true)}}>{active?'🗑 Убрать из дел':'↩ Восстановить'}</button>:<div className="mw-task-archive-confirm" role="group" aria-label={active?'Подтверждение удаления дела':'Подтверждение восстановления дела'}>
+   <p>{active?'Убрать дело из списка Ильи? Прежние выполнения и заработанные баллы останутся в истории.':'Вернуть это дело в список Ильи?'}</p>
+   <button type="button" className="mw-task-archive-yes" disabled={pending||busy} onClick={()=>void action()}>{pending?'Сохраняем…':active?'Да, убрать':'Да, восстановить'}</button>
+   <button type="button" disabled={pending} onClick={()=>setConfirm(false)}>Отмена</button>
+  </div>}
+  {error&&<small className="mw-cloud-error" role="alert">{error}</small>}
+ </div>
+}
+function FamilyTaskEditor({cloud,item}:{cloud:Cloud;item:CloudItem}){
+ const[editing,setEditing]=useState(false),[title,setTitle]=useState(item.title),[points,setPoints]=useState(item.points),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const change=async(nextActive:boolean)=>{await cloud.rpc('manage_family_task',{p_id:item.id,p_title:item.title,p_points:item.points,p_active:nextActive})}
+ async function save(e:React.FormEvent){e.preventDefault();if(busy)return;setBusy(true);setError('');try{await cloud.rpc('manage_family_task',{p_id:item.id,p_title:title.trim(),p_points:points,p_active:item.active!==false});setEditing(false)}catch(e){setError(e instanceof Error?e.message:'Не удалось изменить дело')}finally{setBusy(false)}}
+ return <div className="mw-family-task-editor" data-task-id={item.id}>
+  <div className="mw-family-task-row"><div><strong>{item.title}</strong><small>+{item.points} монет · {item.active===false?'Убрано из списка':'Активно'}</small></div><button type="button" className="mw-inline-edit" onClick={()=>{setTitle(item.title);setPoints(item.points);setEditing(!editing)}}>{editing?'Отмена':'✎ Изменить'}</button></div>
+  {editing&&<form className="mw-inline-editor" onSubmit={e=>void save(e)}><label>Название дела<input required minLength={1} maxLength={160} value={title} onChange={e=>setTitle(e.target.value)}/></label><label>Монеты за выполнение<input type="number" min={0} max={1000} required value={points} onChange={e=>setPoints(Number(e.target.value))}/></label><button type="submit" disabled={busy}>{busy?'Сохраняем…':'Сохранить изменения'}</button>{error&&<small role="alert" className="mw-cloud-error">{error}</small>}</form>}
+  <ArchiveTaskAction active={item.active!==false} busy={busy} onChange={change}/>
+ </div>
+}
 function DailyTemplateEditor({cloud,item,names}:{cloud:Cloud;item:CloudItem;names:string[]}){
  const[edit,setEdit]=useState(false),[title,setTitle]=useState(item.title),[icon,setIcon]=useState(item.icon||'✅');
  const[points,setPoints]=useState(item.points),[days,setDays]=useState<number[]>(item.weekdays||[0,1,2,3,4,5,6]);
@@ -68,12 +90,13 @@ function DailyTemplateEditor({cloud,item,names}:{cloud:Cloud;item:CloudItem;name
  return <div className="mw-cloud-line"><div><strong>{item.icon||'✅'} {item.title}</strong><small>+{item.points} монет · {(item.weekdays||[]).map(d=>names[d]).join(', ')} · {item.active?'Активно':'Приостановлено'}</small></div>
   <button type="button" className="mw-inline-edit" onClick={()=>setEdit(x=>!x)}>{edit?'Закрыть':'Изменить'}</button>
   {edit&&<form className="mw-inline-editor" onSubmit={e=>void save(e)}><label>Название<input required maxLength={160} value={title} onChange={e=>setTitle(e.target.value)}/></label><label>Значок<input maxLength={8} value={icon} onChange={e=>setIcon(e.target.value)}/></label><label>Баллы<input type="number" min={0} max={1000} value={points} onChange={e=>setPoints(Number(e.target.value))}/></label><div className="mw-weekdays">{names.map((name,i)=><label key={i}><input type="checkbox" checked={days.includes(i)} onChange={e=>setDays(old=>e.target.checked?[...old,i].sort():old.filter(x=>x!==i))}/>{name}</label>)}</div><label className="mw-inline-check"><input type="checkbox" checked={active} onChange={e=>setActive(e.target.checked)}/>Активно</label><button type="submit" disabled={busy}>{busy?'Сохраняем…':'Сохранить изменения'}</button>{error&&<p role="alert" className="mw-cloud-error">{error}</p>}</form>}
+  <ArchiveTaskAction active={item.active!==false} busy={busy} onChange={async(nextActive)=>{await cloud.rpc('manage_daily_chore',{p_id:item.id,p_title:item.title,p_points:item.points,p_icon:item.icon||'✅',p_weekdays:item.weekdays||[0,1,2,3,4,5,6],p_active:nextActive});setActive(nextActive)}}/>
  </div>
 }
 export function CloudTasks({cloud}:{cloud:Cloud}){
  const[title,setTitle]=useState(''),[points,setPoints]=useState('10'),[propose,setPropose]=useState(''),[proposePoints,setProposePoints]=useState('10');
  const[deductReason,setDeductReason]=useState(''),[deductAmount,setDeductAmount]=useState('5'),[category,setCategory]=useState('agreement');
- const all=[...cloud.daily.map(x=>({...x,kind:'daily'})),...cloud.tasks.map(x=>({...x,kind:'ordinary'}))];
+ const all=[...cloud.daily.map(x=>({...x,kind:'daily'})),...cloud.tasks.filter(x=>x.active!==false).map(x=>({...x,kind:'ordinary'}))];
  const today=day();
  const todayDaily=new Map(cloud.dailyDone.filter(row=>row.activity_date===today).map(row=>[row.template_id,row.id]));
  const todayTasks=new Map(cloud.activity.filter(row=>row.activity_date===today).map(row=>[row.task_id,row.id]));
@@ -93,6 +116,9 @@ export function CloudTasks({cloud}:{cloud:Cloud}){
  {cloud.role==='child'&&<section className="mw-panel mw-cloud-form"><h3>💡 Предложить задание</h3><p>Предложение отправится родителям на рассмотрение.</p>
  <form onSubmit={e=>{e.preventDefault();void onProposal().catch(e=>alert(e.message))}}><input required maxLength={160} placeholder="Например, помочь приготовить ужин" value={propose} onChange={e=>setPropose(e.target.value)}/><label>Баллы<input type="number" min={0} max={1000} required value={proposePoints} onChange={e=>setProposePoints(e.target.value)}/></label><button type="submit">Отправить родителю</button></form></section>}
  {cloud.role==='parent'&&<section className="mw-panel mw-cloud-form"><h3>➕ Добавить задание</h3><form onSubmit={e=>{e.preventDefault();void onCreate().catch(e=>alert(e.message))}}><input required maxLength={160} placeholder="Название задания" value={title} onChange={e=>setTitle(e.target.value)}/><label>Баллы<input type="number" min={0} max={1000} value={points} onChange={e=>setPoints(e.target.value)}/></label><button type="submit">Создать задание</button></form></section>}
+ {cloud.role==='parent'&&<details className="mw-panel mw-cloud-form" aria-label="Управление обычными делами"><summary>✎ Изменить или удалить обычные дела ({cloud.tasks.length})</summary><p>Редактируй названия и монеты, убирай ненужные задания из списка или возвращай их. История выполнений и начисленные баллы сохраняются.</p>
+  {cloud.tasks.length?cloud.tasks.map(item=><FamilyTaskEditor key={item.id} item={item} cloud={cloud}/>):<p>Обычных дел пока нет. Добавь первое через форму выше.</p>}
+ </details>}
  {cloud.role==='parent'&&<DailySettings cloud={cloud}/>}
  {earlier.length>0&&<section className="mw-panel"><h3>Другие дела на проверку</h3>{earlier.map(item=><ApprovalCard key={item.id} item={item} anchored/>)}</section>}
  <h3 className="mw-cloud-heading" id="review-tasks">🗓️ Ежедневные дела ({cloud.daily.length})</h3>

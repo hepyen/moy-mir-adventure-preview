@@ -5,6 +5,7 @@ import {supabase} from '../lib/supabase';
 import {PioneerArena,type PioneerState,type PioneerAnswer,type PioneerHintData} from './PioneerArena';
 import pioneerEmblem from './pioneer_emblem.png';
 type Cloud=ReturnType<typeof useFamilyCloud>;
+const errorMessage=(e:unknown)=>e&&typeof e==='object'&&'message' in e&&typeof e.message==='string'?e.message:e instanceof Error?e.message:'Проверь подключение к интернету и попробуй снова';
 
 export function PioneerSection({cloud}:{cloud:Cloud}){
  const [open,setOpen]=useState(false);
@@ -15,13 +16,14 @@ export function PioneerSection({cloud}:{cloud:Cloud}){
   if(!supabase||!cloud.familyId)throw Error('Для сохранения баллов нужна связь с семейной базой');
   const {data,error:e}=await supabase.rpc('pioneer_state',{p_family:cloud.familyId});
   if(e)throw e;
+  if(!data||typeof data!=='object'||!('unlocked' in data)||!('total' in data))throw Error('Сервер не вернул состояние викторины. Нажми «Повторить загрузку».');
   setState(data as PioneerState);
  },[cloud.familyId]);
  useEffect(()=>{
   if(!open)return;
   let alive=true;
   setLoading(true);setError('');setState(null);
-  void reload().catch(e=>{if(alive)setError(e instanceof Error?e.message:'Сервер недоступен')}).finally(()=>{if(alive)setLoading(false)});
+  void reload().catch(e=>{if(alive)setError(errorMessage(e))}).finally(()=>{if(alive)setLoading(false)});
   return()=>{alive=false};
  },[open,reload]);
  async function start(level:number){

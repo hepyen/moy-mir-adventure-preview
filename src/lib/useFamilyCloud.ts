@@ -51,7 +51,7 @@ export function useFamilyCloud(){
      supabase.rpc('moymir_family_overview',{p_family:fid,p_child:child}),
      supabase.from('daily_chore_templates').select('id,title,icon,points,active,weekdays').eq('family_id',fid).eq('child_id',child),
      r==='parent'?dailyRows.or('activity_date.gte.'+since+',status.eq.pending'):dailyRows.gte('activity_date',since),
-     supabase.from('tasks').select('id,title,points,assigned_child').eq('family_id',fid),
+     supabase.from('tasks').select('id,title,points,assigned_child,active').eq('family_id',fid),
      r==='parent'?taskRows.or('activity_date.gte.'+since+',status.eq.pending'):taskRows.gte('activity_date',since),
      supabase.from('rewards').select('id,title,cost,active').eq('family_id',fid),
      supabase.from('reward_requests').select('id,reward_id,cost_snapshot,status,mystery_prize,requested_at').eq('family_id',fid).eq('child_id',child),
@@ -76,7 +76,7 @@ export function useFamilyCloud(){
    const tmap=new Map((sub.data??[]).filter(x=>x.activity_date===day).map(x=>[x.task_id,x]));
    const dailyTemplates=(dailyt.data??[]).map(x=>({id:x.id,title:x.title,points:x.points,icon:x.icon,active:x.active,weekdays:x.weekdays,status:dmap.get(x.id)?.status||'open'}));
    const daily=dailyTemplates.filter(x=>x.active&&x.weekdays?.includes(weekday));
-   const taskItems=(tasks.data??[]).filter(x=>x.assigned_child===child).map(x=>({id:x.id,title:x.title,points:x.points,status:tmap.get(x.id)?.status||'open'}));
+   const taskItems=(tasks.data??[]).filter(x=>x.assigned_child===child&&(r==='parent'||x.active!==false)).map(x=>({id:x.id,title:x.title,points:x.points,active:x.active!==false,status:tmap.get(x.id)?.status||'open'}));
    const items=(rewards.data??[]).filter(x=>r==='parent'||x.active).map(x=>({id:x.id,title:x.title,points:0,cost:x.cost,active:x.active}));
    if(serial!==fetchSerial.current||currentUser.current!==uid)return;
    setData(previous=>({weekly,worldPoints:lifetime,worldNumber:world.data?.[0]?.active_world===2?2:1,balance:Number(totals.balance||0),earned,spent,deducted,spiritualPoints,daily,dailyTemplates,tasks:taskItems,rewards:items,proposals:proposals.data??[],spiritual:spiritual.data??[],behavior:behaviors.data??[],rewardRequests:requests.data??[],pendingSpiritual:extra.data??[],activity:sub.data??[],dailyDone:done.data??[],pendingPlaytime:playtime.error?previous.pendingPlaytime:playtime.data??[],pendingMeals:meals.error?previous.pendingMeals:meals.data??[]}));
