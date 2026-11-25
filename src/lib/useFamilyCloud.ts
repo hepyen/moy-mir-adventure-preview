@@ -81,10 +81,10 @@ export function useFamilyCloud(){
    const taskItems=(tasks.data??[]).filter(x=>x.assigned_child===child&&(r==='parent'||x.active!==false)).map(x=>({id:x.id,title:x.title,points:x.points,active:x.active!==false,status:tmap.get(x.id)?.status||'open'}));
    const items=(rewards.data??[]).filter(x=>r==='parent'||x.active).map(x=>({id:x.id,title:x.title,points:0,cost:x.cost,active:x.active}));
    if(serial!==fetchSerial.current||currentUser.current!==uid)return;
-   setData(previous=>({weekly,worldPoints:lifetime,worldNumber:world.data?.[0]?.active_world===2?2:1,balance:Number(totals.balance||0),earned,spent,deducted,spiritualPoints,daily,dailyTemplates,tasks:taskItems,rewards:items,proposals:proposals.data??[],spiritual:spiritual.data??[],behavior:behaviors.data??[],rewardRequests:requests.data??[],pendingSpiritual:extra.data??[],activity:sub.data??[],dailyDone:done.data??[],pendingPlaytime:playtime.error?previous.pendingPlaytime:playtime.data??[],pendingMeals:meals.error?previous.pendingMeals:meals.data??[],choreDecisions:decisionQueue.error?previous.choreDecisions:Array.isArray(decisionQueue.data)?decisionQueue.data:[]}));
+   setData(previous=>({weekly,worldPoints:lifetime,worldNumber:world.data?.[0]?.active_world===3?3:world.data?.[0]?.active_world===2?2:1,balance:Number(totals.balance||0),earned,spent,deducted,spiritualPoints,daily,dailyTemplates,tasks:taskItems,rewards:items,proposals:proposals.data??[],spiritual:spiritual.data??[],behavior:behaviors.data??[],rewardRequests:requests.data??[],pendingSpiritual:extra.data??[],activity:sub.data??[],dailyDone:done.data??[],pendingPlaytime:playtime.error?previous.pendingPlaytime:playtime.data??[],pendingMeals:meals.error?previous.pendingMeals:meals.data??[],choreDecisions:decisionQueue.error?previous.choreDecisions:Array.isArray(decisionQueue.data)?decisionQueue.data:[]}));
    const childLabel=profile.data?.display_name||'Илья';
    setFamilyId(fid);setChildId(child);setRole(r);setChildName(childLabel);setError('');
-   writeOffline(uid,{familyId:fid,childId:child,role:r,childName:childLabel,worldPoints:lifetime,balance:Number(totals.balance||0),worldNumber:world.data?.[0]?.active_world===2?2:1,spiritualPoints});
+   writeOffline(uid,{familyId:fid,childId:child,role:r,childName:childLabel,worldPoints:lifetime,balance:Number(totals.balance||0),worldNumber:world.data?.[0]?.active_world===3?3:world.data?.[0]?.active_world===2?2:1,spiritualPoints});
   }catch(e){
    if(serial!==fetchSerial.current||currentUser.current!==session.user.id)return;
    const msg=e instanceof Error?e.message:String(e);
@@ -112,7 +112,7 @@ export function useFamilyCloud(){
   let debounce:ReturnType<typeof setTimeout>|null=null;
   const schedule=()=>{if(document.visibilityState!=='visible'||debounce)return;debounce=setTimeout(()=>{debounce=null;void refresh()},380)};
   const channel=supabase.channel('moymir3-family-'+session.user.id);
-  for(const table of ['daily_chore_completions','task_submissions','point_ledger','reward_requests','spiritual_activity_records','spiritual_point_requests','behavior_points','child_task_proposals','moymir_playtime_sessions','moymir_health_meal_requests']){
+  for(const table of ['child_world_progress','daily_chore_completions','task_submissions','point_ledger','reward_requests','spiritual_activity_records','spiritual_point_requests','behavior_points','child_task_proposals','moymir_playtime_sessions','moymir_health_meal_requests']){
    channel.on('postgres_changes',{event:'*',schema:'public',table,filter:'family_id=eq.'+familyId},schedule);
   }
   channel.on('postgres_changes',{event:'INSERT',schema:'public',table:'family_notifications',filter:'recipient_id=eq.'+session.user.id},schedule);

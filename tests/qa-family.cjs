@@ -16,6 +16,7 @@ let failures=0;
 const approvalQA=process.env.QA_FOCUS==='parent-approvals';
 const worldInspectQA=process.env.QA_FOCUS==='world-inspect';
 const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
+const threeWorldQA=process.env.QA_FOCUS==='three-worlds';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
@@ -122,7 +123,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=threeWorldQA?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -239,7 +240,7 @@ async function run(role,browser){
      Object.assign(row,{status:'completed',finished_at:new Date().toISOString(),answers,score,points_awarded:awarded});englishCredit+=awarded;
      return resp({status:'completed',score,total:correct.length,points_awarded:awarded,correct_answers:correct})
     }
-if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)qaDailyStatus=request.postDataJSON().p_approve?'approved':'rejected';if(name==='advance_my_world')world=2;if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
+if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)qaDailyStatus=request.postDataJSON().p_approve?'approved':'rejected';if(name==='advance_my_world'){world=2;return resp(2)}if(name==='advance_my_world_stage'){world=3;return resp(3)}if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
     if(playstationGiftQA&&name==='request_reward'){
      const id=request.postDataJSON().p_reward;
      if(id!==giftRewardId)return resp({error:'Unrecognized test reward'});
@@ -431,6 +432,51 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(threeWorldQA){
+  const switcher=page.locator('.mw-worldswitch');
+  const dialog=page.getByRole('dialog',{name:'Поздравление с завершением этапа'});
+  check('1599 points: celebration stays closed',await dialog.count()===0);
+  check('all three worlds visible, two locked',await switcher.getByRole('button').count()===3&&await switcher.getByText('🔒',{exact:false}).count()===2);
+  await switcher.getByRole('button',{name:/Домик на дереве/}).click();
+  await page.locator('.world3d-viewport canvas').waitFor({timeout:15000});
+  check('locked treehouse is real 3D preview without persistent editor',await page.locator('.mw-world-locked').isVisible()&&await page.locator('.world3d-decoration-editor').count()===0);
+  await page.locator('.world3d-object-picker summary').click();
+  await page.locator('.world3d-object-picker').getByRole('button',{name:/Дверь домика/}).click();
+  check('treehouse door can be inspected',await page.locator('.world3d-inspect').isVisible());
+  await switcher.getByRole('button',{name:/Космос/}).click();
+  await page.locator('.space-world canvas').waitFor({timeout:15000});
+  await page.locator('.space-world details summary').click();
+  check('space preview has all 30 3D components',await page.locator('.space-catalog button').count()===30&&await page.locator('.space-catalog button:disabled').count()===0);
+  await page.locator('.space-catalog').getByRole('button',{name:'Космонавт'}).click();
+  check('space camera focuses object',await page.locator('.space-inspect strong').innerText()==='Космонавт');
+  await page.locator('.space-world').getByRole('button',{name:/Открыть шлюз/}).click();
+  check('airlock switches',await page.locator('.space-world').getByRole('button',{name:/Закрыть шлюз/}).count()===1);
+  await switcher.getByRole('button',{name:/Домик на поляне/}).click();
+  earnedMock=1600;
+  await page.locator('.mw-cloud-syncbar button').first().click();
+  if(role==='child'){
+   await dialog.waitFor({timeout:12000});
+   check('1600 points: full-screen modal with fireworks',await dialog.locator('.mw-firework').count()===7&&await dialog.locator('h1').innerText()==='Поздравляю, Илья!');
+   check('no automatic stage transition',world===1);
+   await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
+   await dialog.waitFor({state:'detached',timeout:15000});
+   await page.locator('.world3d-toolbar').getByText('3D-домик на дереве').waitFor({timeout:15000});
+   check('child advances to treehouse and starts at zero',world===2&&await page.locator('.world3d-bottom').innerText().then(x=>x.includes('0 / 1600')));
+   earnedMock=3200;await page.locator('.mw-cloud-syncbar button').first().click();
+   await dialog.waitFor({timeout:12000});
+   check('3200 points: second stage celebration',await dialog.getByText('ЭТАП 2 ЗАВЕРШЁН').count()===1);
+   await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
+   await page.locator('.space-world').waitFor({timeout:15000});
+   check('third stage unlocked with zero points',world===3&&await page.locator('.space-catalog button:disabled').count()===30);
+   check('no loss of wallet',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
+  }else{
+   await page.waitForTimeout(400);
+   check('parent cannot trigger child milestone',await dialog.count()===0&&world===1);
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));
+  return;
+ }
+ if(role==='child'&&await page.getByRole('dialog',{name:'Поздравление с завершением этапа'}).count())await page.getByRole('button',{name:'Посмотреть позже'}).click();
  if(pioneerMobileQA){
   await page.getByRole('button',{name:/Духовный рост/}).last().click();
   const entry=page.locator('.pn-entry');await entry.waitFor();

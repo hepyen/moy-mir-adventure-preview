@@ -30,8 +30,11 @@ export function treehouseSpot(index:number):WorldSpot{
  const base={id:'treehouse-'+index,subtitle}
  if(index===15)return {...base,title:'🚪 Дверь домика на дереве',kind:'door',target:[.6,3.55,1.0],distance:6.9,description:'Открой дверь и загляни в обставленную комнату на дереве.'}
  if(index===16||index===23)return {...base,title:'💡 Свет в домике на дереве',kind:'light',target:[.6,3.9,1.0],distance:7,description:'Включи освещение окон и подвесных фонариков.'}
- if(index>=12&&index<=21)return {...base,title:'🌳 Домик на дереве',kind:'home',target:[.5,3.7,.35],distance:8.1,description:'Домик построен по этапам. Дверь и окна можно открыть и осветить.'}
+ if(index>=12&&index<=20)return {...base,title:'🌳 Домик на дереве',kind:'home',target:[.5,3.7,.35],distance:8.1,description:'Домик построен по этапам. Дверь и окна можно открыть и осветить.'}
  if(index<=8)return {...base,title:'🌲 Большое дерево',kind:'tree',target:[0,3.1,-.4],distance:9.4,description:'Дерево стало основой нового мира. Его ветви и крона живут своей жизнью.'}
- if(index===22||index===24||index===25)return {...base,title:'🌺 Сад на дереве',kind:'garden',target:[-1.4,1.5,.2],distance:9.0,description:'Цветы украшают дорожку, ветви и балкон.'}
+ if(index===21)return {...base,title:'🌉 Мостик и площадка',kind:'decoration',target:[-1.8,3.45,.2],distance:6.5,description:'Деревянный мост соединяет площадку с домиком.'}
+ if(index===27)return {...base,title:'🐿️ Рыжая белочка',kind:'decoration',target:[0,1.2,.2],distance:5.4,description:'Белочка путешествует по веткам и лестнице.'}
+ if(index===22)return {...base,title:'🎠 Качели и сад',kind:'garden',target:[-2.37,3.2,.5],distance:6.5,description:'Качели плавно раскачиваются, а цветы растут вокруг дерева.'}
+ if(index===24||index===25)return {...base,title:'🌺 Сад на дереве',kind:'garden',target:[-1.4,1.5,.2],distance:9.0,description:'Цветы украшают дорожку, ветви и балкон.'}
  return {...base,title:subtitle,kind:'decoration',target:[0,2.4,.2],distance:9.5,description:'Эта часть нового мира открыта благодаря достижениям Ильи.'}
 }

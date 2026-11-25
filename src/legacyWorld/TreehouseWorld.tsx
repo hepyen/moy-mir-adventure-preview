@@ -193,6 +193,8 @@ function TreehouseDoor({opened}:{opened:boolean}){
   <Orb at={[.49,-.02,.05]} r={.048} color="#ffdc82"/>
  </group>
 }
+function Swing(){const ref=useRef<Group>(null);useFrame(({clock})=>{if(ref.current)ref.current.rotation.x=Math.sin(clock.elapsedTime*1.25)*.19});return <group position={[-2.37,4.17,.2]} ref={ref}>{[-.32,.32].map(x=><Limb key={x} a={[x,0,0]} b={[x,-1.45,.45]} r={.025} color="#e1bb81"/>)}<Timber at={[0,-1.47,.45]} dim={[.82,.11,.44]} color="#ca8d57"/><Orb at={[0,-1.34,.36]} r={.21} color="#ffcc69"/></group>}
+function BranchBridge(){return <group>{Array.from({length:8},(_,i)=><Timber key={i} at={[-1.58+i*.13,3.04+.08*Math.sin(i*.45),.15]} dim={[.115,.07,.62]} color={i%2?'#bb8753':'#d2a06a'}/>)}{[-.2,.5].map(z=><group key={z}><Limb a={[-1.68,3.65,z]} b={[-.55,3.65,z]} r={.028} color="#d9bd85"/>{[-1.65,-.6].map(x=><Timber key={x} at={[x,3.33,z]} dim={[.07,.65,.07]} color="#a26c3e"/>)}</group>)}</group>}
 export function TreehousePiece({index,points,doorOpen=false,lightsOn=false}:{index:number;points:number;doorOpen?:boolean;lightsOn?:boolean}){
  switch(index){
  case 0:return <group>
@@ -234,7 +236,7 @@ export function TreehousePiece({index,points,doorOpen=false,lightsOn=false}:{ind
   {railPosts.map(x=><Timber key={x} at={[x+.6,3.42,1.7]} dim={[.075,.73,.07]} color="#e1ac72"/>)}
   <Timber at={[.6,3.79,1.7]} dim={[2.8,.11,.12]} color="#98613c"/>
  </group>
- case 21:return <group>
+ case 21:return <group><BranchBridge/>
   <Timber at={[-2.25,3.02,.1]} dim={[1.4,.14,1.42]} color="#b68050"/>
   {[-2.82,-1.66].map(x=><Timber key={x} at={[x,3.39,.74]} dim={[.09,.72,.09]} color="#e9ba83"/>)}
   <Timber at={[-2.25,3.76,.74]} dim={[1.37,.10,.10]} color="#d6a276"/>
@@ -258,9 +260,7 @@ export function TreehousePiece({index,points,doorOpen=false,lightsOn=false}:{ind
    <Blossom x={x} z={-1.05} y={.19} color="#fa9cbe"/>
   </group>)}
 
-  {[-.32,.32].map(x=><Limb key={x} a={[-2.37+x,4.17,.2]} b={[-2.37+x,2.72,.65]} r={.025} color="#e1bb81"/>)}
-  <Timber at={[-2.37,2.7,.65]} dim={[.82,.11,.44]} color="#ca8d57"/>
-  <Orb at={[-2.36,2.83,.56]} r={.21} color="#ffcc69"/>
+  <Swing/>
  </group>
  case 23:return <group>{[[-1.7,4.2,.17],[2.07,4.23,.23],[.42,3.83,1.71]].map(([x,y,z],i)=><group key={i}>
   <Limb a={[x,y+.4,z]} b={[x,y+.1,z]} r={.019} color="#766047"/>
