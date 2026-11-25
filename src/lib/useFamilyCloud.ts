@@ -5,7 +5,7 @@ type Row=Record<string,any>;
 export type WeeklyOverview={tasks7:number;daily7:number;spiritual7:number;homework7:number;today:string};
 const weeklyEmpty:WeeklyOverview={tasks7:0,daily7:0,spiritual7:0,homework7:0,today:''};
 export type CloudItem={id:string;title:string;points:number;icon?:string;status?:string;cost?:number;weekdays?:number[];active?:boolean;penaltyEnabled?:boolean};
-const empty={weekly:weeklyEmpty,worldPoints:0,worldNumber:1 as number,balance:0,earned:0,spent:0,deducted:0,spiritualPoints:0,daily:[] as CloudItem[],dailyTemplates:[] as CloudItem[],tasks:[] as CloudItem[],rewards:[] as CloudItem[],proposals:[] as Row[],spiritual:[] as Row[],behavior:[] as Row[],rewardRequests:[] as Row[],pendingSpiritual:[] as Row[],activity:[] as Row[],dailyDone:[] as Row[],pendingPlaytime:[] as Row[],pendingMeals:[] as Row[]};
+const empty={weekly:weeklyEmpty,worldPoints:0,worldNumber:1 as number,balance:0,earned:0,spent:0,deducted:0,spiritualPoints:0,daily:[] as CloudItem[],dailyTemplates:[] as CloudItem[],tasks:[] as CloudItem[],rewards:[] as CloudItem[],proposals:[] as Row[],spiritual:[] as Row[],behavior:[] as Row[],rewardRequests:[] as Row[],pendingSpiritual:[] as Row[],activity:[] as Row[],dailyDone:[] as Row[],pendingPlaytime:[] as Row[],pendingMeals:[] as Row[],choreDecisions:[] as Row[]};
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 type OfflineFamily={familyId:string;childId:string;role:'parent'|'child';childName:string;worldPoints:number;balance:number;worldNumber:number;spiritualPoints:number};
 const offlineKey=(uid:string)=>'moymir-family-offline-'+uid;
@@ -47,7 +47,7 @@ export function useFamilyCloud(){
    const dailyRows=supabase.from('daily_chore_completions').select('id,template_id,activity_date,status,points_awarded').eq('family_id',fid).eq('child_id',child);
    const taskRows=supabase.from('task_submissions').select('id,task_id,child_id,activity_date,status,submitted_at').eq('child_id',child).order('submitted_at',{ascending:true});
    const noRows={data:[],error:null};
-   const [overview,dailyt,done,tasks,sub,rewards,requests,behaviors,spiritual,extra,proposals,world,profile,playtime,meals]=await Promise.all([
+   const [overview,dailyt,done,tasks,sub,rewards,requests,behaviors,spiritual,extra,proposals,world,profile,playtime,meals,decisionQueue,decisionStatus]=await Promise.all([
      supabase.rpc('moymir_family_overview',{p_family:fid,p_child:child}),
      supabase.from('daily_chore_templates').select('id,title,icon,points,active,weekdays,penalty_enabled').eq('family_id',fid).eq('child_id',child),
      r==='parent'?dailyRows.or('activity_date.gte.'+since+',status.eq.pending'):dailyRows.gte('activity_date',since),
@@ -62,7 +62,9 @@ export function useFamilyCloud(){
      supabase.from('child_world_progress').select('active_world').eq('family_id',fid).eq('child_id',child),
      supabase.from('family_child_profiles').select('display_name').eq('family_id',fid).eq('child_id',child).maybeSingle(),
      r==='parent'?supabase.from('moymir_playtime_sessions').select('id,minutes,status').eq('family_id',fid).eq('child_id',child).eq('status','pending'):noRows,
-     r==='parent'?supabase.from('moymir_health_meal_requests').select('id,suggestion,status').eq('family_id',fid).eq('child_id',child).eq('status','pending'):noRows
+     r==='parent'?supabase.from('moymir_health_meal_requests').select('id,suggestion,status').eq('family_id',fid).eq('child_id',child).eq('status','pending'):noRows,
+     r==='parent'?supabase.rpc('pending_daily_chore_decisions',{p_family:fid,p_child:child}):noRows,
+     supabase.rpc('daily_chore_parent_decisions',{p_family:fid,p_child:child})
    ]);
    for(const response of [overview,dailyt,done,tasks,sub,rewards,requests,behaviors,spiritual,extra,proposals,world,profile])if(response.error)throw response.error;
    const day=today();const weekday=new Date(day+'T12:00:00').getDay();
@@ -74,12 +76,12 @@ export function useFamilyCloud(){
    const weekly:WeeklyOverview={tasks7:Number(totals.tasks7||0),daily7:Number(totals.daily7||0),spiritual7:Number(totals.spiritual7||0),homework7:Number(totals.homework7||0),today:String(totals.today||day)};
    const dmap=new Map((done.data??[]).filter(x=>x.activity_date===day).map(x=>[x.template_id,x]));
    const tmap=new Map((sub.data??[]).filter(x=>x.activity_date===day).map(x=>[x.task_id,x]));
-   const dailyTemplates=(dailyt.data??[]).map(x=>({id:x.id,title:x.title,points:x.points,icon:x.icon,active:x.active,weekdays:x.weekdays,penaltyEnabled:x.penalty_enabled===true,status:dmap.get(x.id)?.status||'open'}));
+   const dailyTemplates=(dailyt.data??[]).map(x=>({id:x.id,title:x.title,points:x.points,icon:x.icon,active:x.active,weekdays:x.weekdays,penaltyEnabled:x.penalty_enabled===true,status:(Array.isArray(decisionStatus.data)?decisionStatus.data.find((r:Row)=>r.template_id===x.id&&r.activity_date===day&&r.decision!=='approve')?.decision:undefined)||dmap.get(x.id)?.status||'open'}));
    const daily=dailyTemplates.filter(x=>x.active&&x.weekdays?.includes(weekday));
    const taskItems=(tasks.data??[]).filter(x=>x.assigned_child===child&&(r==='parent'||x.active!==false)).map(x=>({id:x.id,title:x.title,points:x.points,active:x.active!==false,status:tmap.get(x.id)?.status||'open'}));
    const items=(rewards.data??[]).filter(x=>r==='parent'||x.active).map(x=>({id:x.id,title:x.title,points:0,cost:x.cost,active:x.active}));
    if(serial!==fetchSerial.current||currentUser.current!==uid)return;
-   setData(previous=>({weekly,worldPoints:lifetime,worldNumber:world.data?.[0]?.active_world===2?2:1,balance:Number(totals.balance||0),earned,spent,deducted,spiritualPoints,daily,dailyTemplates,tasks:taskItems,rewards:items,proposals:proposals.data??[],spiritual:spiritual.data??[],behavior:behaviors.data??[],rewardRequests:requests.data??[],pendingSpiritual:extra.data??[],activity:sub.data??[],dailyDone:done.data??[],pendingPlaytime:playtime.error?previous.pendingPlaytime:playtime.data??[],pendingMeals:meals.error?previous.pendingMeals:meals.data??[]}));
+   setData(previous=>({weekly,worldPoints:lifetime,worldNumber:world.data?.[0]?.active_world===2?2:1,balance:Number(totals.balance||0),earned,spent,deducted,spiritualPoints,daily,dailyTemplates,tasks:taskItems,rewards:items,proposals:proposals.data??[],spiritual:spiritual.data??[],behavior:behaviors.data??[],rewardRequests:requests.data??[],pendingSpiritual:extra.data??[],activity:sub.data??[],dailyDone:done.data??[],pendingPlaytime:playtime.error?previous.pendingPlaytime:playtime.data??[],pendingMeals:meals.error?previous.pendingMeals:meals.data??[],choreDecisions:decisionQueue.error?previous.choreDecisions:Array.isArray(decisionQueue.data)?decisionQueue.data:[]}));
    const childLabel=profile.data?.display_name||'Илья';
    setFamilyId(fid);setChildId(child);setRole(r);setChildName(childLabel);setError('');
    writeOffline(uid,{familyId:fid,childId:child,role:r,childName:childLabel,worldPoints:lifetime,balance:Number(totals.balance||0),worldNumber:world.data?.[0]?.active_world===2?2:1,spiritualPoints});

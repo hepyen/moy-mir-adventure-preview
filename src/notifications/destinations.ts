@@ -25,6 +25,7 @@ const otherEvents:Partial<Record<string,Destination>>={
  chat_message:{tab:'family'},child_app_open:{tab:'world'},
  app_update:{tab:'settings',anchor:'app-updates'},update_available:{tab:'settings',anchor:'app-updates'},
  task_created:{tab:'tasks',fallback:'review-tasks'},
+ daily_chore_reminder:{tab:'tasks',fallback:'review-tasks'},
  points_deducted:{tab:'tasks',anchor:'behavior-history'},points_returned:{tab:'tasks',anchor:'behavior-history'},
 };
 

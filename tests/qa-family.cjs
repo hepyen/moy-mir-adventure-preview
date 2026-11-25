@@ -113,7 +113,7 @@ async function run(role,browser){
   {id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child,active:true},
   {id:'77777777-7777-4777-8777-777777777777',title:'Неиспользуемое дело',points:7,assigned_child:ids.child,active:false}
  ]:null;
- let taskSerial=0;
+ let taskSerial=0;let choreDecision=null;
  let dailyTemplates=taskManagementQA?[
   {id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6],penalty_enabled:true},
   {id:'e0000000-0000-4000-8000-000000000089',title:'Устаревшее ежедневное дело',points:8,icon:'🧹',active:false,weekdays:[0,1,2,3,4,5,6]}
@@ -190,6 +190,9 @@ async function run(role,browser){
      if(!item)return resp({error:'Unknown task'});
      Object.assign(item,{title:q.p_title,points:q.p_points,active:q.p_active});return resp(item.id)
     }
+    if(taskManagementQA&&name==='pending_daily_chore_decisions')return resp(role==='parent'&& !choreDecision?[{template_id:ids.daily,activity_date:today,title:'Заправить кровать',points:5,status:'open'}]:[]);
+    if(taskManagementQA&&name==='daily_chore_parent_decisions')return resp(choreDecision?[{template_id:ids.daily,activity_date:today,decision:choreDecision}]:[]);
+    if(taskManagementQA&&name==='decide_daily_chore'){if(role!=='parent')return resp({error:'Parent only'});choreDecision=request.postDataJSON().p_decision;return resp(choreDecision);}
     if(taskManagementQA&&name==='set_daily_chore_penalty'){
      if(role!=='parent')return resp({error:'Parent only'});
      const q=request.postDataJSON(),item=dailyTemplates.find(x=>x.id===q.p_id);
@@ -495,12 +498,12 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('parent adds an ordinary task and it appears in list',taskRows.some(x=>x.title==='Новое дело для Ильи'&&x.active));
    const dailies=page.locator('details[aria-label="Управление ежедневными заданиями"]');await dailies.locator('summary').click();
    const daily=dailies.locator('.mw-cloud-line').filter({hasText:'Заправить кровать'});
-   check('parent sees initial matching automatic penalty',await daily.getByText('Автоштраф: −5 монет').count()===1);
+   check('parent sees initial matching automatic penalty',await daily.getByText('Возможный штраф: −5 монет').count()===1);
    await daily.getByRole('button',{name:'Отключить штраф'}).click();
-   await daily.getByText('Без автоматического штрафа').waitFor();
+   await daily.getByText('Без штрафа за пропуск').waitFor();
    check('parent can disable automatic penalty',dailyTemplates.find(x=>x.id===ids.daily).penalty_enabled===false);
    await daily.getByRole('button',{name:'Включить штраф'}).click();
-   await daily.getByText('Автоштраф: −5 монет').waitFor();
+   await daily.getByText('Возможный штраф: −5 монет').waitFor();
    check('parent can enable automatic penalty',dailyTemplates.find(x=>x.id===ids.daily).penalty_enabled===true);
    await daily.getByRole('button',{name:/Убрать из дел/}).click();await daily.getByRole('button',{name:'Да, убрать'}).click();
    await daily.getByText(/Приостановлено/).waitFor();
@@ -513,6 +516,13 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    await daily.getByRole('button',{name:'Сохранить изменения'}).click();
    await dailies.getByText('Заправить постель утром').waitFor();
    check('parent can rename existing daily chore without losing history',dailyTemplates.find(x=>x.id===ids.daily).title==='Заправить постель утром'&&dailyTemplates.find(x=>x.id===ids.daily).active);
+   const decisions=page.locator('#chore-decisions');
+   check('parent sees manual decision actions',await decisions.getByRole('button',{name:'Оштрафовать −5'}).count()===1);
+   page.once('dialog',d=>d.accept());
+   await decisions.getByRole('button',{name:'Оштрафовать −5'}).click();
+   await decisions.waitFor({state:'detached'});
+   check('manual penalty sent only on parent confirmation',choreDecision==='penalty');
+
   }else{
    check('child does not see parental edit controls',await page.locator('details[aria-label="Управление обычными делами"]').count()===0&&await page.locator('details[aria-label="Управление ежедневными заданиями"]').count()===0);
    check('archived ordinary and daily tasks are not presented as active',await page.getByText('Неиспользуемое дело').count()===0&&await page.getByText('Устаревшее ежедневное дело').count()===0);
