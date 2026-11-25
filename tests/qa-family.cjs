@@ -115,7 +115,7 @@ async function run(role,browser){
  ]:null;
  let taskSerial=0;
  let dailyTemplates=taskManagementQA?[
-  {id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]},
+  {id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6],penalty_enabled:true},
   {id:'e0000000-0000-4000-8000-000000000089',title:'Устаревшее ежедневное дело',points:8,icon:'🧹',active:false,weekdays:[0,1,2,3,4,5,6]}
  ]:null;
  let pioneerAttempts=0;
@@ -189,6 +189,12 @@ async function run(role,browser){
      const q=request.postDataJSON(),item=taskRows.find(x=>x.id===q.p_id);
      if(!item)return resp({error:'Unknown task'});
      Object.assign(item,{title:q.p_title,points:q.p_points,active:q.p_active});return resp(item.id)
+    }
+    if(taskManagementQA&&name==='set_daily_chore_penalty'){
+     if(role!=='parent')return resp({error:'Parent only'});
+     const q=request.postDataJSON(),item=dailyTemplates.find(x=>x.id===q.p_id);
+     if(!item)return resp({error:'Unknown daily chore'});
+     item.penalty_enabled=q.p_enabled;return resp(q.p_enabled);
     }
     if(taskManagementQA&&name==='manage_daily_chore'){
      if(role!=='parent')return resp({error:'Parent only'});
@@ -397,7 +403,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    case 'moymir_growth_daily':data=growthAward?[{activity_date:dateToday,quality:growthChoice,points:20}]:[];break;
    case 'family_members': data=url.searchParams.get('role')==='eq.child'?[{user_id:ids.child}]:url.searchParams.has('user_id')?{family_id:ids.family,role}:[{user_id:ids.parent,role:'parent'},{user_id:ids.child,role:'child'}];break;
    case 'point_ledger': data=[{child_id:ids.child,delta:1700}];break;
-   case 'daily_chore_templates': data=dailyTemplates||[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6]}];break;
+   case 'daily_chore_templates': data=dailyTemplates||[{id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6],penalty_enabled:true}];break;
    case 'daily_chore_completions':data=approvalQA?[{id:qaDaily,template_id:ids.daily,activity_date:today,status:qaDailyStatus}]:[];break;
    case 'tasks':data=taskRows||[{id:ids.task,title:'Сделать уроки',points:20,active:true,assigned_child:ids.child},{id:'77777777-7777-4777-8777-777777777777',title:'Без исполнителя',points:10,active:true,assigned_child:null}];break;
    case 'task_submissions':data=approvalQA?[{id:qaTask,task_id:ids.task,child_id:ids.child,activity_date:qaYesterday,status:'pending'}]:[];break;
@@ -489,6 +495,13 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('parent adds an ordinary task and it appears in list',taskRows.some(x=>x.title==='Новое дело для Ильи'&&x.active));
    const dailies=page.locator('details[aria-label="Управление ежедневными заданиями"]');await dailies.locator('summary').click();
    const daily=dailies.locator('.mw-cloud-line').filter({hasText:'Заправить кровать'});
+   check('parent sees initial matching automatic penalty',await daily.getByText('Автоштраф: −5 монет').count()===1);
+   await daily.getByRole('button',{name:'Отключить штраф'}).click();
+   await daily.getByText('Без автоматического штрафа').waitFor();
+   check('parent can disable automatic penalty',dailyTemplates.find(x=>x.id===ids.daily).penalty_enabled===false);
+   await daily.getByRole('button',{name:'Включить штраф'}).click();
+   await daily.getByText('Автоштраф: −5 монет').waitFor();
+   check('parent can enable automatic penalty',dailyTemplates.find(x=>x.id===ids.daily).penalty_enabled===true);
    await daily.getByRole('button',{name:/Убрать из дел/}).click();await daily.getByRole('button',{name:'Да, убрать'}).click();
    await daily.getByText(/Приостановлено/).waitFor();
    check('parent hides a daily chore without deleting original record',dailyTemplates.find(x=>x.id===ids.daily).active===false);
@@ -503,6 +516,8 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   }else{
    check('child does not see parental edit controls',await page.locator('details[aria-label="Управление обычными делами"]').count()===0&&await page.locator('details[aria-label="Управление ежедневными заданиями"]').count()===0);
    check('archived ordinary and daily tasks are not presented as active',await page.getByText('Неиспользуемое дело').count()===0&&await page.getByText('Устаревшее ежедневное дело').count()===0);
+   check('child sees matching penalty for an unfinished daily chore',await page.locator('.mw-chore').filter({hasText:'Заправить кровать'}).getByText('При пропуске: −5 🪙').count()===1);
+   check('child has no penalty management button',await page.getByRole('button',{name:/Включить штраф|Отключить штраф/}).count()===0);
    check('child sees original active chores only',await page.locator('.mw-chore').filter({hasText:'Сделать уроки'}).count()===1&&await page.locator('.mw-chore').filter({hasText:'Заправить кровать'}).count()===1);
   }
   check('task edit/restore causes no JS exceptions',counters.errors.length===0,counters.errors.join(' | '));return;

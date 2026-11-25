@@ -4,7 +4,7 @@ import {supabase} from './supabase';
 type Row=Record<string,any>;
 export type WeeklyOverview={tasks7:number;daily7:number;spiritual7:number;homework7:number;today:string};
 const weeklyEmpty:WeeklyOverview={tasks7:0,daily7:0,spiritual7:0,homework7:0,today:''};
-export type CloudItem={id:string;title:string;points:number;icon?:string;status?:string;cost?:number;weekdays?:number[];active?:boolean};
+export type CloudItem={id:string;title:string;points:number;icon?:string;status?:string;cost?:number;weekdays?:number[];active?:boolean;penaltyEnabled?:boolean};
 const empty={weekly:weeklyEmpty,worldPoints:0,worldNumber:1 as number,balance:0,earned:0,spent:0,deducted:0,spiritualPoints:0,daily:[] as CloudItem[],dailyTemplates:[] as CloudItem[],tasks:[] as CloudItem[],rewards:[] as CloudItem[],proposals:[] as Row[],spiritual:[] as Row[],behavior:[] as Row[],rewardRequests:[] as Row[],pendingSpiritual:[] as Row[],activity:[] as Row[],dailyDone:[] as Row[],pendingPlaytime:[] as Row[],pendingMeals:[] as Row[]};
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 type OfflineFamily={familyId:string;childId:string;role:'parent'|'child';childName:string;worldPoints:number;balance:number;worldNumber:number;spiritualPoints:number};
@@ -49,13 +49,13 @@ export function useFamilyCloud(){
    const noRows={data:[],error:null};
    const [overview,dailyt,done,tasks,sub,rewards,requests,behaviors,spiritual,extra,proposals,world,profile,playtime,meals]=await Promise.all([
      supabase.rpc('moymir_family_overview',{p_family:fid,p_child:child}),
-     supabase.from('daily_chore_templates').select('id,title,icon,points,active,weekdays').eq('family_id',fid).eq('child_id',child),
+     supabase.from('daily_chore_templates').select('id,title,icon,points,active,weekdays,penalty_enabled').eq('family_id',fid).eq('child_id',child),
      r==='parent'?dailyRows.or('activity_date.gte.'+since+',status.eq.pending'):dailyRows.gte('activity_date',since),
      supabase.from('tasks').select('id,title,points,assigned_child,active').eq('family_id',fid),
      r==='parent'?taskRows.or('activity_date.gte.'+since+',status.eq.pending'):taskRows.gte('activity_date',since),
      supabase.from('rewards').select('id,title,cost,active').eq('family_id',fid),
      supabase.from('reward_requests').select('id,reward_id,cost_snapshot,status,mystery_prize,requested_at').eq('family_id',fid).eq('child_id',child),
-     supabase.from('behavior_points').select('id,amount,category,reason,cancelled_at,created_at').eq('family_id',fid).eq('child_id',child),
+     supabase.from('behavior_points').select('id,amount,category,reason,cancelled_at,created_at,chore_template_id,chore_date').eq('family_id',fid).eq('child_id',child),
      supabase.from('spiritual_activity_records').select('id,activity_date,step_id,points').eq('family_id',fid).eq('child_id',child).gte('activity_date',new Date(Date.parse(today()+'T12:00:00Z')-6*86400000).toISOString().slice(0,10)),
      supabase.from('spiritual_point_requests').select('id,title,proposed_points,approved_points,status').eq('family_id',fid).eq('child_id',child),
      supabase.from('child_task_proposals').select('id,title,proposed_points,approved_points,status').eq('family_id',fid).eq('child_id',child),
@@ -74,7 +74,7 @@ export function useFamilyCloud(){
    const weekly:WeeklyOverview={tasks7:Number(totals.tasks7||0),daily7:Number(totals.daily7||0),spiritual7:Number(totals.spiritual7||0),homework7:Number(totals.homework7||0),today:String(totals.today||day)};
    const dmap=new Map((done.data??[]).filter(x=>x.activity_date===day).map(x=>[x.template_id,x]));
    const tmap=new Map((sub.data??[]).filter(x=>x.activity_date===day).map(x=>[x.task_id,x]));
-   const dailyTemplates=(dailyt.data??[]).map(x=>({id:x.id,title:x.title,points:x.points,icon:x.icon,active:x.active,weekdays:x.weekdays,status:dmap.get(x.id)?.status||'open'}));
+   const dailyTemplates=(dailyt.data??[]).map(x=>({id:x.id,title:x.title,points:x.points,icon:x.icon,active:x.active,weekdays:x.weekdays,penaltyEnabled:x.penalty_enabled===true,status:dmap.get(x.id)?.status||'open'}));
    const daily=dailyTemplates.filter(x=>x.active&&x.weekdays?.includes(weekday));
    const taskItems=(tasks.data??[]).filter(x=>x.assigned_child===child&&(r==='parent'||x.active!==false)).map(x=>({id:x.id,title:x.title,points:x.points,active:x.active!==false,status:tmap.get(x.id)?.status||'open'}));
    const items=(rewards.data??[]).filter(x=>r==='parent'||x.active).map(x=>({id:x.id,title:x.title,points:0,cost:x.cost,active:x.active}));
