@@ -1,3 +1,4 @@
+import {Capacitor,registerPlugin} from '@capacitor/core';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import type {Session} from '@supabase/supabase-js';
 import {supabase} from './supabase';
@@ -122,6 +123,7 @@ export function useFamilyCloud(){
  async function login(email:string,password:string){if(!supabase)throw new Error('Сервер недоступен');const{error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error}
  async function logout(){
   if(!supabase)return;
+  if(Capacitor.isNativePlatform())try{await registerPlugin<{clearRemoteWake():Promise<void>}>("MiroAlarm").clearRemoteWake()}catch{}
   // Unregister notifications from the old account before another family member signs in.
   try{
    const saved=JSON.parse(localStorage.getItem('moymir2-owned-push-token')||'null') as {token?:string;userId?:string}|null;

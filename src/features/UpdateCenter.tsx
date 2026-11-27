@@ -5,8 +5,8 @@ import {Browser} from '@capacitor/browser';
 import {LocalNotifications} from '@capacitor/local-notifications';
 import {playSound} from './sounds';
 import './system.css';
-const APP_VERSION='4.4.2';
-const ALARM_NATIVE_FEATURE=3813;
+const APP_VERSION='4.4.3';
+const ALARM_NATIVE_FEATURE=4430;
 const alarmNative=registerPlugin<{getState():Promise<{featureVersion?:number}>}>('MiroAlarm');
 const BASE_VERSION='3.3.0';
 const MANIFEST='https://hepyen.github.io/moy-mir-adventure-preview/updates/latest.json';
@@ -86,7 +86,7 @@ export function UpdateCenter(){
   <div><strong>{available?'🚀 '+available.title:'🔄 Обновления приложения'}</strong>
   <p>{available?available.notes.join(' · '):'Версия '+APP_VERSION+' · Обновления без переустановки APK'}</p>
   {percent!==null&&installing&&<p>Загрузка {percent}%…</p>}
-  {nativeUpgradeNeeded&&<p role="status">Для исправленного будильника требуется обновить системный модуль Android. Обычное обновление внутри приложения заменяет только веб-часть.</p>}
+  {nativeUpgradeNeeded&&<p role="status">Для фонового будильника требуется обновить системный модуль Android. Обычное обновление внутри приложения заменяет только веб-часть.</p>}
   {status&&<small role="status">{status}</small>}
   </div>
   <div className="mw-update-controls">

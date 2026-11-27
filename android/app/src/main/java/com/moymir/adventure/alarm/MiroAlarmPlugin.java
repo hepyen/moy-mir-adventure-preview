@@ -25,7 +25,7 @@ public class MiroAlarmPlugin extends Plugin {
     private JSObject status(){
         android.content.SharedPreferences p=MiroAlarmScheduler.prefs(getContext());
         JSObject s=new JSObject();
-        s.put("featureVersion",3813);
+        s.put("featureVersion",4430);
         s.put("enabled",p.getBoolean("enabled",false));
         s.put("hour",p.getInt("hour",7));s.put("minute",p.getInt("minute",0));
         s.put("days",p.getInt("days",31));s.put("tone",p.getString("tone","sunrise"));
@@ -38,6 +38,13 @@ public class MiroAlarmPlugin extends Plugin {
         NotificationManager manager=(NotificationManager)getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);
         s.put("fullScreenAllowed",Build.VERSION.SDK_INT<34||manager.canUseFullScreenIntent());
         return s;
+    }
+    @PluginMethod public void clearRemoteWake(PluginCall call){getContext().getSharedPreferences("remote_wake",0).edit().clear().apply();call.resolve();}
+    @PluginMethod public void registerRemoteWake(PluginCall call){
+        String child=call.getString("child",""),device=call.getString("device","");
+        if(!child.matches("[a-fA-F0-9-]{36}")||!device.matches("[a-fA-F0-9-]{36}")){call.reject("Invalid child");return;}
+        if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(getContext(),Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){call.reject("Разрешите уведомления");return;}
+        try{com.google.firebase.messaging.FirebaseMessaging.getInstance().getToken().addOnCompleteListener(t->{if(!t.isSuccessful()){call.reject("Firebase registration failed");return;}getContext().getSharedPreferences("remote_wake",0).edit().putString("child",child).putString("device",device).apply();JSObject out=new JSObject();out.put("token",t.getResult());call.resolve(out);});}catch(Exception e){call.reject("Firebase unavailable",e);}
     }
     @PluginMethod public void getState(PluginCall call){call.resolve(status());}
     @PluginMethod public void syncLessons(PluginCall call){
