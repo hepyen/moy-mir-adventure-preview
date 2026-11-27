@@ -32,6 +32,7 @@ public class MainActivity extends BridgeActivity {
     @Override public void onCreate(Bundle savedInstanceState) {
         recoverWebBundleBeforeBridge();
         registerPlugin(MiroAlarmPlugin.class);
+        registerPlugin(com.moymir.adventure.tv.FamilyTvPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

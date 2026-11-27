@@ -1,3 +1,4 @@
+import {FamilyTvControl} from './FamilyTvControl';
 import {useCallback,useEffect,useState} from 'react';
 import {Capacitor} from '@capacitor/core';
 import {LocalNotifications} from '@capacitor/local-notifications';
@@ -69,6 +70,7 @@ export function PlayTimeBank({cloud}:{cloud:Cloud}){
    {inProgress?.status==='pending'&&<div className="playbank-approval" id={reviewAnchor('playtime',inProgress.id)} tabIndex={-1}><strong>Запрос от Ильи: {inProgress.minutes} минут</strong><div><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:true},'Сеанс разрешён')}>✓ Разрешить</button><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:false},'Запрос отклонён')}>Отклонить</button></div></div>}
    {inProgress?.status==='approved'&&<p>✅ Разрешено {inProgress.minutes} минут. Илья ещё не начал таймер.</p>}
   </div>}
+  {cloud.role==='parent'&&<FamilyTvControl key={cloud.familyId} family={cloud.familyId}/>}
   {error&&<p className="playbank-error" role="alert">{error}</p>}{success&&<p className="playbank-success" role="status">{success}</p>}
   <details className="playbank-history"><summary>История запросов ({sessions.length})</summary>{sessions.length? sessions.map(s=><div key={s.id} id={cloud.role==='parent'&&inProgress?.status==='pending'&&s.id===inProgress.id?undefined:reviewAnchor('playtime',s.id)} tabIndex={-1}><span>{s.minutes} мин · {({pending:'Ждёт',approved:'Одобрено',active:'Идёт',finished:'Завершено',rejected:'Отклонено'} as Record<string,string>)[s.status]}</span><small>{new Date(s.requested_at).toLocaleDateString('ru-RU',{timeZone:'Europe/Madrid'})}</small></div>):<p>Пока нет запросов.</p>}</details>
   <p className="playbank-info">Накопленные минуты не сгорают, даже если Илья не играет несколько дней. Дневной предел регулирует только расходование времени, а не размер копилки. Приложение показывает время и напоминает, когда оно истекло. Оно не может автоматически выключить PlayStation. Выданные родителем минуты не покупаются за духовные баллы.</p>
