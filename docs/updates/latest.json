@@ -1,13 +1,13 @@
 {
-  "version": "5.4.0",
-  "title": "Мой мир 5.4.0 · Облачная комната",
+  "version": "5.4.1",
+  "title": "Мой мир 5.4.1 · Библейские приключения",
   "notes": [
-    "Мебель за 1 монету, бесплатное перемещение и оформление, облачное сохранение.",
-    "Жетоны путешествия Павла и сувениры сохраняются на сервере.",
-    "Покупки не уменьшают накопленный прогресс миров."
+    "Четыре маршрута: Павел, Ной, Моисей и Давид.",
+    "14 испытаний и 8 облачных сувениров; сохранение прежнего прогресса.",
+    "Повторно проверены календарь и покупки мебели."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.4.0/MOY_MIR_5.4.0_OTA.zip",
-  "sha256": "a28d2ae62da7cdb18cddbfbd3306f1c0615c6646f0f9bb13d8d347da7cfe4960",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.4.1/MOY_MIR_5.4.1_OTA.zip",
+  "sha256": "14dc1a7b542d2615e5a5a4fccdcd63c3e83161d8cd41ac5f180ec4f7a0ff34d3",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
