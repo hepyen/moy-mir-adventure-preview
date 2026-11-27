@@ -1,13 +1,13 @@
 {
-  "version": "4.4.8",
-  "title": "Мой мир 4.4.8 · Библейский исследователь и новый мир",
+  "version": "4.4.9",
+  "title": "Мой мир 4.4.9 · Оптимизация и семейная отметка",
   "notes": [
-    "Путешествие по библейским событиям, личные записи и тренировка чтения.",
-    "Добавлен новый закрытый игровой мир, который откроется после 4800 очков.",
-    "Прежние миры и накопленные достижения сохраняются."
+    "Экономичный 2D-режим и отдельная загрузка тяжёлых разделов.",
+    "Добровольная отправка текущей точки родителям на 15 минут, с картой и возможностью отзыва.",
+    "Непрерывное отслеживание не включено."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.8/MOY_MIR_4.4.8_OTA.zip",
-  "sha256": "55726ae7956020d9e07ac408b03228e382f8066e7532e53368d7e95daac4ffcc",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.9/MOY_MIR_4.4.9_OTA.zip",
+  "sha256": "de07cdf02c0320959c1edd92ad5f1c65c4c1ae55305f81c4902bc1fdf3f68620",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
