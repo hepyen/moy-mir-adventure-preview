@@ -1,13 +1,13 @@
 {
-  "version": "5.5.1",
-  "title": "Мой мир 5.5.1 · Порядок в делах",
+  "version": "5.6.0",
+  "title": "Мой мир 5.6.0 · Лаборатория мехов",
   "notes": [
-    "Ежедневные и обычные дела разделены, найденные дубликаты архивированы.",
-    "Новые запросы ограничены 100 баллами, проверяются на осмысленность.",
-    "Перед отправкой ребёнок проверяет текст и подтверждает запрос."
+    "Четыре готовые 3D-модели мехов Quaternius и 52 новых позиции.",
+    "Независимые слоты: корпуса, маски, глаза, броня, детали, цвета и вставки.",
+    "Облачный гардероб, покупки и сохранение прежних приобретений."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.5.1/MOY_MIR_5.5.1_OTA.zip",
-  "sha256": "3a16bc9f5642a15284325614af0366f11528a0bec41dc9ad7dbc819c20a00e88",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.0/MOY_MIR_5.6.0_OTA.zip",
+  "sha256": "57d6e1cf6089b8327a838a6144a1cf200108fce6392c82fa4116d5a53bf6c03e",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
