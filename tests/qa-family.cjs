@@ -22,6 +22,7 @@ const livingWorldQA=process.env.QA_FOCUS==='living-world';
 const adventureQA=process.env.QA_FOCUS==='adventure';
 const combinedQA=process.env.QA_FOCUS==='education-family';
 const optimizationQA=process.env.QA_FOCUS==='optimization-checkin';
+const safetyQA=process.env.QA_FOCUS==='family-safety';
 const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -121,6 +122,7 @@ async function run(role,browser){
   {id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child,active:true},
   {id:'77777777-7777-4777-8777-777777777777',title:'Неиспользуемое дело',points:7,assigned_child:ids.child,active:false}
  ]:null;
+ let safetyRows=[{id:'qa-rule-1',app_name:'Учебная игра',rule:'ask',note:'После уроков'}];
  let checkin=optimizationQA&&role==='parent'?{share_id:'qa-share',latitude:0,longitude:0,accuracy_m:25,measured_at:new Date().toISOString(),received_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString()}:null;
  let calendarRows=[{id:'qa-cal-1',title:'Семейная прогулка',event_date:today,event_time:'17:00',category:'family',note:''}];
  let taskSerial=0;let choreDecision=null;
@@ -132,7 +134,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -405,6 +407,13 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     return resp(geographyAttempts.find(a=>a.id===id),true);
    }
   }
+  if(name==='moymir_family_app_rules'){
+   if(method==='GET')return resp(safetyRows);
+   if(role!=='parent')return route.fulfill({status:403,contentType:'application/json',body:'{}'});
+   if(method==='POST'){const row={...request.postDataJSON(),id:'qa-rule-2'};safetyRows.push(row);return resp({id:row.id},true)}
+   if(method==='PATCH'){const id=url.searchParams.get('id').slice(3);safetyRows=safetyRows.map(r=>r.id===id?{...r,...request.postDataJSON()}:r);return resp({id},true)}
+   if(method==='DELETE'){const id=url.searchParams.get('id').slice(3);safetyRows=safetyRows.filter(r=>r.id!==id);return resp({id},true)}
+  }
   if(name==='moymir_family_calendar'){
    if(method==='GET')return resp(calendarRows);
    if(role!=='parent')return route.fulfill({status:403,contentType:'application/json',body:'{}'});
@@ -412,7 +421,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    if(method==='PATCH'){const id=url.searchParams.get('id').slice(3);calendarRows=calendarRows.map(r=>r.id===id?{...r,...request.postDataJSON()}:r);return resp({id})}
    if(method==='DELETE'){const id=url.searchParams.get('id').slice(3);calendarRows=calendarRows.filter(r=>r.id!==id);return resp({id})}
   }
-  if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
+  if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);if(safetyQA)counters.restWrites.push({name,method,record:request.postDataJSON()});return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
   if(name==='moymir_location_share')return resp(checkin?[checkin]:[]);
   let data=[];
@@ -458,6 +467,43 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(safetyQA){
+  await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  const safety=page.getByLabel('Центр семейной безопасности');
+  await safety.getByText('Учебная игра',{exact:true}).waitFor();
+  check('shared rule loaded',true);
+  if(role==='parent'){
+   await safety.getByLabel('Название приложения').fill('Тестовое приложение');
+   await safety.getByLabel('Семейное правило').selectOption('not_allowed');
+   await safety.getByRole('button',{name:'Добавить правило'}).click();
+   const row=safety.locator('.safety-rule').filter({hasText:'Тестовое приложение'});
+   await row.waitFor();
+   check('rule saved',await row.getByText('Не разрешено',{exact:true}).count()===1);
+   await row.getByRole('button',{name:'Редактировать'}).click();
+   await safety.getByLabel('Семейное правило').selectOption('allowed');
+   await safety.getByRole('button',{name:'Сохранить изменения'}).click();
+   await row.getByText('Разрешено',{exact:true}).waitFor();
+   check('rule updated',true);
+   page.once('dialog',d=>d.accept());await row.getByRole('button',{name:'Удалить'}).click();
+   await row.waitFor({state:'detached'});
+   check('rule removed',true);
+   check('official controls clearly separate',await safety.getByRole('button',{name:'Открыть Google Family Link'}).count()===1&&await safety.getByText(/не применяет ограничения автоматически/).count()===1);
+  }else{
+   check('child cannot edit',await safety.getByRole('button',{name:'Редактировать'}).count()===0&&await safety.getByRole('button',{name:'Добавить правило'}).count()===0);
+   await safety.getByRole('button',{name:'Попросить разрешение'}).click();
+   check('no automatic permission message',counters.restPosts.length===0);
+   await safety.getByRole('button',{name:'Отправить запрос'}).click();
+   await safety.getByText(/Сообщение сохранено в семейном чате/).waitFor();
+   check('explicit permission request',counters.restWrites.some(x=>x.record?.body?.includes('Учебная игра')));
+   await safety.getByRole('button',{name:/Попросить родителей связаться/}).click();
+   check('SOS awaits confirmation',counters.restPosts.length===1);
+   await safety.getByRole('button',{name:'Отправить просьбу'}).click();
+   await safety.getByText(/Сообщение сохранено в семейном чате/).waitFor();
+   check('help sent without coordinates',counters.restWrites.some(x=>x.record?.body?.includes('Мне нужна помощь')&&!('latitude' in x.record)));
+   check('emergency dial link',await safety.getByRole('link',{name:/112/}).getAttribute('href')==='tel:112');
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(optimizationQA){
   await page.getByRole('button',{name:'Экономить заряд'}).click();
   check('2D economy mode removes canvas',await page.getByLabel('Упрощённый режим игрового мира').count()===1&&await page.locator('canvas').count()===0);
