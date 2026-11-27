@@ -37,6 +37,7 @@ const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
 const englishResetAudioQA=process.env.QA_FOCUS==='english-reset-audio';
+const tvTimerQA=process.env.QA_FOCUS==='tv-timer';
 const playstationGiftQA=process.env.QA_FOCUS==='playstation-gift';
 const taskLayersQA=process.env.QA_FOCUS==='task-layers';
 const proposalQA=process.env.QA_FOCUS==='proposal-guard';
@@ -295,6 +296,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     if(name==='moymir_playtime_set_limit'){playCap=Number(request.postDataJSON()?.p_daily);return resp(true)}
     if(name==='moymir_playtime_grant'){playBalance+=Number(request.postDataJSON()?.p_minutes);return resp(true)}
     if(name==='moymir_playtime_request'){const minutes=Number(request.postDataJSON()?.p_minutes);playSessions=[{id:'92222222-2222-4222-8222-222222222222',minutes,status:'pending',requested_at:new Date().toISOString(),started_at:null}];return resp(playSessions[0].id)}
+    if(name==='moymir_playtime_decide'){const q=request.postDataJSON(),when=q.p_start_tv?new Date().toISOString():null;playSessions=playSessions.map(x=>x.id===q.p_id?{...x,minutes:q.p_minutes,status:q.p_start_tv?'active':'approved',started_at:when,tv_controlled:q.p_start_tv}:x);return resp({id:q.p_id,minutes:q.p_minutes,started_at:when,ends_at:when?new Date(Date.now()+q.p_minutes*60000).toISOString():null})}
     if(name==='moymir_playtime_review'){playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:request.postDataJSON()?.p_approve?'approved':'rejected'}:x);return resp(request.postDataJSON()?.p_approve?'approved':'rejected')}
     if(name==='moymir_playtime_start'){const when=new Date().toISOString();playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'active',started_at:when}:x);return resp(when)}
     if(name==='moymir_playtime_finish'){playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'finished'}:x);return resp(true)}
@@ -1374,6 +1376,29 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   check('new subjects leave no React exception',counters.errors.length===0,counters.errors.join(' | '));
   return;
  }
+ if(tvTimerQA){
+  await page.locator('.mw-bottom').getByRole('button',{name:/Магазин|Награды/}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Игровое время',exact:true}).click();
+  const bank=page.getByRole('region',{name:'Копилка игрового времени'});await bank.waitFor();
+  if(role==='parent'){
+   const select=bank.getByLabel('Разрешённое время');await select.waitFor();
+   check('original duration shown',await select.inputValue()==='10');
+   await select.selectOption('20');
+   check('browser cannot arm native timer',await bank.getByRole('button',{name:/Разрешить и запустить ТВ-таймер/}).isDisabled());
+   await bank.getByRole('button',{name:'✓ Разрешить',exact:true}).click();
+   await bank.getByText(/Разрешено 20 минут/).waitFor();
+   check('edited duration sent',counters.rpc.some(x=>x.name==='moymir_playtime_decide')&&playSessions[0].minutes===20&&playSessions[0].status==='approved');
+  }else{
+   await bank.getByRole('button',{name:'Попросить 20 минут'}).click();
+   await bank.getByText(/Ждём решения родителя/).waitFor();
+   playSessions=playSessions.map(s=>({...s,status:'active',minutes:10,started_at:new Date().toISOString(),tv_controlled:true}));
+   await page.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));
+   await bank.getByRole('timer').waitFor();
+   check('child sees parent-started countdown',await bank.getByText(/ТВ-сеанс завершится по таймеру/).count()===1);
+   check('child cannot stop TV-controlled session',await bank.getByRole('button',{name:'Завершить сеанс'}).count()===0);
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(playstationGiftQA){
   await page.getByRole('button',{name:/Магазин/}).last().click();
   const shop=page.getByRole('heading',{name:'Сокровища острова 🎁'});
@@ -1904,7 +1929,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   check('parent grants minutes with protected RPC',counters.rpc.some(x=>x.name==='moymir_playtime_grant'));
   check('parent sees pending request',await playbank.getByText(/Запрос от Ильи: 10 минут/).count()>0);
   await playbank.getByRole('button',{name:'✓ Разрешить'}).click();await page.waitForTimeout(220);
-  check('parent approves session',counters.rpc.some(x=>x.name==='moymir_playtime_review'));
+  check('parent approves session',counters.rpc.some(x=>x.name==='moymir_playtime_decide'));
   await page.getByRole('button',{name:/Дела/}).last().click();
   const journal=page.getByText('📋 Журнал семейных достижений и решений');await journal.click();await page.waitForTimeout(260);
   check('parent sees secure activity journal',counters.rpc.some(x=>x.name==='moymir_parent_activity_feed')&&await page.getByText('🧹 Ежедневное дело').count()>0);

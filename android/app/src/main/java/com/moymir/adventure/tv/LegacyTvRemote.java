@@ -51,9 +51,10 @@ public final class LegacyTvRemote {
             send(out,join(new byte[]{0,0,0},text(key)));reply(in,false);
         }
     }
-    public static void run(String ip,String remoteId,String command)throws IOException{
+    public static void run(String ip,String remoteId,String command)throws IOException{runTimed(ip,remoteId,command,3000,12000);}
+    public static void runTimed(String ip,String remoteId,String command,int connectTimeout,int readTimeout)throws IOException{
         if(!privateIpv4(ip))throw new IOException("Укажи локальный IPv4 телевизора");
         if(!Arrays.asList("pair","off","source").contains(command))throw new IOException("Unknown command");
-        try(Socket socket=new Socket()){socket.connect(new InetSocketAddress(ip,55000),3000);socket.setSoTimeout(12000);exchange(socket,remoteId,command);}
+        try(Socket socket=new Socket()){socket.connect(new InetSocketAddress(ip,55000),connectTimeout);socket.setSoTimeout(readTimeout);java.util.Timer timer=new java.util.Timer(true);timer.schedule(new java.util.TimerTask(){public void run(){try{socket.close();}catch(IOException ignored){}}},readTimeout<=3500?6500:30000);try{exchange(socket,remoteId,command);}finally{timer.cancel();}}
     }
 }

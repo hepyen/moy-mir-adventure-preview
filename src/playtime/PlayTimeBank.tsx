@@ -1,3 +1,4 @@
+import {tv,tvState,type TvState} from './tvTimer';
 import {FamilyTvControl} from './FamilyTvControl';
 import {useCallback,useEffect,useState} from 'react';
 import {Capacitor} from '@capacitor/core';
@@ -8,7 +9,7 @@ import './PlayTimeBank.css';
 import {reviewAnchor} from '../notifications/destinations';
 import {PLAYSTATION_30_REWARD_ID,formatAccumulatedTime} from './PlayStationGift';
 type Cloud=ReturnType<typeof useFamilyCloud>;
-type Session={id:string;minutes:number;status:'pending'|'approved'|'active'|'finished'|'rejected';requested_at:string;started_at:string|null};
+type Session={id:string;minutes:number;status:'pending'|'approved'|'active'|'finished'|'rejected';requested_at:string;started_at:string|null;tv_controlled?:boolean};
 type Overview={balance:number;dailyLimit:number;todayUsed:number};
 const empty:Overview={balance:0,dailyLimit:30,todayUsed:0};
 const notificationId=32721;
@@ -24,13 +25,13 @@ async function scheduleEnd(session:Session){
 }
 export function PlayTimeBank({cloud}:{cloud:Cloud}){
  const[overview,setOverview]=useState<Overview>(empty),[sessions,setSessions]=useState<Session[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(''),[success,setSuccess]=useState(''),[now,setNow]=useState(Date.now()),[loading,setLoading]=useState(true);
- const[grant,setGrant]=useState(20),[request,setRequest]=useState(20),[limit,setLimit]=useState(30);
+ const[grant,setGrant]=useState(20),[request,setRequest]=useState(20),[limit,setLimit]=useState(30),[reviewMinutes,setReviewMinutes]=useState(10),[tvStatus,setTvStatus]=useState<TvState|null>(null);
  const reload=useCallback(async()=>{
   if(!supabase||!cloud.familyId||!cloud.childId)return;
   try{
    const [o,s]=await Promise.all([
     supabase.rpc('moymir_playtime_sync',{p_family:cloud.familyId,p_child:cloud.childId}),
-    supabase.from('moymir_playtime_sessions').select('id,minutes,status,requested_at,started_at').eq('family_id',cloud.familyId).eq('child_id',cloud.childId).order('requested_at',{ascending:false}).limit(12)
+    supabase.from('moymir_playtime_sessions').select('id,minutes,status,requested_at,started_at,tv_controlled').eq('family_id',cloud.familyId).eq('child_id',cloud.childId).order('requested_at',{ascending:false}).limit(12)
    ]);
    if(o.error)throw o.error;if(s.error)throw s.error;
    const next=o.data as Overview;
@@ -38,10 +39,30 @@ export function PlayTimeBank({cloud}:{cloud:Cloud}){
   }catch(e){setError(e instanceof Error?e.message:'Нет соединения с семейной базой')}
   finally{setLoading(false)}
  },[cloud.familyId,cloud.childId]);
- useEffect(()=>{void reload();const sync=()=>{if(document.visibilityState==='visible')void reload()};const poll=setInterval(sync,30_000);document.addEventListener('visibilitychange',sync);const tick=setInterval(()=>setNow(Date.now()),1000);return()=>{clearInterval(poll);clearInterval(tick);document.removeEventListener('visibilitychange',sync)}},[reload,cloud.rewardRequests.filter(x=>x.reward_id===PLAYSTATION_30_REWARD_ID&&x.status==='approved').length]);
+ useEffect(()=>{void reload();const sync=()=>{if(document.visibilityState==='visible')void reload()};const poll=setInterval(sync,5_000);document.addEventListener('visibilitychange',sync);const tick=setInterval(()=>setNow(Date.now()),1000);return()=>{clearInterval(poll);clearInterval(tick);document.removeEventListener('visibilitychange',sync)}},[reload,cloud.rewardRequests.filter(x=>x.reward_id===PLAYSTATION_30_REWARD_ID&&x.status==='approved').length]);
  const active=sessions.find(x=>x.status==='active');
  const inProgress=sessions.find(x=>['pending','approved','active'].includes(x.status));
  const remainingSeconds=active?remaining(active,now):0;
+ useEffect(()=>{if(inProgress?.status==='pending')setReviewMinutes(inProgress.minutes)},[inProgress?.id,inProgress?.status]);
+ useEffect(()=>{if(cloud.role!=='parent')return;let alive=true;const sync=async()=>{const t=await tvState();if(alive)setTvStatus(t)};void sync();const timer=setInterval(sync,2000);return()=>{alive=false;clearInterval(timer)}},[cloud.role]);
+ const tvReady=!!tvStatus?.pairedIp&&tvStatus.exactAllowed&&!['armed','sending'].includes(tvStatus.state);
+ const reviewValid=reviewMinutes<=overview.balance&&reviewMinutes<=overview.dailyLimit-overview.todayUsed;
+ async function approve(startTv:boolean){
+  if(!inProgress||inProgress.status!=='pending'||busy||!reviewValid)return;
+  if(startTv&&(!tvReady||!window.confirm('Запустить '+reviewMinutes+' минут сейчас? Телевизор получит команду выключения по окончании. Телефон должен оставаться в домашней сети.')) )return;
+  setBusy(true);setError('');setSuccess('');
+  try{
+   const r=await cloud.rpc('moymir_playtime_decide',{p_id:inProgress.id,p_minutes:reviewMinutes,p_start_tv:startTv});
+   if(startTv){
+    try{const t=await tv.armTimer({session:r.id,ip:tvStatus!.pairedIp,end:new Date(r.ends_at).getTime()});setTvStatus(t);setSuccess('Сеанс начался. ТВ-таймер запланирован.')}
+    catch{setError('Сеанс начат, но выключение НЕ запланировано. Проверь разрешения и нажми «Подключить таймер к сеансу».')}
+   }else setSuccess('Сеанс разрешён. Ребёнок сможет начать его.');
+   await reload();
+  }catch(e){setError((e as any)?.message||'Не удалось одобрить запрос.')}finally{setBusy(false)}
+ }
+ async function rearm(){if(!active||!active.started_at||busy||!tvReady)return;if(!confirm('Запланировать выключение телевизора в конце текущего сеанса?'))return;setBusy(true);try{setTvStatus(await tv.armTimer({session:active.id,ip:tvStatus!.pairedIp,end:new Date(active.started_at).getTime()+active.minutes*60000}));setSuccess('ТВ-таймер запланирован.');setError('')}catch(e){setError((e as any)?.message||'Не удалось запланировать выключение.')}finally{setBusy(false)}}
+ async function cancelTv(){if(!tvStatus||busy||!confirm('Отменить автоматическое выключение? Сеанс останется в копилке.'))return;setBusy(true);try{setTvStatus(await tv.cancelTimer({session:tvStatus.session}));setSuccess('Автоматическое выключение отменено.')}catch(e){setError((e as any)?.message||'Не удалось отменить таймер.')}finally{setBusy(false)}}
+
  useEffect(()=>{if(active&&remainingSeconds===0)void reload()},[active?.id,remainingSeconds,reload]);
  const action=async(name:string,params:Record<string,unknown>,label:string)=>{
   if(busy||!navigator.onLine){if(!navigator.onLine)setError('Нужно подключиться к интернету, чтобы сохранить решение родителя');return}
@@ -61,15 +82,16 @@ export function PlayTimeBank({cloud}:{cloud:Cloud}){
   <div className="playbank-top"><div><small>🎮 СЕМЕЙНЫЕ ПРАВИЛА</small><h3>Копилка PlayStation</h3></div><span>⏱️</span></div>
   <div className="playbank-stats"><div><strong>{overview.balance} мин</strong><small className="playbank-hours">{formatAccumulatedTime(overview.balance)}</small><span>Можно потратить</span></div><div><strong>{overview.dailyLimit} мин</strong><span>Дневной предел</span></div><div><strong>{overview.todayUsed} мин</strong><span>Начато сегодня</span></div></div>
   {loading?<p className="playbank-info">Загружаем игровое время…</p>:null}
-  {active?<div className="playbank-active" role="timer"><small>🎮 СЕЙЧАС ИГРАЕМ</small><strong>{display(remainingSeconds)}</strong><span>Время до окончания одобренного сеанса</span><button disabled={busy} onClick={()=>void action('moymir_playtime_finish',{p_id:active.id},'Сеанс завершён')}>Завершить сеанс</button></div>:null}
+  {active?<div className="playbank-active" role="timer"><small>🎮 СЕЙЧАС ИГРАЕМ</small><strong>{display(remainingSeconds)}</strong><span>Время до окончания одобренного сеанса</span>{active.tv_controlled?<small>ТВ-сеанс завершится по таймеру. Для досрочного окончания обратись к родителю.</small>:<button disabled={busy} onClick={()=>void action('moymir_playtime_finish',{p_id:active.id},'Сеанс завершён')}>Завершить сеанс</button>}</div>:null}
   {cloud.role==='child'&&<div className="playbank-child">
    {inProgress?.status==='pending'?<p>⏳ Запрос на {inProgress.minutes} минут отправлен. Ждём решения родителя.</p>:inProgress?.status==='approved'?<><p>✅ Родитель разрешил {inProgress.minutes} минут. Начни, когда готов.</p><button disabled={busy} onClick={()=>void start(inProgress)}>▶ Начать {inProgress.minutes} минут</button></>:inProgress?.status==='active'?<p>Время идёт. Таймер работает по времени сервера даже при закрытом приложении.</p>:<><p>Выбери время, которое хочешь использовать, и дождись согласия родителей.</p><div className="playbank-options">{[10,20,30,40,60].map(m=><button key={m} type="button" className={request===m?'selected':''} onClick={()=>setRequest(m)}>{m} мин</button>)}</div><button disabled={busy||request>overview.balance||request>overview.dailyLimit-overview.todayUsed} onClick={()=>void action('moymir_playtime_request',{p_family:cloud.familyId,p_minutes:request},`Запрос на ${request} минут отправлен`)}>Попросить {request} минут</button>{request>overview.balance&&<small>В копилке пока недостаточно минут. Их может добавить родитель.</small>}</>}
   </div>}
   {cloud.role==='parent'&&<div className="playbank-parent"><strong>👨‍👩‍👦 Управление родителя</strong><p>Подарок «30 минут PlayStation» из магазина добавляет 30 минут после одобрения. Родитель может также начислять время вручную. Остаток не сгорает и не ограничен количеством накопленных часов.</p><div className="playbank-options">{[10,20,30,60].map(m=><button key={m} type="button" className={grant===m?'selected':''} onClick={()=>setGrant(m)}>+{m}</button>)}</div><button disabled={busy} onClick={()=>void action('moymir_playtime_grant',{p_family:cloud.familyId,p_child:cloud.childId,p_minutes:grant,p_note:'Награда от родителя'},`В копилку добавлено ${grant} минут`)}>Добавить {grant} минут в копилку</button>
    <div className="playbank-limit"><label>Дневной предел<select value={limit} onChange={e=>setLimit(Number(e.target.value))}>{[10,20,30,40,50,60,90,120].map(m=><option key={m} value={m}>{m} минут</option>)}</select></label><button disabled={busy||limit===overview.dailyLimit} onClick={()=>void action('moymir_playtime_set_limit',{p_family:cloud.familyId,p_child:cloud.childId,p_daily:limit},'Дневной предел изменён')}>Сохранить</button></div>
-   {inProgress?.status==='pending'&&<div className="playbank-approval" id={reviewAnchor('playtime',inProgress.id)} tabIndex={-1}><strong>Запрос от Ильи: {inProgress.minutes} минут</strong><div><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:true},'Сеанс разрешён')}>✓ Разрешить</button><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:false},'Запрос отклонён')}>Отклонить</button></div></div>}
+   {inProgress?.status==='pending'&&<div className="playbank-approval" id={reviewAnchor('playtime',inProgress.id)} tabIndex={-1}><strong>Запрос от Ильи: {inProgress.minutes} минут</strong><label>Разрешённое время<select aria-label="Разрешённое время" value={reviewMinutes} onChange={e=>setReviewMinutes(Number(e.target.value))}>{[10,20,30,40,50,60].map(m=><option key={m} value={m} disabled={m>overview.balance||m>overview.dailyLimit-overview.todayUsed}>{m} мин</option>)}</select></label><div><button disabled={busy||!reviewValid} onClick={()=>void approve(false)}>✓ Разрешить</button><button disabled={busy} onClick={()=>void action('moymir_playtime_review',{p_id:inProgress.id,p_approve:false},'Запрос отклонён')}>Отклонить</button></div><button className="tv-start" disabled={busy||!reviewValid||!tvReady} onClick={()=>void approve(true)}>📺 Разрешить и запустить ТВ-таймер</button>{!tvReady&&<small>Для ТВ-таймера нужен новый APK, подтверждённое сопряжение и разрешение точных будильников. Если таймер уже запущен, дождись окончания или отмени его.</small>}</div>}
    {inProgress?.status==='approved'&&<p>✅ Разрешено {inProgress.minutes} минут. Илья ещё не начал таймер.</p>}
   </div>}
+  {cloud.role==='parent'&&<div className="family-tv-timer" aria-label="Состояние ТВ-таймера"><strong>📺 ТВ-таймер</strong><p>{!tvStatus?'Нативный таймер недоступен. Нужна новая версия Android.':tvStatus.state==='armed'?'Запланирована отправка команды выключения: '+new Date(tvStatus.end).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):tvStatus.state==='sending'?'Отправляется команда…':tvStatus.message||'Таймер не запущен.'}</p>{tvStatus?.state==='armed'&&<><strong role="timer">{display(Math.max(0,Math.ceil((tvStatus.end-now)/1000)))}</strong><button disabled={busy} onClick={()=>void cancelTv()}>Отменить выключение</button></>}{active?.tv_controlled&&tvReady&&<button disabled={busy||remainingSeconds<2} onClick={()=>void rearm()}>Подключить таймер к сеансу</button>}<small>Телефон должен оставаться включённым, в домашней сети; после перезагрузки или принудительной остановки таймер не гарантирован. Команда выключает экран, не PlayStation.</small></div>}
   {cloud.role==='parent'&&<FamilyTvControl key={cloud.familyId} family={cloud.familyId}/>}
   {error&&<p className="playbank-error" role="alert">{error}</p>}{success&&<p className="playbank-success" role="status">{success}</p>}
   <details className="playbank-history"><summary>История запросов ({sessions.length})</summary>{sessions.length? sessions.map(s=><div key={s.id} id={cloud.role==='parent'&&inProgress?.status==='pending'&&s.id===inProgress.id?undefined:reviewAnchor('playtime',s.id)} tabIndex={-1}><span>{s.minutes} мин · {({pending:'Ждёт',approved:'Одобрено',active:'Идёт',finished:'Завершено',rejected:'Отклонено'} as Record<string,string>)[s.status]}</span><small>{new Date(s.requested_at).toLocaleDateString('ru-RU',{timeZone:'Europe/Madrid'})}</small></div>):<p>Пока нет запросов.</p>}</details>

@@ -15,6 +15,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FamilyTvPlugin extends Plugin {
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private final AtomicBoolean busy=new AtomicBoolean();
+    @PluginMethod public void timerStatus(PluginCall call){call.resolve(FamilyTvTimer.status(getContext()));}
+    @PluginMethod public void armTimer(PluginCall call){
+        try{Double end=call.getDouble("end");if(end==null)throw new Exception("Нет времени окончания");FamilyTvTimer.arm(getContext(),call.getString("session",""),call.getString("ip",""),end.longValue());call.resolve(FamilyTvTimer.status(getContext()));}catch(Exception e){call.reject(e.getMessage());}
+    }
+    @PluginMethod public void cancelTimer(PluginCall call){try{FamilyTvTimer.cancel(getContext(),call.getString("session",""));call.resolve(FamilyTvTimer.status(getContext()));}catch(Exception e){call.reject(e.getMessage());}}
     @PluginMethod public void execute(PluginCall call){
         String ip=call.getString("ip",""),cmd=call.getString("command","");
         if(!LegacyTvRemote.privateIpv4(ip)||!(cmd.equals("pair")||cmd.equals("off")||cmd.equals("source"))){call.reject("Неверный локальный адрес или команда");return;}
@@ -28,6 +33,7 @@ public class FamilyTvPlugin extends Plugin {
                     SharedPreferences p=getContext().getSharedPreferences("family_tv_remote",0);
                     String id=p.getString("id",null);if(id==null){id=UUID.randomUUID().toString();p.edit().putString("id",id).apply();}
                     LegacyTvRemote.run(ip,id,cmd);
+                    if(cmd.equals("pair"))p.edit().putString("paired_ip",ip).commit();
                     JSObject r=new JSObject();r.put("accepted",true);call.resolve(r);
                 }catch(Exception e){call.reject("Нет подтверждения от телевизора: "+e.getMessage());}
                 finally{busy.set(false);}
