@@ -122,7 +122,7 @@ const sectionItems:Record<Exclude<Tab,'health'>,SectionItem[]>={
  tasks:[{id:'today',label:'Сегодня',icon:'✅'},{id:'proposals',label:'Предложения',icon:'💡'},{id:'manage',label:'Управление',icon:'✏️'},{id:'history',label:'История',icon:'📋'}],
  school:[{id:'schedule',label:'Расписание',icon:'🗓️'},{id:'homework',label:'Домашние',icon:'📝'},{id:'tutors',label:'Тренажёры',icon:'📚'},{id:'academy',label:'Академия',icon:'🧭'},{id:'backpack',label:'Рюкзак',icon:'🎒'}],
  shop:[{id:'catalog',label:'Награды',icon:'🎁'},{id:'time',label:'Игровое время',icon:'🎮'},{id:'orders',label:'Заказы',icon:'🧾'}],
- spiritual:[{id:'today',label:'Сегодня',icon:'🌾'},{id:'text',label:'Ежедневный стих',icon:'📖'},{id:'qualities',label:'Качества',icon:'🌱'},{id:'bible',label:'Путь Павла',icon:'🗺️'},{id:'quiz',label:'Викторина',icon:'🏅'},{id:'requests',label:'Предложения',icon:'💡'}],
+ spiritual:[{id:'today',label:'Сегодня',icon:'🌾'},{id:'text',label:'Ежедневный стих',icon:'📖'},{id:'qualities',label:'Качества',icon:'🌱'},{id:'bible',label:'Приключения',icon:'🗺️'},{id:'quiz',label:'Викторина',icon:'🏅'},{id:'requests',label:'Предложения',icon:'💡'}],
  family:[{id:'overview',label:'Обзор',icon:'🏠'},{id:'chat',label:'Чат',icon:'💬'},{id:'calendar',label:'Календарь',icon:'🗓️'},{id:'safety',label:'Безопасность',icon:'🛡️'}],
  settings:[{id:'general',label:'Внешний вид',icon:'🎨'},{id:'alarm',label:'Будильник',icon:'⏰'},{id:'notifications',label:'Уведомления',icon:'🔔'},{id:'school',label:'Учебные напоминания',icon:'📚'},{id:'account',label:'Аккаунт',icon:'🔐'},{id:'updates',label:'Обновления',icon:'🚀'}]
 };
@@ -421,7 +421,7 @@ export const GeneratedComponent = () => {
   return <main className={"mw-root mw-theme-"+theme.resolved} data-app-theme={theme.resolved} data-app-theme-choice={theme.selection}>
  <div className={"mw-phone"+(tab==="world"?"":" mw-compact-header")}>
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">5.4.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">5.4.1</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => {setSectionFor('world','progress');setTab('world')}}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => {setSectionFor('shop','catalog');setTab('shop')}}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>goSettings('general')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>

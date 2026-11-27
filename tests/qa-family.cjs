@@ -525,16 +525,32 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   }
   await room.getByRole('button',{name:'Выйти из комнаты'}).click();
   await page.locator('.mw-bottom').getByRole('button',{name:/Духовный рост/}).click();
-  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Путь Павла',exact:true}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Приключения',exact:true}).click();
   const bible=page.getByLabel('Библейские путешествия');await bible.waitFor();
   check('game available in spiritual section',await bible.getByText(/Что сделала Лидия после крещения/).count()===1);
   if(role==='child'){
    await bible.getByRole('button',{name:'Пригласила Павла и его спутников к себе домой'}).click();
-   await bible.getByText('🏅 2 жетонов · 1/5 испытаний',{exact:true}).waitFor();check('separate server tokens earned',journeyMock.solved.length===1);
+   await bible.getByText('🏅 2 жетонов · 1/14 испытаний',{exact:true}).waitFor();check('separate server tokens earned',journeyMock.solved.length===1);
    await bible.getByRole('button',{name:'🏅 Коллекция'}).click();
    await bible.getByRole('button',{name:'Получить за 2 жет.'}).click();
    await bible.getByRole('button',{name:'✓ В коллекции',exact:true}).waitFor();check('souvenir redeemed once',journeyMock.souvenirs.length===1);
-   check('tokens spent',await bible.getByText('🏅 0 жетонов · 1/5 испытаний',{exact:true}).count()===1);
+   check('tokens spent',await bible.getByText('🏅 0 жетонов · 1/14 испытаний',{exact:true}).count()===1);
+   await bible.getByRole('button',{name:'🗺 Путь Павла'}).click();
+   await bible.getByRole('button',{name:/Ной — строительство ковчега/}).click();
+   await bible.getByRole('button',{name:'Ковчег',exact:true}).click();
+   await bible.getByText('🏅 2 жетонов · 2/14 испытаний',{exact:true}).waitFor();
+   await bible.getByRole('button',{name:/Моисей — путь через пустыню/}).click();
+   await bible.getByRole('button',{name:'Из Египта',exact:true}).click();
+   await bible.getByText('🏅 4 жетонов · 3/14 испытаний',{exact:true}).waitFor();
+   await bible.getByRole('button',{name:/Давид — мужество и доброта/}).click();
+   await bible.getByRole('button',{name:'Пас овец',exact:true}).click();
+   await bible.getByText('🏅 6 жетонов · 4/14 испытаний',{exact:true}).waitFor();
+   check('all four routes award cloud tokens',journeyMock.solved.length===4);
+   await bible.getByRole('button',{name:'🏅 Коллекция'}).click();
+   await bible.locator('.bible-card').filter({hasText:'Модель ковчега'}).getByRole('button').click();
+   await bible.getByText('🏅 2 жетонов · 4/14 испытаний',{exact:true}).waitFor();
+   check('new souvenir bought',journeyMock.souvenirs.includes('ark'));
+
   }
   await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
   check('placeholder family tabs hidden',await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Геолокация',exact:true}).count()===0&&await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Инструменты',exact:true}).count()===0);
@@ -585,7 +601,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   if(role==='parent'){await choose('Управление');check('management available',await page.getByLabel('Управление ежедневными заданиями').count()===1)}else check('child management hidden',await rail.getByRole('button',{name:'Управление',exact:true}).count()===0);
   await go('Учёба');await visible('.school-today');check('schedule default',await page.getByLabel('Учебные приключения').count()===0);await choose('Домашние');check('homework separate',await page.getByRole('heading',{name:'📝 Домашние задания'}).count()===1);await choose('Тренажёры');check('tutors pane',await page.getByRole('heading',{name:'🤖 Миро помогает учиться'}).count()===1);await choose('Академия');check('academy separate',await visible('.learning-adventures'));await choose('Рюкзак');check('schedule absent in backpack',await page.locator('.school-today').count()===0);check('school single row',await single());
   await go('Магазин');check('shop catalog default',await visible('.mw-reward-grid'));await choose('Заказы');check('orders separate',await visible('#review-rewards')&&await page.locator('.mw-reward-grid').count()===0);await choose('Игровое время');check('playtime panel only',await page.locator('#review-rewards').count()===0);
-  await go('Духовный рост');check('activities default',await visible('.mw-spirit-hero'));await choose('Ежедневный стих');check('verse visible',await visible('.daily-reader'));await choose('Качества');await choose('Путь Павла');check('Bible study separate',await visible('.bible-journey'));await choose('Викторина');await choose('Предложения');
+  await go('Духовный рост');check('activities default',await visible('.mw-spirit-hero'));await choose('Ежедневный стих');check('verse visible',await visible('.daily-reader'));await choose('Качества');await choose('Приключения');check('Bible study separate',await visible('.bible-journey'));await choose('Викторина');await choose('Предложения');
   await go('Семья');await visible('.mw-family-overview');await choose('Чат');await visible('.family-chat');check('chat without safety',await page.getByLabel('Центр семейной безопасности').count()===0);await choose('Календарь');check('calendar separate',await visible('.family-management'));await choose('Безопасность');check('rules separate',await visible('.family-safety')&&await page.getByLabel('Расширенная безопасность').count()===0);check('placeholder panels removed',await rail.getByRole('button',{name:'Геолокация',exact:true}).count()===0&&await rail.getByRole('button',{name:'Инструменты',exact:true}).count()===0);check('family single row',await single());
   await page.getByRole('button',{name:'Открыть настройки'}).click();await choose('Будильник');await choose('Уведомления');check('notifications visible',await page.locator('.mw-system-stack').isVisible());await choose('Учебные напоминания');check('school reminders relocated',await page.getByRole('heading',{name:'🔔 Напоминания'}).count()===1);await choose('Аккаунт');if(role==='parent')check('recovery preserved',await page.locator('.mw-parent-recovery').count()===1);await choose('Обновления');check('updates visible',await page.locator('#app-updates').isVisible());await choose('Внешний вид');check('settings single row',await single());
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'reward_requested',source_id:'nonexistent'}})));await page.locator('#review-rewards').waitFor();check('notification routes to orders',await rail.getByRole('button',{name:'Заказы',exact:true}).getAttribute('aria-pressed')==='true');
