@@ -1,13 +1,13 @@
 {
-  "version": "5.6.5",
-  "title": "Мой мир 5.6.5 · Исправление семейного календаря",
+  "version": "5.6.6",
+  "title": "Мой мир 5.6.6 · Живые роботы",
   "notes": [
-    "Кнопка «Я прочитал» сразу закрывает уведомление.",
-    "Отметка отправляется повторно после восстановления связи.",
-    "Добавлен выход «Позже», без ложной отметки о прочтении."
+    "Купленные мехи появляются в 3D-мире и ходят.",
+    "Наушники на голове, крылья на спине.",
+    "Миро летает отдельно. Исправление семейного календаря сохранено."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.5/MOY_MIR_5.6.5_OTA.zip",
-  "sha256": "9f8797e341252aad7577e1665c41154f160fc9909f2a8b7fbd65476d956b9de4",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.6/MOY_MIR_5.6.6_OTA.zip",
+  "sha256": "b4d23e5cb912734b8397441c4beff7813dd0520f531ccc93b4a59e88cd56f16b",
   "nativeBaseVersion": "3.3.0",
   "required": true,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
