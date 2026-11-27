@@ -1,3 +1,4 @@
+import {BibleJourney} from '../../daily/BibleJourney';
 import {ParentActivityJournal} from './ParentActivityJournal';
 import {GrowthFocus} from './GrowthFocus';
 import {WeeklyReport} from './WeeklyReport';
@@ -192,6 +193,7 @@ export function CloudSpiritual({cloud}:{cloud:Cloud}){
  <div className="mw-spirit-hero"><span>{stage.icon}</span><div><strong>{stage.name}</strong><p>Этап {stage.number} из 10</p><h2>{cloud.spiritualPoints} ✨</h2></div></div>
  <div className="mw-progress"><div className="mw-progress-head"><strong>До следующего этапа</strong><span>{stage.progress}/1000</span></div><div className="mw-progress-track"><div style={{width:`${stage.progress/1000*100}%`}}/></div></div>
  <GrowthFocus cloud={cloud}/>
+ <BibleJourney key={cloud.session?.user.id} userId={cloud.session?.user.id||"guest"} readonly={cloud.role!=="child"}/>
  <PioneerSection cloud={cloud}/>
  <h3 className="mw-cloud-heading">Библейские занятия</h3>
  {spiritualSteps.map(x=>{const done=cloud.spiritual.some(r=>r.step_id===x.id&&r.activity_date===day()&&(x.id!=='daily-text'||Number(r.points)>=10));return <div className="mw-chore" key={x.id}><div className="mw-task-emoji">{x.icon}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{done?'✓ Сегодня отмечено':x.rhythm==='daily'?'Ежедневное занятие':'По возможности'}</small></div><div className="mw-task-right"><b>+{x.points} ✨</b>{cloud.role==='child'&&(x.id==='daily-text'?<button type='button' className='mw-read-quicklink' onClick={()=>document.querySelector('.daily-reader')?.scrollIntoView({behavior:'smooth',block:'start'})}>{done?'✓ Прочитано':'Читать'}</button>:<Action run={()=>cloud.rpc(done?'unmark_spiritual_activity':'mark_spiritual_activity',{p_family:cloud.familyId,p_date:day(),p_step:x.id})}>{done?'Отменить':'Отметить'}</Action>)}</div></div>})}

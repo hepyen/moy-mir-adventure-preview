@@ -252,7 +252,7 @@ async function run(role,browser){
      Object.assign(row,{status:'completed',finished_at:new Date().toISOString(),answers,score,points_awarded:awarded});englishCredit+=awarded;
      return resp({status:'completed',score,total:correct.length,points_awarded:awarded,correct_answers:correct})
     }
-if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)qaDailyStatus=request.postDataJSON().p_approve?'approved':'rejected';if(name==='advance_my_world'){world=2;return resp(2)}if(name==='advance_my_world_stage'){world=3;return resp(3)}if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
+if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)qaDailyStatus=request.postDataJSON().p_approve?'approved':'rejected';if(name==='advance_my_world'){world=2;return resp(2)}if(name==='advance_my_world_stage'){world=Number(request.postDataJSON().p_expected)+1;return resp(world)}if(name==='finish_daily_text_reading'){spiritualAward=10;return resp(10)}if(name==='moymir_check_backpack'){backpackChecked=!!request.postDataJSON()?.p_done;return resp(true)}if(name==='moymir_choose_weekly_quality'){growthChoice=request.postDataJSON()?.p_quality;return resp(growthChoice)}if(name==='moymir_complete_growth_day'){growthAward=20;return resp(20)}if(name==='moymir_playtime_sync'||name==='moymir_playtime_overview')return resp(playOverview());if(name==='moymir_parent_activity_feed')return resp([{date:dateToday,category:'🧹 Ежедневное дело',title:'Заправить кровать',status:'approved',amount:5}]);
     if(playstationGiftQA&&name==='request_reward'){
      const id=request.postDataJSON().p_reward;
      if(id!==giftRewardId)return resp({error:'Unrecognized test reward'});
@@ -601,7 +601,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   check('room light changes',await worldPanel.getByRole('button',{name:'💡 Зажечь'}).count()===1);
   await worldPanel.getByRole('button',{name:'Выйти из комнаты'}).click();
   check('exterior restored',await worldPanel.getByRole('button',{name:'🏡 Войти в комнату'}).count()===1);
-  check('future worlds remain hidden',await page.locator('.mw-mystery-card').count()===2&&!(await page.locator('.mw-scroll').innerText()).match(/Домик на дереве|Космическая экспедиция|Космос/));
+  check('future worlds remain hidden',await page.locator('.mw-mystery-card').count()===3&&!(await page.locator('.mw-scroll').innerText()).match(/Домик на дереве|Космическая экспедиция|Космос/));
   if(role==='child'){
    earnedMock=1700;await page.locator('.mw-cloud-syncbar button').first().click();
    const dialog=page.getByRole('dialog',{name:'Поздравление с завершением этапа'});
@@ -648,7 +648,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   const switcher=page.locator('.mw-worldswitch');
   const dialog=page.getByRole('dialog',{name:'Поздравление с завершением этапа'});
   check('1599 points: celebration stays closed',await dialog.count()===0);
-  check('only opened world selectable, two mystery cards',await switcher.getByRole('button').count()===1&&await page.locator('.mw-mystery-card').count()===2);
+  check('only opened world selectable, three mystery cards',await switcher.getByRole('button').count()===1&&await page.locator('.mw-mystery-card').count()===3);
   check('no future world names or interactive previews',!(await page.locator('.mw-scroll').innerText()).match(/Домик на дереве|Космическая экспедиция|Космос/)&&await page.locator('.space-world').count()===0);
   check('mystery cards have no clickable controls',await page.locator('.mw-mystery-card button,.mw-mystery-card a').count()===0);
   earnedMock=1600;
@@ -662,7 +662,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    await dialog.waitFor({state:'detached',timeout:15000});
    await page.locator('.world3d-toolbar').getByText('3D-домик на дереве').waitFor({timeout:15000});
    check('child advances to treehouse and starts at zero',world===2&&await page.locator('.world3d-bottom').innerText().then(x=>x.includes('0 / 1600')));
-   check('one remaining mystery card and two open worlds',await page.locator('.mw-mystery-card').count()===1&&await switcher.getByRole('button').count()===2);
+   check('two remaining mystery cards and two open worlds',await page.locator('.mw-mystery-card').count()===2&&await switcher.getByRole('button').count()===2);
    check('third world still hidden',!(await switcher.innerText()).match(/Космос/)&&await page.locator('.space-world').count()===0);
    earnedMock=3200;await page.locator('.mw-cloud-syncbar button').first().click();
    await dialog.waitFor({timeout:12000});
@@ -670,7 +670,32 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
    await page.locator('.space-world').waitFor({timeout:15000});
    check('third stage unlocked with zero points',world===3&&await page.locator('.space-catalog button:disabled').count()===30);
-   check('all three worlds opened, no locked cards',await switcher.getByRole('button').count()===3&&await page.locator('.mw-mystery-card').count()===0);
+   check('three worlds opened, fourth hidden',await switcher.getByRole('button').count()===3&&await page.locator('.mw-mystery-card').count()===1);
+   earnedMock=4799;await page.locator('.mw-cloud-syncbar button').first().click();await page.locator('.mw-star-counter').getByText('4799',{exact:false}).waitFor({timeout:10000}).catch(()=>{});await page.waitForTimeout(300);
+   check('fourth world remains locked at 4799',await dialog.count()===0&&world===3);
+   earnedMock=4800;if(!await dialog.count())await page.locator('.mw-cloud-syncbar button').first().dispatchEvent('click');
+   await dialog.getByText('ЭТАП 3 ЗАВЕРШЁН').waitFor();
+   check('fourth world stays secret in celebration',!(await dialog.innerText()).includes('Подводная станция'));
+   await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
+   await page.getByLabel('Подводная станция',{exact:true}).waitFor({timeout:15000});
+   check('fourth world opens at zero',world===4&&await page.locator('.ocean-world .space-catalog button:disabled').count()===30&&await page.locator('.mw-mystery-card').count()===0);
+   earnedMock=5500;await page.locator('.mw-cloud-syncbar button').first().click();
+   await page.getByRole('button',{name:'🏠 Войти в жилой модуль'}).click();
+   check('ocean room opens',await page.getByText('Переставить',{exact:false}).count()>0);
+   await page.locator('.mw-bottom').getByRole('button',{name:/Духовный рост/}).click();
+   const bible=page.getByLabel('Библейские путешествия');
+   await bible.getByRole('button',{name:'Отметить прочитанным'}).click();
+   check('Bible stop saved',await bible.getByText('1/5 остановок').count()===1);
+   await bible.getByRole('button',{name:'📝 Дневник'}).click();
+   await bible.getByRole('textbox').fill('Проверять по Писанию');
+   await bible.getByRole('button',{name:'Сохранить мысль'}).click();
+   check('Bible note saved',await bible.getByText('Проверять по Писанию',{exact:true}).count()===1);
+   await bible.getByRole('button',{name:'🎙 Чтение'}).click();
+   await bible.getByRole('button',{name:'Я потренировался'}).click();
+   check('reading practice marked',await bible.getByText('✓ Тренировка отмечена').count()===1);
+   await bible.getByRole('button',{name:'📚 Стихи'}).click();
+   await bible.getByRole('button',{name:'☆ Добавить в коллекцию'}).first().click();
+   check('verse bookmarked',await bible.getByRole('button',{name:'★ В коллекции · убрать'}).count()===1);
    check('no loss of wallet',await page.locator('.mw-coin').innerText().then(x=>x.includes('1700')));
   }else{
    await page.waitForTimeout(400);

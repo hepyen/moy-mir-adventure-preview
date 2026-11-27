@@ -1,4 +1,4 @@
-export type WorldId=1|2|3
+export type WorldId=1|2|3|4
 export type V=[number,number,number]
 type Treasure={id:string;title:string;emoji:string;color:string;at:number;position:V;clue:string}
 type Mission={id:string;title:string;story:string;treasures:Treasure[];recipe:{id:string;title:string;emoji:string;position:V}}
@@ -32,6 +32,16 @@ export const ADVENTURES:Record<WorldId,Mission[]>={
  {id:'s-ore',title:'Лунный образец',emoji:'🪨',color:'#a1a9c8',at:400,position:[-2.85,.22,.25],clue:'У левого края площадки.'},
  {id:'s-vial',title:'Контейнер',emoji:'🧪',color:'#91d8f4',at:650,position:[2.85,.22,.35],clue:'На правом краю площадки.'},
  {id:'s-data',title:'Кристалл данных',emoji:'💎',color:'#d9a3ff',at:950,position:[.2,.22,-2.65],clue:'За станцией.'}],recipe:{id:'s-capsule',title:'Научная капсула',emoji:'🧪',position:[2.2,.06,2.0]}}
+ ],
+ 4:[
+ {id:'ocean-reef',title:'Исследование рифа',story:'Собери три образца для миниатюрного аквариума станции.',treasures:[
+ {id:'o-shell',title:'Ракушка',emoji:'🐚',color:'#ffd5ad',at:40,position:[-2.25,.16,-1.25],clue:'У дальнего левого края песчаной площадки.'},
+ {id:'o-pearl',title:'Жемчужина',emoji:'⚪',color:'#bde8ff',at:80,position:[2.25,.17,-1.5],clue:'На противоположной стороне рифа.'},
+ {id:'o-coral',title:'Образец коралла',emoji:'🪸',color:'#f2a0a9',at:160,position:[-.65,.18,2.2],clue:'На ближней стороне площадки.'}],recipe:{id:'o-aquarium',title:'Аквариум исследователя',emoji:'🐠',position:[-2.2,.06,2.0]}},
+ {id:'ocean-signal',title:'Голос глубины',story:'Найди детали для подводного сигнального устройства.',treasures:[
+ {id:'o-metal',title:'Сплав',emoji:'🔩',color:'#a1c5dd',at:400,position:[-2.85,.2,.25],clue:'У левого края песчаной площадки.'},
+ {id:'o-cell',title:'Батарея',emoji:'🔋',color:'#91e8cc',at:650,position:[2.85,.2,.35],clue:'На правом краю площадки.'},
+ {id:'o-chip',title:'Датчик',emoji:'💎',color:'#e3b0ff',at:950,position:[.2,.2,-2.65],clue:'За станцией.'}],recipe:{id:'s-beacon-ocean',title:'Подводный сигнализатор',emoji:'📡',position:[2.2,.06,2.0]}}
  ]
 }
 export type AdventureState={found:string[];crafted:string[]}
