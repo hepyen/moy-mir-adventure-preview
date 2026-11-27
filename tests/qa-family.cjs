@@ -24,6 +24,7 @@ const combinedQA=process.env.QA_FOCUS==='education-family';
 const optimizationQA=process.env.QA_FOCUS==='optimization-checkin';
 const safetyQA=process.env.QA_FOCUS==='family-safety';
 const safetyToolkitQA=process.env.QA_FOCUS==='safety-toolkit';
+const navigationQA=process.env.QA_FOCUS==='navigation-52';
 const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -135,7 +136,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA||navigationQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -469,8 +470,35 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(navigationQA){
+  const rail=page.getByRole('group',{name:'Разделы',exact:true});
+  const choose=async(label)=>{await rail.getByRole('button',{name:label,exact:true}).click();check('active '+label,await rail.getByRole('button',{name:label,exact:true}).getAttribute('aria-pressed')==='true');};
+  const go=async(label)=>{await page.locator('.mw-bottom button').filter({has:page.getByText(label,{exact:true})}).click({timeout:5000});await rail.waitFor()};
+  const visible=async(sel)=>{await page.locator(sel).first().waitFor({timeout:6000});return true};
+  const single=async()=>await rail.evaluate(e=>{const buttons=[...e.querySelectorAll('button')];return buttons.every(b=>Math.abs(b.offsetTop-buttons[0].offsetTop)<3)&&e.scrollWidth>=e.clientWidth&&document.documentElement.scrollWidth<=window.innerWidth+2});
+  check('six bottom tabs unchanged',await page.locator('.mw-bottom button').count()===6);
+  check('world row single line',await single());
+  await choose('Мой день');check('day separate',await visible('.myday')&&await page.locator('canvas').count()===0);
+  await choose('Прогресс');check('progress separate',await visible('.mw-progress'));
+  await choose('Приключения');check('adventures and world visible',await visible('.adventure-hub')&&await visible('.world3d-panel'));
+  await choose('Мой остров');check('island clean',await page.locator('.adventure-hub').count()===0);
+  await rail.getByRole('button',{name:'Здоровье',exact:true}).click();await page.locator('.h-health').waitFor();check('health reachable',await page.locator('.h-navigation button').count()>=6);await page.getByRole('button',{name:'← Мой мир',exact:true}).click();
+  await go('Дела');check('today default',await visible('.mw-chore'));await choose('Предложения');check('proposal pane',await visible('#review-proposals')&&await page.locator('#review-tasks').count()===0);await choose('История');check('history separate',await visible('.mw-penalty-info'));
+  if(role==='parent'){await choose('Управление');check('management available',await page.getByLabel('Управление ежедневными заданиями').count()===1)}else check('child management hidden',await rail.getByRole('button',{name:'Управление',exact:true}).count()===0);
+  await go('Учёба');await visible('.school-today');check('schedule default',await page.getByLabel('Учебные приключения').count()===0);await choose('Домашние');check('homework separate',await page.getByRole('heading',{name:'📝 Домашние задания'}).count()===1);await choose('Тренажёры');check('tutors pane',await page.getByRole('heading',{name:'🤖 Миро помогает учиться'}).count()===1);await choose('Академия');check('academy separate',await visible('.learning-adventures'));await choose('Рюкзак');check('schedule absent in backpack',await page.locator('.school-today').count()===0);check('school single row',await single());
+  await go('Магазин');check('shop catalog default',await visible('.mw-reward-grid'));await choose('Заказы');check('orders separate',await visible('#review-rewards')&&await page.locator('.mw-reward-grid').count()===0);await choose('Игровое время');check('playtime panel only',await page.locator('#review-rewards').count()===0);
+  await go('Духовный рост');check('activities default',await visible('.mw-spirit-hero'));await choose('Ежедневный стих');check('verse visible',await visible('.daily-reader'));await choose('Качества');await choose('Исследователь');check('Bible study separate',await visible('.bible-journey'));await choose('Викторина');await choose('Предложения');
+  await go('Семья');await visible('.family-chat');check('chat default without safety',await page.getByLabel('Центр семейной безопасности').count()===0);await choose('Календарь');check('calendar separate',await visible('.family-management'));await choose('Геолокация');check('location separate',await visible('.family-checkin'));await choose('Безопасность');check('rules separate',await visible('.family-safety')&&await page.getByLabel('Расширенная безопасность').count()===0);await choose('Инструменты');check('tools separate',await visible('.safety-toolkit'));check('family single row',await single());
+  await page.getByRole('button',{name:'Открыть настройки'}).click();await choose('Будильник');await choose('Уведомления');check('notifications visible',await page.locator('.mw-system-stack').isVisible());await choose('Учебные напоминания');check('school reminders relocated',await page.getByRole('heading',{name:'🔔 Напоминания'}).count()===1);await choose('Аккаунт');if(role==='parent')check('recovery preserved',await page.locator('.mw-parent-recovery').count()===1);await choose('Обновления');check('updates visible',await page.locator('#app-updates').isVisible());await choose('Внешний вид');check('settings single row',await single());
+  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'reward_requested',source_id:'nonexistent'}})));await page.locator('#review-rewards').waitFor();check('notification routes to orders',await rail.getByRole('button',{name:'Заказы',exact:true}).getAttribute('aria-pressed')==='true');
+  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'app_update'}})));await page.locator('#app-updates').waitFor();check('notification routes to updates',await rail.getByRole('button',{name:'Обновления',exact:true}).getAttribute('aria-pressed')==='true');
+  await go('Семья');await choose('Чат');await page.locator('.family-chat').waitFor();await page.screenshot({path:'/tmp/moymir-52-'+role+'-family.png'});
+  await go('Учёба');await choose('Расписание');await page.screenshot({path:'/tmp/moymir-52-'+role+'-school.png'});
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(safetyToolkitQA){
   await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Инструменты',exact:true}).click();
   const tools=page.getByLabel('Расширенная безопасность');
   await tools.getByText('📶 Диагностика этого устройства',{exact:true}).click();
   await tools.getByRole('button',{name:'Проверить связь и аккумулятор'}).click();
@@ -485,7 +513,8 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   if(role==='parent'){
    await tools.getByText('🔐 Защита родительского аккаунта',{exact:true}).click();
    check('parent account tools present',await tools.getByRole('button',{name:'Проверить аккаунт и второй фактор'}).count()===1);
-   const geo=page.getByLabel('Семейная геолокация');
+   await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Геолокация',exact:true}).click();
+  const geo=page.getByLabel('Семейная геолокация');
    await geo.getByRole('button',{name:'Открыть карту OpenStreetMap'}).waitFor();
    check('map opt-in before opening',await geo.locator('.leaflet-container').count()===0);
    await page.route('https://tile.openstreetmap.org/**',r=>r.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#e7eee9"/></svg>'}));
@@ -506,6 +535,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  }
  if(safetyQA){
   await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Безопасность',exact:true}).click();
   const safety=page.getByLabel('Центр семейной безопасности');
   await safety.getByText('Учебная игра',{exact:true}).waitFor();
   check('shared rule loaded',true);
@@ -551,9 +581,11 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   await page.locator('canvas').waitFor({timeout:15000});
   check('3D restored',await page.locator('canvas').count()>0);
   await page.locator('.mw-bottom').getByRole('button',{name:/Учёба/}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Академия',exact:true}).click();
   await page.getByLabel('Учебные приключения').waitFor();
   check('lazy school route loads',true);
   await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Геолокация',exact:true}).click();
   const geo=page.getByLabel('Семейная геолокация');
   await geo.waitFor();
   if(role==='parent'){
@@ -576,6 +608,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  }
  if(combinedQA){
   await page.locator('.mw-bottom').getByRole('button',{name:/Учёба/}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Академия',exact:true}).click();
   const edu=page.getByLabel('Учебные приключения');
   await edu.waitFor();
   check('four expeditions',await edu.locator('.edu-cards button').count()===4);
@@ -596,6 +629,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('photosynthesis simulation',await edu.getByText(/Не хватает одного/).count()===1);
   }else check('parent expedition read only',await edu.locator('.edu-cards button:disabled').count()===4);
   await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Календарь',exact:true}).click();
   const fam=page.getByLabel('Семейное управление');
   await fam.getByText('Семейная прогулка',{exact:true}).waitFor();
   check('shared calendar loads',await fam.getByText('Семейная прогулка',{exact:true}).count()===1);
@@ -625,6 +659,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
  }
  if(adventureQA){
+  await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Приключения',exact:true}).click();
   const hub=page.getByLabel('Игровые приключения');
   await hub.waitFor();
   check('two missions in open world',await hub.locator('.adventure-mission').count()===2);
@@ -649,6 +684,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('crafted decoration in collection',await hub.getByText('Фонарь путешественника',{exact:true}).count()===1);
    check('balance unchanged',await page.getByText(/Баланс: 1700/).count()>0);
    await page.reload({waitUntil:'domcontentloaded'});
+   await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Приключения',exact:true}).click();
    await hub.getByRole('button',{name:'🎒 Рюкзак'}).click({timeout:15000});
    check('inventory survives reload',await hub.getByText('Фонарь путешественника',{exact:true}).count()===1);
    earnedMock=1700;await page.locator('.mw-cloud-syncbar button').first().click();

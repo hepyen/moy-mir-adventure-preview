@@ -1,3 +1,5 @@
+import {SectionNav} from './SectionNav';
+import type {SectionItem} from './SectionNav';
 import {SafetyToolkit} from '../../features/SafetyToolkit';
 import {FamilySafety} from '../../features/FamilySafety';
 import {FamilyCheckin} from '../../features/FamilyCheckin';
@@ -113,6 +115,18 @@ const prices = [{
   price: 70
 }];
 const nav: [Tab, string, string][] = [['world', '🌍', 'Мир'], ['tasks', '✅', 'Дела'], ['school', '📚', 'Учёба'], ['shop', '🎁', 'Магазин'], ['spiritual', '🌾', 'Духовный рост'], ['family', '💬', 'Семья']];
+const sectionDefaults:Record<Tab,string>={world:'island',tasks:'today',school:'schedule',shop:'catalog',spiritual:'today',family:'chat',settings:'general',health:'today'};
+const sectionItems:Record<Exclude<Tab,'health'>,SectionItem[]>={
+ world:[{id:'island',label:'Мой остров',icon:'🌍'},{id:'day',label:'Мой день',icon:'☀️'},{id:'health',label:'Здоровье',icon:'💚'},{id:'adventure',label:'Приключения',icon:'🧭'},{id:'progress',label:'Прогресс',icon:'🏆'}],
+ tasks:[{id:'today',label:'Сегодня',icon:'✅'},{id:'proposals',label:'Предложения',icon:'💡'},{id:'manage',label:'Управление',icon:'✏️'},{id:'history',label:'История',icon:'📋'}],
+ school:[{id:'schedule',label:'Расписание',icon:'🗓️'},{id:'homework',label:'Домашние',icon:'📝'},{id:'tutors',label:'Тренажёры',icon:'📚'},{id:'academy',label:'Академия',icon:'🧭'},{id:'backpack',label:'Рюкзак',icon:'🎒'}],
+ shop:[{id:'catalog',label:'Награды',icon:'🎁'},{id:'time',label:'Игровое время',icon:'🎮'},{id:'orders',label:'Заказы',icon:'🧾'}],
+ spiritual:[{id:'today',label:'Сегодня',icon:'🌾'},{id:'text',label:'Ежедневный стих',icon:'📖'},{id:'qualities',label:'Качества',icon:'🌱'},{id:'bible',label:'Исследователь',icon:'🗺️'},{id:'quiz',label:'Викторина',icon:'🏅'},{id:'requests',label:'Предложения',icon:'💡'}],
+ family:[{id:'chat',label:'Чат',icon:'💬'},{id:'calendar',label:'Календарь',icon:'🗓️'},{id:'location',label:'Геолокация',icon:'📍'},{id:'safety',label:'Безопасность',icon:'🛡️'},{id:'tools',label:'Инструменты',icon:'🔧'}],
+ settings:[{id:'general',label:'Внешний вид',icon:'🎨'},{id:'alarm',label:'Будильник',icon:'⏰'},{id:'notifications',label:'Уведомления',icon:'🔔'},{id:'school',label:'Учебные напоминания',icon:'📚'},{id:'account',label:'Аккаунт',icon:'🔐'},{id:'updates',label:'Обновления',icon:'🚀'}]
+};
+function destinationSection(next:Destination){const target=next.anchor||next.fallback||'';if(next.tab==='tasks')return target.includes('proposal')?'proposals':target.includes('behavior')?'history':'today';if(next.tab==='shop')return target.includes('playtime')?'time':target.includes('reward')?'orders':'catalog';if(next.tab==='spiritual')return target.includes('review-spiritual')?'requests':'today';if(next.tab==='settings')return target==='app-updates'?'updates':'notifications';return sectionDefaults[next.tab]}
+
 const SAVE_KEY='moymir2-demo-2.4';
 const OLD_SAVE_KEY='moymir2-demo-2.1';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -129,7 +143,7 @@ export const GeneratedComponent = () => {
  const story=useIslandStory(cloud.familyId,cloud.childId,!!cloud.role&&!!cloud.session);
  useChildPresence(cloud.role==='child'&&!!cloud.session,cloud.session?.user.id||'');
  const [showConnection,setShowConnection]=useState(false);
- const askMiro=(question:string)=>{try{sessionStorage.setItem('moymir-miro-next-question',question.slice(0,1400))}catch{}setTab('world');window.dispatchEvent(new Event('moymir-open-miro'))};
+ const askMiro=(question:string)=>{try{sessionStorage.setItem('moymir-miro-next-question',question.slice(0,1400))}catch{}setSectionFor('world','island');setTab('world');window.dispatchEvent(new Event('moymir-open-miro'))};
  useEffect(()=>{
   if(!Capacitor.isNativePlatform()||!Capacitor.isPluginAvailable('LocalNotifications'))return;
   let active=true;
@@ -148,15 +162,21 @@ export const GeneratedComponent = () => {
   const [day,setDay]=useState(today());
 
   const [tab, setTab] = useState<Tab>('world');
+  const [sections,setSections]=useState<Record<Tab,string>>({...sectionDefaults});
+  const section=sections[tab];
+  function setSectionFor(target:Tab,value:string){setSections(prev=>({...prev,[target]:value}))}
+  function goSettings(value:string){setSectionFor('settings',value);setTab('settings')}
+
   const scrollScreen=useRef<HTMLDivElement>(null);
   const [destination,setDestination]=useState<Destination|null>(null);
   const [missingTarget,setMissingTarget]=useState(false);
   function openDestination(next:Destination){
    setMissingTarget(false);
    setDestination({...next});
+   setSectionFor(next.tab,destinationSection(next));
    setTab(next.tab);
   }
-  useEffect(()=>{if(scrollScreen.current)scrollScreen.current.scrollTop=0},[tab]);
+  useEffect(()=>{if(scrollScreen.current)scrollScreen.current.scrollTop=0},[tab,section]);
   useEffect(()=>{
    const open=(event:Event)=>{
     const payload=(event as CustomEvent<NotificationPayload>).detail;
@@ -212,7 +232,7 @@ export const GeneratedComponent = () => {
    };
   },[destination,tab]);
   useEffect(()=>{
-   if(!cloud.session){setDestination(null);setMissingTarget(false)}
+   if(!cloud.session){setDestination(null);setMissingTarget(false);setSections({...sectionDefaults})}
   },[cloud.session?.user.id]);
 
   const [previewWorld,setPreviewWorld]=useState<1|2|3|4>(1);
@@ -398,10 +418,10 @@ export const GeneratedComponent = () => {
     toast('Постройка появилась на острове! 🏡');
   };
   return <main className={"mw-root mw-theme-"+theme.resolved} data-app-theme={theme.resolved} data-app-theme-choice={theme.selection}>
- <div className="mw-phone">
+ <div className={"mw-phone"+(tab==="world"?"":" mw-compact-header")}>
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">5.1.0</span></strong><span>Остров приключений</span></div></div>
- <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">5.2.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => {setSectionFor('world','progress');setTab('world')}}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => {setSectionFor('shop','catalog');setTab('shop')}}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>goSettings('general')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
  <div className="mw-tabs-top">
@@ -409,44 +429,60 @@ export const GeneratedComponent = () => {
  <button className={shownParent ? 'selected' : ''} onClick={() => {if(!cloud.session)setShowConnection(true);else if(cloud.role==='child')setShowConnection(true);else setTab('world')}}>👨‍👩‍👦 Родители</button>
  <SoundControl onChange={setSound}/>
  </div>
- <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div> <div ref={scrollScreen} className={tab==='family'&&connected?'mw-scroll mw-family-screen':'mw-scroll'}>
- <div className="mw-system-stack" style={{display:tab==='settings'?'flex':'none'}}><div id="app-updates"><UpdateCenter/></div>{connected&&cloud.session&&<><NotificationInbox key={cloud.session.user.id} userId={cloud.session.user.id} familyId={cloud.familyId} onOpen={next=>{openDestination(next);void cloud.refresh()}}/><PushCenter userId={cloud.session.user.id}/></>}</div>
+ <div className="mw-cloud-syncbar">{connected?<><span>☁️ {cloud.childName} · Прежний прогресс подключён</span><button onClick={()=>void cloud.refresh()}>↻</button><button onClick={()=>setShowConnection(v=>!v)}>Аккаунт</button></>:<><span>{cloud.loading?'Загружаем семейный прогресс…':'☁️ Подключи прежние баллы и достижения'}</span><button onClick={()=>setShowConnection(true)}>Войти</button></>}</div>
+ {tab!=='health'&&<SectionNav label="Разделы" items={sectionItems[tab].filter(x=>!(tab==='tasks'&&x.id==='manage'&&cloud.role!=='parent'))} value={tab==='tasks'&&section==='manage'&&cloud.role!=='parent'?'today':section} onChange={value=>{setDestination(null);setMissingTarget(false);if(tab==='world'&&value==='health'){setTab('health');return}setSectionFor(tab,value)}}/>}
+ <div ref={scrollScreen} className={tab==='family'&&connected&&section==='chat'?'mw-scroll mw-family-screen':'mw-scroll'}>
+ 
  {showConnection&&(cloud.session?<section className="mw-panel mw-cloud-account"><h3>Семейный аккаунт</h3><p>{cloud.session?.user.email}</p><button onClick={()=>{void cloud.logout().then(()=>{setShowConnection(true);setTab('world')}).catch(e=>console.warn('Account switch:',e))}}>Выйти</button><button onClick={()=>setShowConnection(false)}>Закрыть</button></section>:<CloudSignIn cloud={cloud}/>)}
  {cloud.error&&cloud.session&&<div className="mw-note" role="alert">Ошибка загрузки: {cloud.error} <button onClick={()=>void cloud.refresh()}>Повторить</button></div>}
  {missingTarget&&<p className="mw-note" role="status">Эта запись уже обработана или больше не доступна.</p>}
+
+ <div className="mw-system-stack" style={{display:tab==='settings'&&(section==='updates'||section==='notifications')?'flex':'none'}}><div id="app-updates" hidden={section!=='updates'}><UpdateCenter/></div>{connected&&cloud.session&&<div hidden={section!=='notifications'}><NotificationInbox key={cloud.session.user.id} userId={cloud.session.user.id} familyId={cloud.familyId} onOpen={next=>{openDestination(next);void cloud.refresh()}}/><PushCenter userId={cloud.session.user.id}/></div>}</div>
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
- {connected&&cloud.role==='child'&&<RemoteWakeSetup family={cloud.familyId} child={cloud.childId}/>}
- {connected&&cloud.role==='parent'&&<ParentWake family={cloud.familyId} child={cloud.childId} name={cloud.childName}/>}
+ {section==='island'&&connected&&cloud.role==='parent'&&<button className="mw-section-summary mw-action-shortcut" onClick={()=>setSectionFor('world','day')}>📋 Мой день и решения родителя →</button>}
+ {section==='day'&&<>
  {connected&&cloud.role==='parent'&&<ParentApprovals cloud={cloud} onOpen={openDestination}/>}
- {connected&&<MyDay cloud={cloud} school={school} onGo={setTab} onAskMiro={askMiro}/>}
- <button className="mw-health-shortcut" type="button" onClick={()=>setTab('health')}><span className="mw-health-heart">💚</span><span><strong>Моё здоровье</strong><small>Сон · зарядка с Миро · здоровое меню</small></span><b>Открыть →</b></button>
+ {connected&&<MyDay cloud={cloud} school={school} onGo={next=>{setSectionFor(next,sectionDefaults[next]);setTab(next)}} onAskMiro={askMiro}/>}
+ <button className="mw-health-shortcut" type="button" onClick={()=>setTab('health')}><span className="mw-health-heart">💚</span><span><strong>Моё здоровье</strong><small>Сон · зарядка · полезные привычки</small></span><b>Открыть →</b></button>
+ {connected&&<section className="mw-panel school-dashboard-link"><div><strong>🎒 Уроки сегодня</strong><p>{school.lessons.filter(x=>x.weekday===new Date().getDay()).sort((a,b)=>a.lesson_order-b.lesson_order).map(x=>x.subject).join(' · ')||'Добавьте расписание в разделе «Учёба»'}</p></div><button onClick={()=>{setSectionFor('school','schedule');setTab('school')}}>Открыть</button></section>}
+ </>}
+ {(section==='island'||section==='adventure')&&<>
  <div className="mw-worldswitch" aria-label="Открытые миры">{([1,2,3,4] as const).filter(n=>n<=unlockedWorld).map(n=><button key={n} className={currentWorld===n?'active':''} aria-pressed={currentWorld===n} onClick={()=>setPreviewWorld(n)}>{['🏡 Домик на поляне','🌳 Домик на дереве','🪐 Космос','🌊 Подводная станция'][n-1]} ✓</button>)}</div>
  <WorldSafe key={currentWorld+':'+(cloud.session?.user.id||'guest')} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound} userId={cloud.session?.user.id||'guest'}><Suspense fallback={<div className="mw-panel">✨ Загружаем 3D-мир…</div>}>{currentWorld===4?<OceanWorld points={pointsInWorld} earnedPoints={actualXp} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||"guest"} owner={cloud.childId||cloud.session?.user.id||"guest"} soundEnabled={sound} adventure={connected?adventure.view:undefined}/>:currentWorld===3?<SpaceWorld adventure={connected?adventure.view:undefined} points={pointsInWorld} owner={cloud.childId||cloud.session?.user.id||"guest"} userId={cloud.session?.user.id||"guest"} earnedPoints={actualXp} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound}/>:<World3D adventure={connected?adventure.view:undefined} theme={theme.resolved} points={pointsInWorld} earnedPoints={actualXp} worldNumber={currentWorld} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||'guest'} decorOwnerId={cloud.childId||cloud.session?.user.id||'guest'} decorFamilyId={cloud.familyId||''} decorChildId={cloud.childId||''} soundEnabled={sound} adventureCount={story.total}/>}</Suspense></WorldSafe>
- {connected&&<AdventureHub game={adventure}/>}
- {connected&&<IslandStory cloud={cloud} story={story}/>}
- {connected&&currentWorld<=2&&<IslandMoments cloud={cloud} worldNumber={currentWorld}/>}
+ </>}
+ {section==='adventure'&&connected&&<AdventureHub game={adventure}/>}
+ {section==='adventure'&&connected&&<IslandStory cloud={cloud} story={story}/>}
+ {section==='adventure'&&connected&&currentWorld<=2&&<IslandMoments cloud={cloud} worldNumber={currentWorld}/>}
  {!connected&&<button className="mw-primary" onClick={()=>setShowConnection(true)}>☁️ Подключить мои прежние достижения</button>}
- {connected&&<div className="mw-balance-summary"><span>⭐ Заработано: {cloud.worldPoints}</span><span>🪙 Баланс: {cloud.balance}</span><span>🎁 Наград: {cloud.rewards.length}</span></div>}
- {<section className="mw-progress"><div className="mw-progress-head"><strong>⭐ Очки развития</strong><span>{pointsInWorld} / {WORLD_01_END}</span></div>
+ {(section==='island'||section==='progress'||section==='adventure')&&connected&&<div className="mw-balance-summary"><span>⭐ Заработано: {cloud.worldPoints}</span><span>🪙 Баланс: {cloud.balance}</span><span>🎁 Наград: {cloud.rewards.length}</span></div>}
+ {section==='progress'&&<section className="mw-progress"><div className="mw-progress-head"><strong>⭐ Очки развития</strong><span>{pointsInWorld} / {WORLD_01_END}</span></div>
  <div className="mw-progress-track"><div style={{width:`${pointsInWorld/WORLD_01_END*100}%`}}/></div>
  <p>{nextWorldStage?'Следующее улучшение: '+(currentWorld===2?TREEHOUSE_STAGES[WORLD_01_OBJECTS.indexOf(nextWorldStage)]:currentWorld>=3?'Новый объект экспедиции':nextWorldStage.title)+' — '+nextWorldStage.at+' очков':'Все 30 этапов этого мира открыты!'}</p></section>}
- {unlockedWorld<4&&<section className="mw-mystery-worlds" aria-label="Будущие этапы"><h3>Твои будущие приключения</h3><div className="mw-mystery-grid">{([2,3,4] as const).filter(n=>n>unlockedWorld).map(n=><article key={n} className={'mw-mystery-card mystery-'+n}><div className="mw-mystery-art" aria-hidden="true"><i/><i/><i/><i/><span>✧</span><b>?</b></div><div className="mw-mystery-caption"><strong>🔒 Этап {n}</strong><small>{n===unlockedWorld+1?'Откроется после завершения текущего этапа':'Сюрприз впереди'}</small></div></article>)}</div></section>}
+ {(section==='island'||section==='progress')&&unlockedWorld<4&&<section className="mw-mystery-worlds" aria-label="Будущие этапы"><h3>Твои будущие приключения</h3><div className="mw-mystery-grid">{([2,3,4] as const).filter(n=>n>unlockedWorld).map(n=><article key={n} className={'mw-mystery-card mystery-'+n}><div className="mw-mystery-art" aria-hidden="true"><i/><i/><i/><i/><span>✧</span><b>?</b></div><div className="mw-mystery-caption"><strong>🔒 Этап {n}</strong><small>{n===unlockedWorld+1?'Откроется после завершения текущего этапа':'Сюрприз впереди'}</small></div></article>)}</div></section>}
  {canAdvance&&<section className="mw-panel"><p>🎉 Этап завершён! Следующий мир ждёт тебя.</p><button className="mw-primary" disabled={advancingWorld} onClick={()=>setCelebration(unlockedWorld as 1|2|3)}>✨ Перейти к другому этапу</button></section>}
  {connected&&cloud.role==='parent'&&unlockedWorld<4&&actualXp>=unlockedWorld*WORLD_01_END&&<section className="mw-panel">🎉 Этап завершён. Илья может перейти в следующий мир из детского аккаунта.</section>}
- {connected&&<section className="mw-panel school-dashboard-link"><div><strong>🎒 Уроки сегодня</strong><p>{school.lessons.filter(x=>x.weekday===new Date().getDay()).sort((a,b)=>a.lesson_order-b.lesson_order).map(x=>x.subject).join(' · ')||'Добавьте расписание в разделе «Учёба»'}</p></div><button onClick={()=>setTab('school')}>Открыть</button></section>}
- <section className="mw-panel"><div className="mw-section-label">КАК РАЗВИВАТЬ МИР</div><p className="mw-task-explain">Каждое подтверждённое родителем задание приносит монеты и очки развития. Постройки возникают сами, в прежнем порядке. Трогай Миро на острове: он увеличится и поможет разобраться с уроками.</p><button className="mw-primary" onClick={()=>setTab('tasks')}>Посмотреть задания →</button></section>
+ {section==='progress'&&<section className="mw-panel"><div className="mw-section-label">КАК РАЗВИВАТЬ МИР</div><p className="mw-task-explain">Каждое подтверждённое родителем задание приносит монеты и очки развития. Постройки возникают сами, в прежнем порядке. Трогай Миро на острове: он увеличится и поможет разобраться с уроками.</p><button className="mw-primary" onClick={()=>setTab('tasks')}>Посмотреть задания →</button></section>}
  </>}
- {tab === 'tasks' && (connected?<CloudTasks cloud={cloud}/>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'health' && <Suspense fallback={<div className="mw-panel">Загружаем раздел здоровья…</div>}><HealthHub openKitchen={destination?.kitchen?destination:undefined} onMealDecision={cloud.refresh} themeMode={theme.selection} themeResolved={theme.resolved} onThemeChange={theme.setTheme} onOpenSettings={()=>setTab('settings')} parent={shownParent} childId={cloud.childId||'local-ilya'} familyId={connected?cloud.familyId:undefined}/></Suspense>}
- {tab === 'school' && (connected?<Suspense fallback={<div className="mw-panel">Загружаем учебные материалы…</div>}><SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro}/></Suspense>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'shop' && (connected?<><CloudShop cloud={cloud}/><PlayTimeBank cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'spiritual' && (connected?<><DailyTextReader cloud={cloud} onAskMiro={askMiro} onSchoolSettings={()=>setTab('school')}/><CloudSpiritual cloud={cloud}/></>:<CloudSignIn cloud={cloud}/>)}
- {tab === 'family' && <>{connected&&<FamilySafety key={"FamilySafety:"+cloud.session?.user.id} cloud={cloud}/>} {connected&&<SafetyToolkit key={"SafetyToolkit:"+cloud.session?.user.id} cloud={cloud} onSettings={()=>setTab('settings')}/>} {connected&&<FamilyCheckin key={"FamilyCheckin:"+cloud.session?.user.id} cloud={cloud}/>} {connected&&<FamilyManagement key={"FamilyManagement:"+cloud.session?.user.id} cloud={cloud} onGo={setTab}/>}<section className="mw-greeting"><div className="mw-eyebrow">НАШ СЕМЕЙНЫЙ ЧАТ</div><h1>Семья ❤️</h1><p>Сообщения доставляются всем участникам семьи.</p></section>{connected&&cloud.session?<Suspense fallback={<div className="mw-panel">Загружаем семейный чат…</div>}><FamilyChat familyId={cloud.familyId} userId={cloud.session.user.id}/></Suspense>:<CloudSignIn cloud={cloud}/>}</>}
- {tab === 'settings' && <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Уведомления, звуки, будильник и духовный рост.</p></section><div className="mw-settings-tile mw-theme-settings"><AppThemeSwitch selection={theme.selection} onChange={theme.setTheme}/><p>Тема действует во всех разделах, во всех мирах, чате и настройках. «Авто» повторяет настройки телефона.</p></div>{connected&&cloud.role==='parent'&&cloud.childId&&<ParentChildAccess key={cloud.childId} childId={cloud.childId} childName={cloud.childName}/>}<MiroAlarmPanel lessons={school.lessons}/><div className="mw-settings-tile"><strong>💚 Моё здоровье</strong><p>Сон, зарядка, недельное меню и полезные привычки. Илья сам может записывать рост и вес; история доступна семье.</p><button onClick={()=>setTab('health')}>Открыть «Моё здоровье»</button></div><div className="mw-settings-tile"><strong>🔔 Уведомления</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div><div className="mw-settings-tile"><strong>🎵 Системные звуки и музыка</strong><p>Звуки кнопок, наград и строительства.</p><SoundControl onChange={setSound}/><MusicControl/></div><div className="mw-settings-tile"><strong>📚 Учёба и расписание</strong><p>Предметы, домашние задания и время напоминаний.</p><button onClick={()=>setTab('school')}>Открыть расписание</button></div><div className="mw-settings-tile"><strong>🌾 Мой духовный рост</strong><p>Личная шкала и библейские занятия.</p><button onClick={()=>setTab('spiritual')}>Открыть</button></div><div className="mw-settings-tile"><strong>🚀 Обновления</strong><p>Проверка новой версии и установка без переустановки APK.</p></div>{connected&&<div className="mw-settings-tile"><strong>👨‍👩‍👦 Вход Ильи</strong><p>Уведомление родителю, когда Илья открывает приложение. Не чаще одного раза в 15 минут.</p></div>}</>}
+ {tab === 'tasks' && (connected?<CloudTasks cloud={cloud} section={section==='manage'&&cloud.role!=='parent'?'today':section}/>:<CloudSignIn cloud={cloud}/>)}
+ {tab==='health'&&<button type="button" className="mw-health-back" onClick={()=>{setSectionFor('world','day');setTab('world')}}>← Мой мир</button>}
+ {tab === 'health' && <Suspense fallback={<div className="mw-panel">Загружаем раздел здоровья…</div>}><HealthHub openKitchen={destination?.kitchen?destination:undefined} onMealDecision={cloud.refresh} themeMode={theme.selection} themeResolved={theme.resolved} onThemeChange={theme.setTheme} onOpenSettings={()=>goSettings('alarm')} parent={shownParent} childId={cloud.childId||'local-ilya'} familyId={connected?cloud.familyId:undefined}/></Suspense>}
+ {tab === 'school' && (connected?<Suspense fallback={<div className="mw-panel">Загружаем учебные материалы…</div>}><SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro} section={section}/></Suspense>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'shop' && (connected?<>{section==='time'?<PlayTimeBank cloud={cloud}/>:<CloudShop cloud={cloud} section={section}/>}</>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'spiritual' && (connected?<>{section==='text'?<DailyTextReader cloud={cloud} onAskMiro={askMiro} onSchoolSettings={()=>goSettings('school')}/>:<CloudSpiritual cloud={cloud} section={section} onDailyText={()=>setSectionFor('spiritual','text')}/>}</>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'family' && (connected&&cloud.session?<>{section==='safety'&&<><FamilySafety key={"FamilySafety:"+cloud.session.user.id} cloud={cloud}/></>}{section==='tools'&&<><SafetyToolkit key={"SafetyToolkit:"+cloud.session.user.id} cloud={cloud} onSettings={()=>goSettings('account')}/></>}{section==='location'&&<FamilyCheckin key={"FamilyCheckin:"+cloud.session.user.id} cloud={cloud}/>}{section==='calendar'&&<FamilyManagement key={"FamilyManagement:"+cloud.session.user.id} cloud={cloud} onGo={next=>{setSectionFor(next,sectionDefaults[next]);setTab(next)}}/>}{section==='chat'&&<><Suspense fallback={<div className="mw-panel">Загружаем семейный чат…</div>}><FamilyChat familyId={cloud.familyId} userId={cloud.session.user.id}/></Suspense></>}</>:<CloudSignIn cloud={cloud}/>)}
+ {tab === 'settings' && <div className="mw-settings-section"><section className="mw-greeting"><div className="mw-eyebrow">МОЙ МИР · УПРАВЛЕНИЕ</div><h1>⚙️ Настройки</h1><p>Выбери нужную категорию в верхней строке.</p></section>
+ {section==='general'&&<><div className="mw-settings-tile mw-theme-settings"><AppThemeSwitch selection={theme.selection} onChange={theme.setTheme}/><p>Тема действует во всех разделах.</p></div><div className="mw-settings-tile"><strong>🎵 Звуки и музыка</strong><SoundControl onChange={setSound}/><MusicControl/></div></>}
+ {section==='alarm'&&<><MiroAlarmPanel lessons={school.lessons}/>{connected&&cloud.role==='child'&&<RemoteWakeSetup family={cloud.familyId} child={cloud.childId}/>}{connected&&cloud.role==='parent'&&<ParentWake family={cloud.familyId} child={cloud.childId} name={cloud.childName}/>}</>}
+ {section==='notifications'&&<div className="mw-settings-tile"><strong>🔔 Уведомления приложения</strong><p>Сообщения семьи, достижения и родительские решения. Разреши системные уведомления в Android.</p></div>}
+ {section==='school'&&(connected?<Suspense fallback={<div className="mw-panel">Загружаем напоминания…</div>}><SchoolHub cloud={cloud} school={school} reminders={reminders} onAskMiro={askMiro} section="reminders"/></Suspense>:<CloudSignIn cloud={cloud}/>)}
+ {section==='account'&&<><div className="mw-settings-tile"><strong>👨‍👩‍👦 Семейный аккаунт</strong><button onClick={()=>setShowConnection(true)}>{connected?'Открыть аккаунт':'Войти'}</button></div>{connected&&cloud.role==='parent'&&cloud.childId&&<ParentChildAccess key={cloud.childId} childId={cloud.childId} childName={cloud.childName}/>}{connected&&<div className="mw-settings-tile"><strong>Вход Ильи</strong><p>Уведомление родителю при открытии приложения. Не чаще одного раза в 15 минут.</p></div>}</>}
+ {section==='updates'&&<div className="mw-section-summary">Обновления устанавливаются внутри приложения. Данные аккаунта сохраняются.</div>}
+ </div>}
+
 
  </div>
- <nav className="mw-bottom" aria-label="Навигация">{nav.map(([id, ico, label]) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><span>{ico}</span><small>{label}</small>{id === 'shop' && pending.length > 0 && <i>{pending.length}</i>}</button>)}</nav>
+ <nav className="mw-bottom" aria-label="Навигация">{nav.map(([id, ico, label]) => <button key={id} className={tab === id ? 'active' : ''} aria-current={tab===id?"page":undefined} onClick={() => {setDestination(null);setMissingTarget(false);setTab(id)}}><span>{ico}</span><small>{label}</small>{id === 'shop' && pending.length > 0 && <i>{pending.length}</i>}</button>)}</nav>
  {false&&pinOpen&&<div className="mw-pin-overlay" role="dialog" aria-label="Вход родителя" aria-modal="true"><form className="mw-pin-card" onSubmit={e=>{e.preventDefault();void enterParent()}}>
  <div className="mw-pin-icon">🔐</div><h2>{parentPinHash?'Вход для родителей':'Создать код родителя'}</h2>
  <p>{parentPinHash?'Введите созданный вами код, чтобы редактировать задания и подтверждать награды.':'Установите родительский код из 4–6 цифр. Ребёнок не сможет открыть настройки простым нажатием.'}</p>

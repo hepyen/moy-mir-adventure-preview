@@ -190,7 +190,7 @@ export function HealthHub({parent=false,childId='local',familyId,themeMode,theme
    </header>
    <div className="h-navigation" aria-label="Разделы здоровья">
     {([['today','☀️ Сегодня'],['growth','📏 Я расту'],['exercise','🤸 Зарядка'],['food','🥗 Еда'],['sleep','🌙 Сон'],['garden','🌿 Сад здоровья'],...(parent?[['parent','👨‍👩‍👦 Родителю']]:[])] as [HealthSection,string][]).map(([id,label])=>
-     <button key={id} className={section===id?'current':''} onClick={()=>{setSection(id);setNotice('')}}>{label}</button>)}
+     <button key={id} className={section===id?'current':''} aria-pressed={section===id} onClick={()=>{setSection(id);setNotice('')}}>{label}</button>)}
    </div>
 
    {section==='today'&&<>
