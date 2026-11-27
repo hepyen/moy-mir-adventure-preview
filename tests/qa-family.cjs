@@ -34,7 +34,8 @@ const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
 const englishResetAudioQA=process.env.QA_FOCUS==='english-reset-audio';
 const playstationGiftQA=process.env.QA_FOCUS==='playstation-gift';
-const taskManagementQA=process.env.QA_FOCUS==='task-management';
+const taskLayersQA=process.env.QA_FOCUS==='task-layers';
+const taskManagementQA=process.env.QA_FOCUS==='task-management'||taskLayersQA;
 const pioneerMobileQA=process.env.QA_FOCUS==='pioneer-mobile';
 const subjectTutorQA=process.env.QA_FOCUS==='subject-tutors';
 const practiceQA=process.env.QA_FOCUS==='subject-practice';
@@ -140,7 +141,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA||navigationQA||familyScrollQA||world530QA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA||navigationQA||familyScrollQA||world530QA||taskLayersQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -1014,6 +1015,37 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('parent can open Pioneer report without controls to play',await portal.getByText('Отчёт для родителя').count()===1&&await portal.locator('.pn-level').count()===0);
   }
   check('pioneer mobile quiz produces no JavaScript exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
+ if(taskLayersQA){
+  await page.locator('.mw-bottom').getByRole('button',{name:/Дела/}).click();
+  const rail=page.getByRole('group',{name:'Разделы',exact:true});
+  const root=page.locator('.mw-root');
+  const measure=async(button)=>{await button.scrollIntoViewIfNeeded();return button.evaluate(el=>{const r=el.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2),s=getComputedStyle(el);return {hit:hit===el||el.contains(hit),bg:s.backgroundColor,fg:s.color,opacity:s.opacity,height:r.height,disabled:el.disabled,card:getComputedStyle(el.closest('article')||el.closest('.mw-cloud-line')||el.parentElement).backgroundColor}})};
+  const buttons=role==='parent'?['Подтвердить +5','Оштрафовать −5','Освободить']:['Готово'];
+  for(const theme of ['day','night']){
+   await page.evaluate(t=>localStorage.setItem('moymir-app-theme-v1',t),theme);
+   await page.reload({waitUntil:'domcontentloaded'});await page.getByText(/Прежний прогресс подключён/).waitFor();await page.locator('.mw-bottom').getByRole('button',{name:/Дела/}).click();
+   await root.locator('.mw-chore').first().waitFor();
+   const scope=role==='parent'?page.locator('#chore-decisions'):page.locator('.mw-chore').filter({hasText:'Заправить кровать'});
+   for(const name of buttons){
+    const b=scope.getByRole('button',{name,exact:true}).first();await b.waitFor();
+    const m=await measure(b);console.log('LAYERS',role,theme,name,JSON.stringify(m));
+    if(process.env.QA_CHECK_CONTRAST==='1'){
+     check(theme+' '+name+' hit target',m.hit&&!m.disabled&&m.opacity==='1');
+     check(theme+' '+name+' touch target',m.height>=42);
+     const lum=c=>{const v=c.match(/[0-9.]+/g).slice(0,3).map(Number).map(x=>x/255).map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);return v[0]*.2126+v[1]*.7152+v[2]*.0722};
+     const a=lum(m.bg),z=lum(m.fg);check(theme+' '+name+' contrast',(Math.max(a,z)+.05)/(Math.min(a,z)+.05)>=4.5);
+    }
+   }
+   await page.screenshot({path:'/tmp/moymir-task-'+role+'-'+theme+'.png'});
+   if(role==='parent'){
+    await rail.getByRole('button',{name:'Предложения',exact:true}).click();const b=page.locator('#review-proposals').getByRole('button',{name:'Отклонить',exact:true});await b.waitFor();const m=await measure(b);console.log('LAYERS proposal',theme,JSON.stringify(m));if(process.env.QA_CHECK_CONTRAST==='1')check(theme+' reject reachable',m.hit&&!m.disabled&&m.height>=42);
+   }
+  }
+  if(process.env.QA_CHECK_CONTRAST==='1'&&role==='parent'){
+    await rail.getByRole('button',{name:'Сегодня',exact:true}).click();const decisions=page.locator('#chore-decisions');page.once('dialog',d=>d.dismiss());await decisions.getByRole('button',{name:'Оштрафовать −5'}).click();check('cancel penalty no write',choreDecision===null);await decisions.getByRole('button',{name:'Освободить'}).click();await decisions.waitFor({state:'detached'});check('excuse action reaches server mock',choreDecision==='excuse');
+  }
+  check('no JS errors',counters.errors.length===0,counters.errors.join(' | '));return;
  }
  if(taskManagementQA){
   await page.getByRole('button',{name:/Дела/}).last().click();
