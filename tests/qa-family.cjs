@@ -23,6 +23,7 @@ const adventureQA=process.env.QA_FOCUS==='adventure';
 const combinedQA=process.env.QA_FOCUS==='education-family';
 const optimizationQA=process.env.QA_FOCUS==='optimization-checkin';
 const safetyQA=process.env.QA_FOCUS==='family-safety';
+const safetyToolkitQA=process.env.QA_FOCUS==='safety-toolkit';
 const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -123,7 +124,7 @@ async function run(role,browser){
   {id:'77777777-7777-4777-8777-777777777777',title:'Неиспользуемое дело',points:7,assigned_child:ids.child,active:false}
  ]:null;
  let safetyRows=[{id:'qa-rule-1',app_name:'Учебная игра',rule:'ask',note:'После уроков'}];
- let checkin=optimizationQA&&role==='parent'?{share_id:'qa-share',latitude:0,longitude:0,accuracy_m:25,measured_at:new Date().toISOString(),received_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString()}:null;
+ let checkin=(optimizationQA||safetyToolkitQA)&&role==='parent'?{share_id:'qa-share',latitude:0,longitude:0,accuracy_m:25,measured_at:new Date().toISOString(),received_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString()}:null;
  let calendarRows=[{id:'qa-cal-1',title:'Семейная прогулка',event_date:today,event_time:'17:00',category:'family',note:''}];
  let taskSerial=0;let choreDecision=null;
  let dailyTemplates=taskManagementQA?[
@@ -134,7 +135,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -407,6 +408,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     return resp(geographyAttempts.find(a=>a.id===id),true);
    }
   }
+  if(name==='moymir_safety_rule_log')return resp([{id:'qa-log-1',app_name:'Учебная игра',action:'updated',old_rule:'ask',new_rule:'allowed',created_at:new Date().toISOString()}]);
   if(name==='moymir_family_app_rules'){
    if(method==='GET')return resp(safetyRows);
    if(role!=='parent')return route.fulfill({status:403,contentType:'application/json',body:'{}'});
@@ -421,7 +423,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    if(method==='PATCH'){const id=url.searchParams.get('id').slice(3);calendarRows=calendarRows.map(r=>r.id===id?{...r,...request.postDataJSON()}:r);return resp({id})}
    if(method==='DELETE'){const id=url.searchParams.get('id').slice(3);calendarRows=calendarRows.filter(r=>r.id!==id);return resp({id})}
   }
-  if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);if(safetyQA)counters.restWrites.push({name,method,record:request.postDataJSON()});return resp([])}
+  if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);if(safetyQA||safetyToolkitQA)counters.restWrites.push({name,method,record:request.postDataJSON()});return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
   if(name==='moymir_location_share')return resp(checkin?[checkin]:[]);
   let data=[];
@@ -461,12 +463,47 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   await resp(data,request.headers()['accept']?.includes('vnd.pgrst.object')||false)
  });
  if(optimizationQA){await ctx.grantPermissions(['geolocation']);await ctx.setGeolocation({latitude:0,longitude:0,accuracy:25})}
- const page=await ctx.newPage();page.on('pageerror',e=>counters.errors.push(e.message));
+ const page=await ctx.newPage();if(safetyToolkitQA)page.on('console',m=>{if(m.type()==='error')console.log('CONSOLE ERROR',m.text().slice(0,1000))});page.on('pageerror',e=>{counters.errors.push(e.message);if(safetyToolkitQA)console.log('PAGE ERROR',e.message)});
  const check=(label,pass,details='')=>{console.log((pass?'PASS':'FAIL'),role,label,details);if(!pass)failures++};
  try{
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(safetyToolkitQA){
+  await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  const tools=page.getByLabel('Расширенная безопасность');
+  await tools.getByText('📶 Диагностика этого устройства',{exact:true}).click();
+  await tools.getByRole('button',{name:'Проверить связь и аккумулятор'}).click();
+  await tools.getByText(/Семейная база отвечает, роль подтверждена/).waitFor();
+  check('local connection diagnostic',true);
+  await tools.getByText('📋 Журнал изменений семейных правил',{exact:true}).click();
+  await tools.getByText('Учебная игра',{exact:true}).waitFor();
+  check('rule log loaded',await tools.getByText('Спросить родителей → Разрешено',{exact:true}).count()===1);
+  await tools.getByText('✅ Проверка безопасности и восстановления',{exact:true}).click();
+  await tools.getByRole('checkbox',{name:'Проверить Google Play Protect'}).check();
+  check('checklist saved',await tools.getByText(/Отмечено 1\/5/).count()===1);
+  if(role==='parent'){
+   await tools.getByText('🔐 Защита родительского аккаунта',{exact:true}).click();
+   check('parent account tools present',await tools.getByRole('button',{name:'Проверить аккаунт и второй фактор'}).count()===1);
+   const geo=page.getByLabel('Семейная геолокация');
+   await geo.getByRole('button',{name:'Открыть карту OpenStreetMap'}).waitFor();
+   check('map opt-in before opening',await geo.locator('.leaflet-container').count()===0);
+   await page.route('https://tile.openstreetmap.org/**',r=>r.fulfill({status:200,contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256"><rect width="256" height="256" fill="#e7eee9"/></svg>'}));
+   await geo.getByRole('button',{name:'Открыть карту OpenStreetMap'}).click();
+   await geo.locator('.leaflet-container').waitFor({timeout:10000}).catch(async e=>{console.log('MAP DEBUG',counters.errors,await geo.count(),(await page.locator('body').innerText({timeout:1000}).catch(()=>'' )).slice(0,600));throw e});
+   check('real Leaflet map with circle',await geo.locator('.leaflet-overlay-pane path').count()>=2);
+   await geo.getByRole('button',{name:'Скрыть карту'}).click();
+   check('map destroyed on close',await geo.locator('.leaflet-container').count()===0);
+  }else{
+   await tools.getByText('🤝 Быстрая связь с семьёй',{exact:true}).click();
+   await tools.getByRole('button',{name:'Я благополучно добрался.'}).click();
+   check('message not sent automatically',counters.restPosts.length===0);
+   await tools.getByRole('button',{name:'Подтвердить отправку сообщения'}).click();
+   await tools.getByText(/Сообщение сохранено в семейном чате/).waitFor();
+   check('explicit quick message',counters.restWrites.some(x=>x.record?.body==='Я благополучно добрался.'));
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(safetyQA){
   await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
   const safety=page.getByLabel('Центр семейной безопасности');

@@ -1,0 +1,24 @@
+name: My World safety audit
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'android/**', 'package*.json', 'scripts/**', '.github/workflows/safety-audit.yml']
+  pull_request:
+    paths: ['src/**', 'android/**', 'package*.json', 'scripts/**', '.github/workflows/safety-audit.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm audit --omit=dev --audit-level=high
+      - run: node scripts/check-safety-release.mjs
+      - run: npm run build -- --mode android
+      - run: node scripts/check-client-config.mjs dist
