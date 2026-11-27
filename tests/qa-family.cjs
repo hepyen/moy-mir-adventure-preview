@@ -36,7 +36,8 @@ const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
 const englishResetAudioQA=process.env.QA_FOCUS==='english-reset-audio';
 const playstationGiftQA=process.env.QA_FOCUS==='playstation-gift';
 const taskLayersQA=process.env.QA_FOCUS==='task-layers';
-const taskManagementQA=process.env.QA_FOCUS==='task-management'||taskLayersQA;
+const proposalQA=process.env.QA_FOCUS==='proposal-guard';
+const taskManagementQA=process.env.QA_FOCUS==='task-management'||taskLayersQA||proposalQA;
 const pioneerMobileQA=process.env.QA_FOCUS==='pioneer-mobile';
 const subjectTutorQA=process.env.QA_FOCUS==='subject-tutors';
 const practiceQA=process.env.QA_FOCUS==='subject-practice';
@@ -134,6 +135,7 @@ async function run(role,browser){
  let roomMock=role==='parent'?{layout:{bed:0,desk:0,plant:0,extras:[]},revision:1}:null,roomSpent=0,journeyMock={solved:[],souvenirs:[]};
  let calendarReceipts=world530QA&&role==='child'?[]:[{event_id:'qa-cal-1',revision:1,read_at:new Date().toISOString()}];
  let calendarRows=[{id:'qa-cal-1',revision:1,title:'Семейная прогулка',event_date:today,event_time:'17:00',category:'family',note:''}];
+ let proposalPosts=[];
  let taskSerial=0;let choreDecision=null;
  let dailyTemplates=taskManagementQA?[
   {id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6],penalty_enabled:true},
@@ -213,6 +215,7 @@ async function run(role,browser){
     if(pioneerMobileQA&&name==='pioneer_cashout'){
      pioneerActive=null;return resp({saved:0,newPoints:0})
     }
+    if(proposalQA&&(name==='propose_child_task'||name==='request_spiritual_points')){proposalPosts.push({name,...request.postDataJSON()});return resp('qa-proposal-id')}
     if(taskManagementQA&&name==='manage_family_task'){
      if(role!=='parent')return route.fulfill({status:403,contentType:'application/json',headers:{'access-control-allow-origin':'*'},body:JSON.stringify({message:'Parent only',code:'42501'})});
      const q=request.postDataJSON(),item=taskRows.find(x=>x.id===q.p_id);
@@ -1057,6 +1060,30 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('parent can open Pioneer report without controls to play',await portal.getByText('Отчёт для родителя').count()===1&&await portal.locator('.pn-level').count()===0);
   }
   check('pioneer mobile quiz produces no JavaScript exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
+ if(proposalQA){
+  const rail=page.getByRole('group',{name:'Разделы',exact:true});
+  await page.locator('.mw-bottom').getByRole('button',{name:/Дела/}).click();
+  const daily=page.getByRole('region',{name:'Ежедневные дела',exact:true}),ordinary=page.getByRole('region',{name:'Обычные дела',exact:true});
+  await daily.waitFor();await ordinary.waitFor();
+  check('daily and ordinary rendered separately',await daily.getByText('Заправить кровать',{exact:true}).count()===1&&await ordinary.getByText('Сделать уроки',{exact:true}).count()===1&&await ordinary.getByText('Заправить кровать',{exact:true}).count()===0);
+  if(role==='child'){
+   await rail.getByRole('button',{name:'Предложения',exact:true}).click();
+   const description=page.getByRole('textbox',{name:'Обоснование запроса'}),amount=page.getByRole('spinbutton',{name:'Запрашиваемые баллы'});
+   await description.fill('GGG ды ды ды');await amount.fill('50');await page.getByRole('button',{name:'Проверить запрос'}).click();
+   check('nonsense blocked',await page.getByRole('alert').filter({hasText:'Обоснуй правильно свой запрос'}).count()===1&&proposalPosts.length===0);
+   await description.fill('Помыл велосипед для папы');await amount.fill('1000');await page.getByRole('button',{name:'Проверить запрос'}).click();
+   check('1000 blocked',await page.getByRole('alert').filter({hasText:'от 1 до 100'}).count()===1&&proposalPosts.length===0);
+   await amount.fill('100');await page.getByRole('button',{name:'Проверить запрос'}).click();
+   await page.getByRole('group',{name:'Подтверждение запроса'}).waitFor();check('requires explicit confirmation',proposalPosts.length===0);
+   await page.getByRole('button',{name:'Исправить',exact:true}).click();check('cancel preserves draft',await description.inputValue()==='Помыл велосипед для папы'&&proposalPosts.length===0);
+   await page.getByRole('button',{name:'Проверить запрос'}).click();await page.getByRole('button',{name:'Да, отправить родителю'}).click();await page.getByText('Запрос отправлен родителям.',{exact:true}).waitFor();
+   check('valid 100 submitted once',proposalPosts.length===1&&proposalPosts[0].p_points===100);
+   await page.locator('.mw-bottom').getByRole('button',{name:/Духовный рост/}).click();await rail.getByRole('button',{name:'Предложения',exact:true}).click();
+   await page.getByRole('textbox',{name:'Обоснование запроса'}).fill('Прочитал главу Библии');await page.getByRole('spinbutton',{name:'Запрашиваемые баллы'}).fill('100');await page.getByRole('button',{name:'Проверить запрос'}).click();await page.getByRole('button',{name:'Да, отправить родителю'}).click();await page.getByText('Запрос отправлен родителям.',{exact:true}).waitFor();
+   check('spiritual proposal confirmed',proposalPosts.length===2&&proposalPosts[1].name==='request_spiritual_points');
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
  }
  if(taskLayersQA){
   await page.locator('.mw-bottom').getByRole('button',{name:/Дела/}).click();
