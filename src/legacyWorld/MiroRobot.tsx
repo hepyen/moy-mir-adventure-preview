@@ -1,5 +1,4 @@
-import {MiroWorkshop,MiroCostumeAvatar} from './MiroWorkshop'
-import {useMiroWardrobe} from './miroWardrobe'
+import {MiroWorkshop} from './MiroWorkshop'
 import {MiroAvatar} from './MiroAvatar'
 import {miroOfflineAnswer} from './miroOffline';
 import {setMusicDucked} from '../features/music';
@@ -17,7 +16,6 @@ const INITIAL:Turn={role:'assistant',content:'Привет! Я Миро, тво�
 function savedHistory(userId:string):Turn[]{try{const saved=JSON.parse(localStorage.getItem('moymir30-ai-chat:'+userId)||'null');return Array.isArray(saved)&&saved.length?saved.slice(-MAX_HISTORY):[INITIAL]}catch{return [INITIAL]}}
 export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId='guest',announcement='',announcementId=0}:{worldPoints:number;spiritualPoints:number;soundEnabled?:boolean;userId?:string;announcement?:string;announcementId?:number}){
  const [expanded,setExpanded]=useState(false),[workshop,setWorkshop]=useState(false),[workshopTab,setWorkshopTab]=useState("skin")
- const {wardrobe}=useMiroWardrobe()
  const [profile,setProfile]=useState<MiroProfile>(()=>readMiroProfile(userId))
  const [profileTab,setProfileTab]=useState<'chat'|'study'|'robot'>('chat')
  const [talking,setTalking]=useState(false),[listening,setListening]=useState(false),[voiceError,setVoiceError]=useState('')
@@ -78,8 +76,7 @@ export function MiroRobot({worldPoints,spiritualPoints,soundEnabled=true,userId=
   }catch(err){if(ac.signal.aborted)return;setFace('wow');setError(err instanceof Error?err.message:'Не получается связаться с нейросетью')}
   finally{setBusy(false);controller.current=null}
  }
- const custom=wardrobe.skin!=="skin-classic"||wardrobe.accessory!=="acc-none"||wardrobe.paint!=="paint-original"
- const robot=custom?<MiroCostumeAvatar look={wardrobe}/>:<MiroAvatar face={face} style={style} talking={talking}/>
+ const robot=<MiroAvatar face={face} style={style} talking={talking}/>
  const overlay=expanded?createPortal(<div className="miro-fullscreen" role="dialog" aria-modal="true" aria-label="Миро — нейросеть и помощь с уроками">
   <div className="miro-full-top"><strong>🤖 Миро 2.0 · {level.name}</strong><button type="button" onClick={close} aria-label="Уменьшить Миро">↘ Свернуть</button></div>
   <button type="button" className="miro-big-avatar" onDoubleClick={close} onTouchEnd={e=>{const now=Date.now();if(now-lastTouch.current<400){e.preventDefault();close()}lastTouch.current=now}} title="Нажми дважды, чтобы уменьшить">{robot}<span>Нажми дважды, чтобы уменьшить меня</span></button>

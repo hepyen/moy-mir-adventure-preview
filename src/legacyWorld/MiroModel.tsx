@@ -1,9 +1,11 @@
 import {Suspense} from 'react'
 import {MECH_MODELS,MiroMech} from './MiroMech'
-import {useRef} from 'react'
+import {useRef,useContext,useEffect,useMemo} from 'react'
+import {RoomCloudContext} from './RoomCloudContext'
+import {RobotHeadphones,RobotWings} from './MiroAccessories'
 import {useFrame} from '@react-three/fiber'
 import type {Group} from 'three'
-import {PAINTS,useMiroWardrobe,type Wardrobe} from './miroWardrobe'
+import {PAINTS,DEFAULT_WARDROBE,useMiroWardrobe,type Wardrobe} from './miroWardrobe'
 type V=[number,number,number]
 function Ball({p,s,c,metal=0}:{p:V;s:V;c:string;metal?:number}){return <mesh position={p} scale={s}><sphereGeometry args={[1,24,16]}/><meshStandardMaterial color={c} roughness={.48} metalness={metal}/></mesh>}
 function Box({p,s,c,r=[0,0,0]}:{p:V;s:V;c:string;r?:V}){return <mesh position={p} rotation={r}><boxGeometry args={s}/><meshStandardMaterial color={c} roughness={.55}/></mesh>}
@@ -26,15 +28,31 @@ function LegacyMiroModel({look,rotation=0,animate=true}:{look:Wardrobe;rotation?
  {k==='skin-diver'&&<><Box p={[0,1.28,.38]} s={[.88,.37,.18]} c="#223951"/><Ball p={[0,1.28,.49]} s={[.39,.155,.055]} c="#83dbe9"/><Tube p={[.61,1.44,.02]} height={.72} c="#edb54c"/><Tube p={[0,.63,-.40]} radius={.21} height={.71} c="#e4b445"/>{[-1,1].map(d=><Ball key={d} p={[d*.23,.09,.2]} s={[.21,.06,.37]} c="#eeb34c"/>)}</>}
  {k==='skin-explorer'&&<><Tube p={[0,1.62,0]} radius={.73} height={.07} c="#92734b"/><Ball p={[0,1.75,0]} s={[.44,.27,.4]} c={c}/><Tube p={[0,1.62,0]} radius={.46} height={.10} c="#483b33"/><Box p={[0,.43,.32]} s={[.68,.13,.055]} c="#503b2e"/><Box p={[0,.43,.36]} s={[.15,.12,.055]} c="#e5c26d"/><Box p={[-.17,.7,.31]} s={[.18,.16,.09]} c="#d3ba83"/></>}
  {k==='skin-dragon'&&<>{[-1,1].map(d=><group key={d}><mesh position={[d*.31,1.79,0]} rotation={[0,0,d*-.3]}><coneGeometry args={[.15,.39,12]}/><meshStandardMaterial color="#e6c989"/></mesh><Ball p={[d*.55,.83,-.24]} s={[.38,.28,.10]} c="#438f79"/></group>)}{[0,1,2,3].map(i=><mesh key={i} position={[0,1.65-i*.21,-.35]} rotation={[-.65,0,0]}><coneGeometry args={[.12,.23,8]}/><meshStandardMaterial color="#edbe63"/></mesh>)}{[0,1,2,3].map(i=><Ball key={i} p={[i*.13,.33+i*.035,-.38-i*.16]} s={[.18-i*.027,.13-i*.018,.20]} c={c}/>)}</>}
- {a==='acc-wings'&&[-1,1].map(d=><group key={d}><Box p={[d*.63,.69,-.37]} s={[.38,.13,.37]} r={[0,0,d*.35]} c="#c6d8ec"/><Tube p={[d*.77,.59,-.38]} radius={.09} height={.30} c="#43618a"/><Glow p={[d*.77,.40,-.38]} s={[.08,.12,.08]}/></group>)}
- {a==='acc-headphones'&&<>{[-1,1].map(d=><Ball key={d} p={[d*.58,1.29,0]} s={[.14,.24,.21]} c="#344e70"/>)}<mesh position={[0,1.27,0]} rotation={[0,0,0]}><torusGeometry args={[.59,.045,10,32,Math.PI]}/><meshStandardMaterial color="#344e70"/></mesh></>}
+ {a==='acc-wings'&&<group position={[0,.8,-.39]}><RobotWings/></group>}
+ {a==='acc-headphones'&&<group position={[0,1.28,0]}><RobotHeadphones width={.59} height={.48} depth={.42}/></group>}
  {a==='acc-antenna'&&<><Tube p={[0,1.79,0]} radius={.035} height={.26} c="#354f70"/><Glow p={[0,1.96,0]} s={[.10,.10,.10]} c="#ffc96d"/></>}
  {a==='acc-pack'&&<><Box p={[0,.58,-.39]} s={[.49,.55,.28]} c="#c57d48"/><Box p={[0,.72,-.55]} s={[.43,.16,.07]} c="#e8b36d"/></>}
  </group>
 }
-export function MiroModel(props:{look:Wardrobe;rotation?:number;animate?:boolean}){return MECH_MODELS[props.look.skin]?<Suspense fallback={null}><MiroMech {...props}/></Suspense>:<LegacyMiroModel {...props}/>}
-export function MiroWorldActor({position=[-1.7,.65,1.1],scale=.42}:{position?:V;scale?:number}){
- const {wardrobe,ready}=useMiroWardrobe()
- if(!ready||wardrobe.skin==='skin-classic'&&wardrobe.accessory==='acc-none'&&wardrobe.paint==='paint-original')return null
- return <group position={position} scale={scale} rotation={[0,.25,0]} onClick={e=>{if(e.delta>8)return;e.stopPropagation();window.dispatchEvent(new Event('moymir-open-robot'))}}><MiroModel look={wardrobe}/></group>
+export function MiroModel(props:{look:Wardrobe;rotation?:number;animate?:boolean;walking?:boolean}){return MECH_MODELS[props.look.skin]?<Suspense fallback={null}><MiroMech key={props.look.skin} {...props}/></Suspense>:<LegacyMiroModel {...props}/>}
+export function ownedMechLooks(wardrobe:Wardrobe,saved:Record<string,Wardrobe>={}):Wardrobe[]{
+ const skins=Object.keys(MECH_MODELS).filter(id=>wardrobe.owned.includes(id)||wardrobe.skin===id)
+ return skins.map(skin=>skin===wardrobe.skin?wardrobe:{...DEFAULT_WARDROBE,...saved[skin],skin,owned:wardrobe.owned})
+}
+function WalkingMech({look,position,scale,index,total,span}:{look:Wardrobe;position:V;scale:number;index:number;total:number;span:number}){
+ const ref=useRef<Group>(null)
+ useFrame(({clock})=>{if(!ref.current)return;const phase=clock.elapsedTime*.65+index*1.3;const center=position[0]+(index-(total-1)/2)*span/total;const radius=Math.min(.48,span/total*.28);ref.current.position.set(center+Math.sin(phase)*radius,position[1],position[2]+Math.cos(phase)*.18);ref.current.rotation.y=Math.atan2(Math.cos(phase)*radius,-Math.sin(phase)*.18)})
+ return <group name={'owned-'+look.skin} ref={ref} position={position} scale={scale} onClick={e=>{if(e.delta>8)return;e.stopPropagation();window.dispatchEvent(new Event('moymir-open-robot'))}}><MiroModel look={look} walking/></group>
+}
+export function RobotFleet({wardrobe,saved={},position=[0,.08,1.4],scale=.42,span=3.6}:{wardrobe:Wardrobe;saved?:Record<string,Wardrobe>;position?:V;scale?:number;span?:number}){
+ const looks=ownedMechLooks(wardrobe,saved)
+ return <>{looks.map((look,i)=><WalkingMech key={look.skin} look={look} position={position} scale={looks.length>2?scale*.8:scale} index={i} total={looks.length} span={span}/>)}{!MECH_MODELS[wardrobe.skin]&&(wardrobe.skin!=='skin-classic'||wardrobe.accessory!=='acc-none'||wardrobe.paint!=='paint-original')&&<group position={[-1.8,position[1],position[2]-.3]} scale={scale}><MiroModel look={wardrobe}/></group>}</>
+}
+export function MiroWorldActor(props:{position?:V;scale?:number;span?:number}){
+ const {wardrobe,ready}=useMiroWardrobe(),scope=useContext(RoomCloudContext)
+ const cacheKey='moymir-mech-looks:'+scope?.family+':'+scope?.child
+ const saved=useMemo(()=>{if(!scope)return {};try{const x=JSON.parse(localStorage.getItem(cacheKey)||'{}');return x&&typeof x==='object'?x:{}}catch{return {}}},[cacheKey])
+ useEffect(()=>{if(!ready||!scope||scope.parent||!MECH_MODELS[wardrobe.skin])return;saved[wardrobe.skin]={...wardrobe};try{localStorage.setItem(cacheKey,JSON.stringify(saved))}catch{}},[ready,wardrobe,cacheKey,saved])
+ if(!ready)return null
+ return <RobotFleet {...props} wardrobe={wardrobe} saved={saved}/>
 }

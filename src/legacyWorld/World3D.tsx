@@ -302,7 +302,7 @@ function WorldScene({points,worldNumber,adventureCount,onDiscover,onInspect,door
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
   {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} dogFeedTick={dogFeedTick} onInspect={onInspect}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points} doorOpen={doorOpen} lightsOn={lightsOn} petAction={squirrelAction} petTick={squirrelTick} onInspect={index=>onInspect('treehouse-'+index)}/>)}
   {!decorSelected&&<AdventureScene view={adventure}/>}
-  <MiroWorldActor position={[-1.4,1.2,1.2]}/><LivingAtmosphere weather={weather} sky={theme} world={worldNumber} points={points}/>
+  <MiroWorldActor position={[0,.075,1.55]} scale={.36} span={4}/><LivingAtmosphere weather={weather} sky={theme} world={worldNumber} points={points}/>
   {worldNumber===1&&<AdventureDecor count={adventureCount} onDiscover={onDiscover}/>}
   <WorldDecorations world={worldNumber} points={points} layout={decorLayout} selected={decorSelected} lightsOn={lightsOn} onSelect={onDecorSelect}/>
   {decorSelected&&<>

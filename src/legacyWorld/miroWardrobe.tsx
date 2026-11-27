@@ -12,7 +12,7 @@ export const MIRO_CATALOG=[
  {id:'skin-explorer',label:'Следопыт',icon:'🧭',cost:4,description:'Шляпа, куртка и походный пояс'},
  {id:'skin-dragon',label:'Дракончик',icon:'🐲',cost:8,description:'Рожки, крылья, гребень и длинный хвост'},
  {id:'acc-none',label:'Без аксессуара',icon:'○',cost:0,description:'Стандартный костюм'},
- {id:'acc-wings',label:'Реактивные крылья',icon:'🪽',cost:3,description:'Два светящихся двигателя'},
+ {id:'acc-wings',label:'Реактивные крылья',icon:'🪽',cost:3,description:'Раскрытые бронированные крылья с реактивными модулями'},
  {id:'acc-headphones',label:'Наушники',icon:'🎧',cost:2,description:'Музыкальная гарнитура'},
  {id:'acc-antenna',label:'Антенна',icon:'📡',cost:2,description:'Светящийся приёмник'},
  {id:'acc-pack',label:'Рюкзак',icon:'🎒',cost:3,description:'Контейнер исследователя'},

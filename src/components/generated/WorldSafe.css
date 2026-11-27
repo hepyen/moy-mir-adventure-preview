@@ -2,3 +2,5 @@
 
 .mw-render-mode{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:6px 0;font-size:11px;color:inherit}.mw-render-mode button{border:1px solid #9ebcc6;border-radius:10px;padding:7px 10px;font-size:12px;background:#edf6f6;color:#28576a;font-weight:800}
 .mw-render-mode{position:relative;z-index:2;flex-shrink:0;min-height:36px}.mw-render-mode button{position:relative;z-index:2;min-height:34px;touch-action:manipulation}.mw-world-fallback{position:relative;z-index:0;flex-shrink:0}
+
+.mw-world-fallback-robots{padding:8px}.mw-world-fallback-robots>div{display:flex;flex-wrap:wrap;gap:8px}.mw-world-fallback-robots figure{margin:0;flex:1 1 70px;max-width:110px;text-align:center;font-size:11px}.mw-world-fallback-robots img{width:100%;border-radius:8px;display:block}.mw-world-fallback-robots small{display:block;margin-bottom:7px}
