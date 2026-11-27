@@ -28,6 +28,7 @@ const navigationQA=process.env.QA_FOCUS==='navigation-52';
 const familyScrollQA=process.env.QA_FOCUS==='family-scroll';
 const world530QA=process.env.QA_FOCUS==='world-530';
 const miroQA=process.env.QA_FOCUS==='miro2';
+const miroWorkshopQA=process.env.QA_FOCUS==='miro-workshop';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
@@ -129,6 +130,7 @@ async function run(role,browser){
  ]:null;
  let safetyRows=[{id:'qa-rule-1',app_name:'Учебная игра',rule:'ask',note:'После уроков'}];
  let checkin=(optimizationQA||safetyToolkitQA)&&role==='parent'?{share_id:'qa-share',latitude:0,longitude:0,accuracy_m:25,measured_at:new Date().toISOString(),received_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString()}:null;
+ let miroWardrobe={skin:'skin-classic',accessory:'acc-none',paint:'paint-original',owned:[]},miroSpent=0;
  let roomMock=role==='parent'?{layout:{bed:0,desk:0,plant:0,extras:[]},revision:1}:null,roomSpent=0,journeyMock={solved:[],souvenirs:[]};
  let calendarReceipts=world530QA&&role==='child'?[]:[{event_id:'qa-cal-1',revision:1,read_at:new Date().toISOString()}];
  let calendarRows=[{id:'qa-cal-1',revision:1,title:'Семейная прогулка',event_date:today,event_time:'17:00',category:'family',note:''}];
@@ -141,7 +143,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA||navigationQA||familyScrollQA||world530QA||taskLayersQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA||navigationQA||familyScrollQA||world530QA||taskLayersQA||miroWorkshopQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -293,7 +295,8 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     if(name==='moymir_complete_story_chapter'){storyDone.push(Number(request.postDataJSON()?.p_chapter));return resp(true)}
     if(name==='moymir_room_save'){const q=request.postDataJSON();if(role==='parent'||q.p_revision!==(roomMock?.revision||0))return route.fulfill({status:400,contentType:'application/json',body:'{}'});const old=roomMock?.layout.extras||[];if(roomMock)roomSpent+=(q.p_layout.extras||[]).filter(v=>!old.some(o=>o.id===v.id)).length;roomMock={layout:q.p_layout,revision:q.p_revision+1};return resp({...roomMock,balance:1700-roomSpent})}
     if(name==='moymir_journey_action'){const q=request.postDataJSON();if(q.p_stop!==undefined&&!journeyMock.solved.includes(q.p_stop))journeyMock.solved.push(q.p_stop);if(q.p_reward&&!journeyMock.souvenirs.includes(q.p_reward))journeyMock.souvenirs.push(q.p_reward);return resp(journeyMock)}
-    if(name==='moymir_family_overview')return resp({worldPoints:earnedMock+englishCredit,balance:1700+englishCredit-roomSpent,earned:earnedMock+englishCredit,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+    if(name==='moymir_miro_equip'){const q=request.postDataJSON(),item=q.p_item,costs={'skin-spider':6,'acc-wings':3,'paint-mint':1};if(role==='parent')return route.fulfill({status:403,contentType:'application/json',body:'{}'});if(q.p_buy&&!miroWardrobe.owned.includes(item)){miroWardrobe.owned.push(item);miroSpent+=costs[item]||0}miroWardrobe[item.startsWith('skin-')?'skin':item.startsWith('acc-')?'accessory':'paint']=item;return resp(miroWardrobe)}
+    if(name==='moymir_family_overview')return resp({worldPoints:earnedMock+englishCredit,balance:1700+englishCredit-roomSpent-miroSpent,earned:earnedMock+englishCredit,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(name==='moymir_subject_practice_attempts'){
@@ -424,6 +427,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    if(method==='PATCH'){const id=url.searchParams.get('id').slice(3);safetyRows=safetyRows.map(r=>r.id===id?{...r,...request.postDataJSON()}:r);return resp({id},true)}
    if(method==='DELETE'){const id=url.searchParams.get('id').slice(3);safetyRows=safetyRows.filter(r=>r.id!==id);return resp({id},true)}
   }
+  if(name==='moymir_miro_wardrobe')return resp([miroWardrobe]);
   if(name==='moymir_room_layouts')return resp(roomMock?[roomMock]:[]);
   if(name==='moymir_journey_collection')return resp([journeyMock]);
   if(name==='moymir_calendar_read'){if(method==='GET')return resp(calendarReceipts);if(method==='POST'&&role==='child'){calendarReceipts.push({...request.postDataJSON(),read_at:new Date().toISOString()});return resp([])}return route.fulfill({status:403,contentType:'application/json',body:'{}'})}
@@ -822,6 +826,44 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('parent cannot collect',await hub.getByRole('button',{name:'Осмотреть место'}).count()===0);
    check('parent read only notice',await hub.getByText(/Приключения проходит ребёнок/).count()===1);
   }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
+ if(miroWorkshopQA){
+  await page.getByRole('button',{name:'🤖 Поговорить с Миро'}).click();
+  await page.getByRole('button',{name:'🤖 Робот',exact:true}).click();
+  await page.getByRole('button',{name:/Создать своего робота/}).click();
+  const lab=page.getByRole('dialog',{name:'Мастерская Миро 3D'});
+  await lab.waitFor();await lab.getByText(/Мой гардероб|Просмотр гардероба/).waitFor();
+  const stage=lab.locator('.miro-workshop-stage');await stage.locator('canvas').waitFor();
+  check('full screen 3D workshop',await lab.evaluate(e=>e.getBoundingClientRect().height>=window.innerHeight-2));
+  check('seven distinct suits',await lab.locator('.miro-workshop-catalog button').count()===7);
+  await lab.getByRole('button',{name:/Пушистый зайка/}).click();
+  check('rabbit preview no purchase',await stage.getAttribute('data-skin')==='skin-rabbit'&&miroSpent===0);
+  await lab.getByRole('button',{name:/Паучок-герой/}).click();
+  check('spider preview',await stage.getAttribute('data-skin')==='skin-spider');
+  await page.waitForTimeout(300);await lab.screenshot({path:'/tmp/moymir-550-'+role+'-spider.png'});
+  if(role==='child'){
+   page.once('dialog',d=>d.dismiss());await lab.getByRole('button',{name:'Купить · 6 🪙'}).click();
+   check('cancel free',miroSpent===0);
+   page.once('dialog',d=>d.accept());await lab.getByRole('button',{name:'Купить · 6 🪙'}).click();
+   await lab.getByText('Покупка сохранена. Костюм обновлён.').waitFor();
+   check('skin bought and equipped',miroSpent===6&&miroWardrobe.skin==='skin-spider');
+   await lab.getByRole('button',{name:'Детали',exact:true}).click();await lab.getByRole('button',{name:/Реактивные крылья/}).click();
+   page.once('dialog',d=>d.accept());await lab.getByRole('button',{name:'Купить · 3 🪙'}).click();
+   await lab.locator('footer').getByText('Примерка бесплатна.',{exact:false}).waitFor();
+   check('accessory bought separately',miroSpent===9&&miroWardrobe.accessory==='acc-wings');
+   await lab.getByRole('button',{name:'Цвета',exact:true}).click();await lab.getByRole('button',{name:/Мятный/}).click();
+   page.once('dialog',d=>d.accept());await lab.getByRole('button',{name:'Купить · 1 🪙'}).click();
+   await lab.locator('footer').getByText('Примерка бесплатна.',{exact:false}).waitFor();
+   check('paint bought',miroSpent===10&&miroWardrobe.paint==='paint-mint');
+   await lab.getByRole('button',{name:'Костюмы',exact:true}).click();await lab.getByRole('button',{name:/Классический/}).click();await lab.getByRole('button',{name:'Надеть',exact:true}).click();
+   await lab.locator('footer').getByText('Примерка бесплатна.',{exact:false}).waitFor();
+   await lab.getByRole('button',{name:/Паучок-герой/}).click();await lab.getByRole('button',{name:'Надеть',exact:true}).click();await lab.locator('footer').getByText('Примерка бесплатна.',{exact:false}).waitFor();
+   check('owned item free re-equip',miroSpent===10);
+   await lab.getByRole('button',{name:'✕ Закрыть'}).click();await page.getByRole('button',{name:'Уменьшить Миро'}).click();
+   check('world avatar has equipped outfit',await page.locator('.miro-robot svg[data-miro-skin="skin-spider"][data-miro-accessory="acc-wings"][data-miro-paint="paint-mint"]').count()===1);
+   await page.reload({waitUntil:'domcontentloaded'});await page.locator('.miro-robot svg[data-miro-skin="skin-spider"]').waitFor();check('cloud outfit restored',true);
+  }else check('parent preview cannot spend',await lab.getByRole('button',{name:'Купить · 6 🪙'}).isDisabled());
   check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
  }
  if(miroQA){
