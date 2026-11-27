@@ -28,7 +28,8 @@ const navigationQA=process.env.QA_FOCUS==='navigation-52';
 const familyScrollQA=process.env.QA_FOCUS==='family-scroll';
 const world530QA=process.env.QA_FOCUS==='world-530';
 const miroQA=process.env.QA_FOCUS==='miro2';
-const mechQA=process.env.QA_FOCUS==='mech-lab';
+const buildQA=process.env.QA_FOCUS==='miro-builds';
+const mechQA=process.env.QA_FOCUS==='mech-lab'||buildQA;
 const miroWorkshopQA=process.env.QA_FOCUS==='miro-workshop'||mechQA;
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -299,6 +300,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     if(name==='moymir_complete_story_chapter'){storyDone.push(Number(request.postDataJSON()?.p_chapter));return resp(true)}
     if(name==='moymir_room_save'){const q=request.postDataJSON();if(role==='parent'||q.p_revision!==(roomMock?.revision||0))return route.fulfill({status:400,contentType:'application/json',body:'{}'});const old=roomMock?.layout.extras||[];if(roomMock)roomSpent+=(q.p_layout.extras||[]).filter(v=>!old.some(o=>o.id===v.id)).length;roomMock={layout:q.p_layout,revision:q.p_revision+1};return resp({...roomMock,balance:1700-roomSpent})}
     if(name==='moymir_journey_action'){const q=request.postDataJSON();if(q.p_stop!==undefined&&!journeyMock.solved.includes(q.p_stop))journeyMock.solved.push(q.p_stop);if(q.p_reward&&!journeyMock.souvenirs.includes(q.p_reward))journeyMock.souvenirs.push(q.p_reward);return resp(journeyMock)}
+    if(name==='moymir_miro_bundle'){const q=request.postDataJSON();if(role==='parent')return route.fulfill({status:403,contentType:'application/json',body:'{}'});const items=['skin-vector','acc-none','paint-steel','visor-none','optics-cyan','armor-none','trim-default'];const costs={'skin-vector':6,'paint-steel':1,'optics-cyan':1};for(const item of items){if(costs[item]&&!miroWardrobe.owned.includes(item)){miroSpent+=costs[item];miroWardrobe.owned.push(item)}miroWardrobe[item.startsWith('acc-')?'accessory':item.split('-')[0]]=item}return resp(miroWardrobe)}
     if(name==='moymir_miro_equip'){const q=request.postDataJSON(),item=q.p_item,costs={'skin-spider':6,'acc-wings':3,'paint-mint':1,'skin-vector':6,'visor-scanner':4,'optics-dual':3,'armor-heavy':5,'paint-graphite':1,'trim-orange':1};if(role==='parent')return route.fulfill({status:403,contentType:'application/json',body:'{}'});if(q.p_buy&&!miroWardrobe.owned.includes(item)){miroWardrobe.owned.push(item);miroSpent+=costs[item]||0}miroWardrobe[item.startsWith('acc-')?'accessory':item.split('-')[0]]=item;return resp(miroWardrobe)}
     if(name==='moymir_family_overview')return resp({worldPoints:earnedMock+englishCredit,balance:1700+englishCredit-roomSpent-miroSpent,earned:earnedMock+englishCredit,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
@@ -830,6 +832,29 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('parent cannot collect',await hub.getByRole('button',{name:'Осмотреть место'}).count()===0);
    check('parent read only notice',await hub.getByText(/Приключения проходит ребёнок/).count()===1);
   }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
+ if(buildQA){
+  await page.getByRole('button',{name:'✨ Новые образы',exact:true}).click();
+  const lab=page.getByRole('dialog',{name:'Мастерская Миро 3D'});await lab.waitFor();
+  const catalog=lab.getByLabel('Готовые сборки');await catalog.waitFor();
+  check('eight ready builds',await catalog.getByRole('button').count()===8);
+  const stage=lab.locator('.miro-workshop-stage');
+  for(const [id,label] of [['scout','Scout X1'],['ranger','Ranger R7'],['engineer','Titan T8'],['arctic','Polar V9'],['nebula','Nebula A12'],['phantom','Phantom S9'],['aurum','Aurum Prime'],['nova','Nova Omega']]){
+   await catalog.getByRole('button',{name:new RegExp(label)}).click();await page.waitForTimeout(750);
+   check('preview '+id,await stage.getByText(label,{exact:false}).count()===1&&miroSpent===0);
+   if(role==='child')await stage.screenshot({path:'/tmp/miro-build-'+id+'.png'});
+  }
+  await lab.getByRole('group',{name:'Редкость образов'}).getByRole('button',{name:'Легендарный',exact:true}).click();check('legendary filter',await catalog.getByRole('button').count()===2);
+  await lab.getByRole('group',{name:'Редкость образов'}).getByRole('button',{name:'Все',exact:true}).click();
+  await catalog.getByRole('button',{name:/Scout X1/}).click();
+  const buy=lab.getByRole('button',{name:'Купить комплект · 8 🪙'});
+  if(role==='child'){
+   page.once('dialog',d=>d.accept());await buy.click();await lab.getByText('Готовый образ сохранён.',{exact:false}).waitFor();
+   check('bundle applied',miroSpent===8&&miroWardrobe.skin==='skin-vector'&&miroWardrobe.optics==='optics-cyan');
+   await catalog.getByRole('button',{name:/Scout X1/}).click();await lab.getByRole('button',{name:'Надеть комплект'}).click();await lab.getByText('Примерка бесплатна.',{exact:false}).waitFor();check('free equip owned set',miroSpent===8);
+   await lab.getByRole('button',{name:'Глаза',exact:true}).click();await lab.getByRole('button',{name:/Двойной сенсор/}).click();check('editable bought set',await stage.getAttribute('data-optics')==='optics-dual');
+  }else check('parent cannot purchase set',await buy.isDisabled());
   check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
  }
  if(miroWorkshopQA){
