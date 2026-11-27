@@ -1,13 +1,13 @@
 {
-  "version": "4.4.6",
-  "title": "Мой мир 4.4.6 · Игровые приключения",
+  "version": "4.4.7",
+  "title": "Мой мир 4.4.7 · Академия Миро и семейный центр",
   "notes": [
-    "Шесть миссий и 18 находок в открытых мирах.",
-    "Рюкзак материалов и мастерская: созданные предметы появляются в 3D-мире.",
-    "Игровые находки не изменяют монеты, баллы развития и реальные награды."
+    "Четыре учебные экспедиции, интерактивные схемы и виртуальные опыты.",
+    "Семейный календарь: родители редактируют события, ребёнок видит их.",
+    "Недельная сводка, быстрые переходы, цель накопления. Повторно проверены приключения."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.6/MOY_MIR_4.4.6_OTA.zip",
-  "sha256": "ccbf4b69ee27a608387aabde9acd18a17986bb5264317b67d6c416c32717ace9",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.7/MOY_MIR_4.4.7_OTA.zip",
+  "sha256": "66ecb7600d59c2fbc3fc6980dcea9c472ac2313de51a1026d4da1e66898b0a01",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
