@@ -3,3 +3,16 @@
 .mw-health-back,.mw-action-shortcut{border:1px solid #bdd7dd;border-radius:11px;background:#edf7fa;color:#315b70;padding:10px;text-align:left;font-size:12px;font-weight:800;cursor:pointer}.mw-theme-night .mw-health-back,.mw-theme-night .mw-action-shortcut{background:#304b60;color:#e0f0f4;border-color:#66889a}.mw-system-stack [hidden]{display:none!important}.mw-family-screen>.mw-section-nav-wrap{flex-shrink:0}.mw-section-nav button{min-width:0}@media(max-width:380px){.mw-section-nav-wrap{padding:6px 7px 4px}.mw-section-nav button{font-size:11px;padding:7px 9px;min-height:38px}}
 
 .mw-phone>.mw-section-nav-wrap{margin:6px 12px 2px;flex:0 0 auto;min-width:0}.mw-compact-header>.mw-hero-profile,.mw-compact-header>.mw-tabs-top{display:none}.mw-compact-header>.mw-cloud-syncbar{padding-top:5px;padding-bottom:5px}.mw-compact-header>.mw-top{padding-top:8px;padding-bottom:8px}.mw-compact-header .mw-scroll{padding-top:8px}.mw-compact-header .mw-greeting{margin-bottom:8px}.mw-phone>.mw-section-nav-wrap .mw-section-nav-title{margin-bottom:4px}@media(max-height:650px){.mw-phone>.mw-section-nav-wrap{margin-top:3px;margin-bottom:0;padding-top:5px;padding-bottom:3px}.mw-phone>.mw-section-nav-wrap .mw-section-nav-title{display:none}}
+
+/* Every non-chat family screen owns its vertical scroll; keep the navigation outside it. */
+.mw-phone>.mw-family-content{display:block;flex:1 1 0;min-height:0;min-width:0;overflow-y:auto!important;overflow-x:hidden;touch-action:pan-y;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;padding-bottom:24px}
+.mw-family-content>.mw-panel{max-width:100%;min-width:0}
+.mw-family-overview{display:grid;gap:9px;min-width:0;padding-bottom:12px}
+.mw-family-overview h1{font-size:24px;margin:4px 0;color:inherit}
+.mw-family-overview header p{font-size:13px;line-height:1.45;margin:5px 0 10px;color:inherit}
+.mw-family-link{display:flex;align-items:center;gap:12px;width:100%;min-height:82px;text-align:left;background:#fff;color:#315b70;border:1px solid #c8dfe6;border-radius:15px;padding:13px;cursor:pointer;box-shadow:0 3px 9px #1c577409}
+.mw-family-link>span:first-child{flex:0 0 42px;display:grid;place-items:center;min-height:42px;font-size:25px;border-radius:12px;background:#eaf5f3}
+.mw-family-link>span:nth-child(2){min-width:0;flex:1;display:grid;gap:4px}
+.mw-family-link strong{font-size:15px}.mw-family-link small{font-size:12px;line-height:1.4;font-weight:400}.mw-family-link>b{font-size:24px;flex:none;color:#528b85}
+.mw-theme-night .mw-family-link{background:#304e60;color:#e0f0f4;border-color:#66889a}.mw-theme-night .mw-family-link>span:first-child{background:#244252}.mw-theme-night .mw-family-link>b{color:#a5d9d0}
+@media(max-width:600px){.mw-phone:has(>.mw-family-content){height:100dvh;min-height:0}}

@@ -25,6 +25,7 @@ const optimizationQA=process.env.QA_FOCUS==='optimization-checkin';
 const safetyQA=process.env.QA_FOCUS==='family-safety';
 const safetyToolkitQA=process.env.QA_FOCUS==='safety-toolkit';
 const navigationQA=process.env.QA_FOCUS==='navigation-52';
+const familyScrollQA=process.env.QA_FOCUS==='family-scroll';
 const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -91,7 +92,7 @@ const syntheticLessons=Object.entries(schoolMatrix).flatMap(([day,subjects])=>su
 })));
 
 async function run(role,browser){
- const ctx=await browser.newContext({viewport:{width:role==='child'?390:430,height:860},hasTouch:process.env.QA_TOUCH==='1',isMobile:process.env.QA_TOUCH==='1'});
+ const ctx=await browser.newContext({viewport:familyScrollQA?{width:role==='child'?360:390,height:role==='child'?640:720}:{width:role==='child'?390:430,height:860},hasTouch:process.env.QA_TOUCH==='1',isMobile:process.env.QA_TOUCH==='1'});
  const uid=ids[role], session={access_token:makeJWT(uid),refresh_token:'fake-refresh',token_type:'bearer',expires_in:7200,expires_at:Math.floor(Date.now()/1000)+7200,user:{id:uid,aud:'authenticated',email:role+'@example.test',app_metadata:{provider:'email'},user_metadata:{},created_at:new Date().toISOString()}};
  await ctx.addInitScript(({key,session})=>localStorage.setItem(key,JSON.stringify(session)),{key:'sb-ueqtitxbvsnqmbudwxwu-auth-token',session});
  if(englishResetAudioQA){
@@ -136,7 +137,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA||navigationQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA||safetyQA||safetyToolkitQA||navigationQA||familyScrollQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -470,6 +471,38 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(familyScrollQA){
+  const rail=page.getByRole('group',{name:'Разделы',exact:true});
+  const screen=page.locator('.mw-scroll');
+  const cdp=await ctx.newCDPSession(page);
+  const swipe=async()=>{const b=await screen.boundingBox();const x=Math.round(b.x+b.width*.5),y=Math.round(b.y+b.height*.8),end=Math.round(b.y+b.height*.2);await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});for(let i=1;i<=10;i++){await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:Math.round(y+(end-y)*i/10)}]});await page.waitForTimeout(25)}await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await page.waitForTimeout(400)};
+  const goFamily=async()=>{await page.locator('.mw-bottom button').filter({has:page.getByText('Семья',{exact:true})}).click();await page.getByLabel('Обзор семьи').waitFor()};
+  await goFamily();
+  check('family opens overview',await rail.getByRole('button',{name:'Обзор',exact:true}).getAttribute('aria-pressed')==='true');
+  check('all five overview links',await page.locator('.mw-family-link').count()===5);
+  check('overview vertical scroll container',await screen.evaluate(e=>getComputedStyle(e).overflowY==='auto'&&e.scrollHeight>e.clientHeight));
+  await swipe();check('real touch swipe moves overview',await screen.evaluate(e=>e.scrollTop)>10);
+  await page.locator('.mw-family-link').filter({hasText:'Инструменты'}).click();
+  const tools=page.getByLabel('Расширенная безопасность');await tools.waitFor();
+  for(const summary of await tools.locator('summary').all())await summary.click();
+  await screen.evaluate(e=>e.scrollTop=0);await swipe();
+  check('real touch swipe moves expanded tools',await screen.evaluate(e=>e.scrollTop)>10);
+  await goFamily();await page.locator('.mw-family-link').filter({hasText:'Безопасность'}).click();
+  await page.getByLabel('Центр семейной безопасности').waitFor();
+  check('safety pane vertical scrolling enabled',await screen.evaluate(e=>getComputedStyle(e).overflowY==='auto'));
+  await goFamily();await page.locator('.mw-family-link').filter({hasText:'Календарь'}).click();
+  check('calendar accessible',await page.getByLabel('Семейное управление').count()===1);
+  await goFamily();await page.locator('.mw-family-link').filter({hasText:'Геолокация'}).click();
+  check('location accessible',await page.getByLabel('Семейная геолокация').count()===1);
+  await goFamily();await page.locator('.mw-family-link').filter({hasText:'Чат'}).click();await page.locator('.family-chat').waitFor();
+  check('chat composer visible',await page.getByRole('textbox',{name:'Сообщение семье'}).isVisible());
+  check('chat feed separately scrollable',await page.locator('.family-chat-feed').evaluate(e=>getComputedStyle(e).overflowY==='auto'));
+  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'chat_message'}})));
+  check('chat notification keeps chat active',await rail.getByRole('button',{name:'Чат',exact:true}).getAttribute('aria-pressed')==='true');
+  await goFamily();await page.screenshot({path:'/tmp/moymir-521-'+role+'-overview.png'});
+  check('bottom nav remains visible',await page.locator('.mw-bottom').isVisible());
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(navigationQA){
   const rail=page.getByRole('group',{name:'Разделы',exact:true});
   const choose=async(label)=>{await rail.getByRole('button',{name:label,exact:true}).click();check('active '+label,await rail.getByRole('button',{name:label,exact:true}).getAttribute('aria-pressed')==='true');};
@@ -488,7 +521,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   await go('Учёба');await visible('.school-today');check('schedule default',await page.getByLabel('Учебные приключения').count()===0);await choose('Домашние');check('homework separate',await page.getByRole('heading',{name:'📝 Домашние задания'}).count()===1);await choose('Тренажёры');check('tutors pane',await page.getByRole('heading',{name:'🤖 Миро помогает учиться'}).count()===1);await choose('Академия');check('academy separate',await visible('.learning-adventures'));await choose('Рюкзак');check('schedule absent in backpack',await page.locator('.school-today').count()===0);check('school single row',await single());
   await go('Магазин');check('shop catalog default',await visible('.mw-reward-grid'));await choose('Заказы');check('orders separate',await visible('#review-rewards')&&await page.locator('.mw-reward-grid').count()===0);await choose('Игровое время');check('playtime panel only',await page.locator('#review-rewards').count()===0);
   await go('Духовный рост');check('activities default',await visible('.mw-spirit-hero'));await choose('Ежедневный стих');check('verse visible',await visible('.daily-reader'));await choose('Качества');await choose('Исследователь');check('Bible study separate',await visible('.bible-journey'));await choose('Викторина');await choose('Предложения');
-  await go('Семья');await visible('.family-chat');check('chat default without safety',await page.getByLabel('Центр семейной безопасности').count()===0);await choose('Календарь');check('calendar separate',await visible('.family-management'));await choose('Геолокация');check('location separate',await visible('.family-checkin'));await choose('Безопасность');check('rules separate',await visible('.family-safety')&&await page.getByLabel('Расширенная безопасность').count()===0);await choose('Инструменты');check('tools separate',await visible('.safety-toolkit'));check('family single row',await single());
+  await go('Семья');await visible('.mw-family-overview');await choose('Чат');await visible('.family-chat');check('chat without safety',await page.getByLabel('Центр семейной безопасности').count()===0);await choose('Календарь');check('calendar separate',await visible('.family-management'));await choose('Геолокация');check('location separate',await visible('.family-checkin'));await choose('Безопасность');check('rules separate',await visible('.family-safety')&&await page.getByLabel('Расширенная безопасность').count()===0);await choose('Инструменты');check('tools separate',await visible('.safety-toolkit'));check('family single row',await single());
   await page.getByRole('button',{name:'Открыть настройки'}).click();await choose('Будильник');await choose('Уведомления');check('notifications visible',await page.locator('.mw-system-stack').isVisible());await choose('Учебные напоминания');check('school reminders relocated',await page.getByRole('heading',{name:'🔔 Напоминания'}).count()===1);await choose('Аккаунт');if(role==='parent')check('recovery preserved',await page.locator('.mw-parent-recovery').count()===1);await choose('Обновления');check('updates visible',await page.locator('#app-updates').isVisible());await choose('Внешний вид');check('settings single row',await single());
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'reward_requested',source_id:'nonexistent'}})));await page.locator('#review-rewards').waitFor();check('notification routes to orders',await rail.getByRole('button',{name:'Заказы',exact:true}).getAttribute('aria-pressed')==='true');
   await page.evaluate(()=>window.dispatchEvent(new CustomEvent('moymir-notification-open',{detail:{kind:'app_update'}})));await page.locator('#app-updates').waitFor();check('notification routes to updates',await rail.getByRole('button',{name:'Обновления',exact:true}).getAttribute('aria-pressed')==='true');
