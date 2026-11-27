@@ -1,13 +1,12 @@
 {
-  "version": "4.4.2",
-  "title": "Мой мир 4.4.2 · Утренний помощник",
+  "version": "4.4.3",
+  "title": "Мой мир 4.4.3 · Системный будильник",
   "notes": [
-    "Родитель может отправить сигнал пробуждения.",
-    "Илья подтверждает, что проснулся; родитель видит ответ.",
-    "Удалённый сигнал пока работает при открытом приложении. Системный будильник по расписанию работает отдельно."
+    "Добавлена фоновая доставка сигнала пробуждения.",
+    "Для телефона ребёнка необходимо один раз установить новый Android APK и подключить будильник."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.2/MOY_MIR_4.4.2_OTA.zip",
-  "sha256": "c954dc56437289a14eb1cb408c935372e3c4b638601e0881a24af6e38b2eb4df",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.3/MOY_MIR_4.4.3_OTA.zip",
+  "sha256": "d693092647857fa3f53f7e7a6f8c7fa86512e04eb00c28b9c6232d4ba46c9006",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
