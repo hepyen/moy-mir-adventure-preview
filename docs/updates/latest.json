@@ -1,12 +1,13 @@
 {
-  "version": "4.4.3",
-  "title": "Мой мир 4.4.3 · Системный будильник",
+  "version": "4.4.4",
+  "title": "Мой мир 4.4.4 · Живые миры",
   "notes": [
-    "Добавлена фоновая доставка сигнала пробуждения.",
-    "Для телефона ребёнка необходимо один раз установить новый Android APK и подключить будильник."
+    "День и ночь, дождь, ветер и живые обитатели открытых островов.",
+    "В открытом домике можно зайти в комнату, переставить мебель и включить свет.",
+    "Новые действия с питомцами. Будущие этапы остаются сюрпризом."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.3/MOY_MIR_4.4.3_OTA.zip",
-  "sha256": "d693092647857fa3f53f7e7a6f8c7fa86512e04eb00c28b9c6232d4ba46c9006",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.4/MOY_MIR_4.4.4_OTA.zip",
+  "sha256": "e34e4048f25a86752af0c38326a59afa8c9338a43e269618025585c34a8c6a82",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
