@@ -1,13 +1,13 @@
 {
-  "version": "5.5.0",
-  "title": "Мой мир 5.5.0 · Мастерская Миро 3D",
+  "version": "5.5.1",
+  "title": "Мой мир 5.5.1 · Порядок в делах",
   "notes": [
-    "Полноэкранная 3D-мастерская: семь костюмов, аксессуары, цвета, поворот и бесплатная примерка.",
-    "Покупки за монеты, облачный гардероб и выбранный облик в мире.",
-    "48 проверок мастерской и существующих функций Миро пройдены."
+    "Ежедневные и обычные дела разделены, найденные дубликаты архивированы.",
+    "Новые запросы ограничены 100 баллами, проверяются на осмысленность.",
+    "Перед отправкой ребёнок проверяет текст и подтверждает запрос."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.5.0/MOY_MIR_5.5.0_OTA.zip",
-  "sha256": "57c3bf1c50bc0846418ca7ac7e244a8a85788d38734bf48b7e85df58823e75c8",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.5.1/MOY_MIR_5.5.1_OTA.zip",
+  "sha256": "3a16bc9f5642a15284325614af0366f11528a0bec41dc9ad7dbc819c20a00e88",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
