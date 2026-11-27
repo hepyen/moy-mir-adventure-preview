@@ -1,13 +1,13 @@
 {
-  "version": "5.3.1",
-  "title": "Мой мир 5.3.1 · Семейные события",
+  "version": "5.4.0",
+  "title": "Мой мир 5.4.0 · Облачная комната",
   "notes": [
-    "Ближайшее семейное событие на главном экране и переход в календарь.",
-    "Серверная очередь уведомлений о создании и изменении событий. Доставка на закрытый телефон ещё не проверена.",
-    "Исправлена ошибка зависимостей сборки."
+    "Мебель за 1 монету, бесплатное перемещение и оформление, облачное сохранение.",
+    "Жетоны путешествия Павла и сувениры сохраняются на сервере.",
+    "Покупки не уменьшают накопленный прогресс миров."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.3.1/MOY_MIR_5.3.1_OTA.zip",
-  "sha256": "0a29b07b6909fe8109dbe21a7805f6ea4344a6b0d4720730893d8a02337a5cb3",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.4.0/MOY_MIR_5.4.0_OTA.zip",
+  "sha256": "a28d2ae62da7cdb18cddbfbd3306f1c0615c6646f0f9bb13d8d347da7cfe4960",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
