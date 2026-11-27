@@ -22,7 +22,7 @@ const reviewEvents:Partial<Record<string,ReviewKind>>={
  meal_requested:'meal',meal_review:'meal',
 };
 const otherEvents:Partial<Record<string,Destination>>={
- chat_message:{tab:'family'},child_app_open:{tab:'world'},
+ chat_message:{tab:'family'},calendar_event:{tab:'family',fallback:'family-calendar'},child_app_open:{tab:'world'},
  app_update:{tab:'settings',anchor:'app-updates'},update_available:{tab:'settings',anchor:'app-updates'},
  task_created:{tab:'tasks',fallback:'review-tasks'},
  daily_chore_reminder:{tab:'tasks',fallback:'review-tasks'},

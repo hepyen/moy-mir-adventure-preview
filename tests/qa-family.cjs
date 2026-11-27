@@ -483,6 +483,11 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    await page.reload({waitUntil:'domcontentloaded'});await page.locator('.world3d-panel').waitFor();
    await page.waitForTimeout(600);check('read event does not repeat',await notice.count()===0);
   }else check('no parent full screen notice',await notice.count()===0);
+  const upcoming=page.getByRole('button',{name:'Ближайшее семейное событие'});
+  await upcoming.waitFor();check('home shows upcoming event',await upcoming.getByText('Семейная прогулка',{exact:true}).count()===1);
+  await upcoming.click();await page.getByLabel('Семейное управление').waitFor();
+  check('home event opens calendar',true);
+  await page.locator('.mw-bottom').getByRole('button',{name:/Мир$/}).click();
   const weather=page.getByLabel('Погода и освещение');
   await weather.getByRole('button',{name:'❄️ Снег'}).click();await page.waitForTimeout(1300);
   check('snow selected',await weather.getByRole('button',{name:'❄️ Снег'}).getAttribute('aria-pressed')==='true');

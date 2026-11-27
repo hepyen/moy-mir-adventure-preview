@@ -1,3 +1,4 @@
+import {UpcomingFamilyEvent} from '../../features/UpcomingFamilyEvent';
 import {CalendarNotice} from '../../features/CalendarNotice';
 import {SectionNav} from './SectionNav';
 import type {SectionItem} from './SectionNav';
@@ -124,7 +125,7 @@ const sectionItems:Record<Exclude<Tab,'health'>,SectionItem[]>={
  family:[{id:'overview',label:'Обзор',icon:'🏠'},{id:'chat',label:'Чат',icon:'💬'},{id:'calendar',label:'Календарь',icon:'🗓️'},{id:'safety',label:'Безопасность',icon:'🛡️'}],
  settings:[{id:'general',label:'Внешний вид',icon:'🎨'},{id:'alarm',label:'Будильник',icon:'⏰'},{id:'notifications',label:'Уведомления',icon:'🔔'},{id:'school',label:'Учебные напоминания',icon:'📚'},{id:'account',label:'Аккаунт',icon:'🔐'},{id:'updates',label:'Обновления',icon:'🚀'}]
 };
-function destinationSection(next:Destination){if(next.tab==='family')return 'chat';const target=next.anchor||next.fallback||'';if(next.tab==='tasks')return target.includes('proposal')?'proposals':target.includes('behavior')?'history':'today';if(next.tab==='shop')return target.includes('playtime')?'time':target.includes('reward')?'orders':'catalog';if(next.tab==='spiritual')return target.includes('review-spiritual')?'requests':'today';if(next.tab==='settings')return target==='app-updates'?'updates':'notifications';return sectionDefaults[next.tab]}
+function destinationSection(next:Destination){if(next.tab==='family')return next.fallback==='family-calendar'?'calendar':'chat';const target=next.anchor||next.fallback||'';if(next.tab==='tasks')return target.includes('proposal')?'proposals':target.includes('behavior')?'history':'today';if(next.tab==='shop')return target.includes('playtime')?'time':target.includes('reward')?'orders':'catalog';if(next.tab==='spiritual')return target.includes('review-spiritual')?'requests':'today';if(next.tab==='settings')return target==='app-updates'?'updates':'notifications';return sectionDefaults[next.tab]}
 
 const SAVE_KEY='moymir2-demo-2.4';
 const OLD_SAVE_KEY='moymir2-demo-2.1';
@@ -419,7 +420,7 @@ export const GeneratedComponent = () => {
   return <main className={"mw-root mw-theme-"+theme.resolved} data-app-theme={theme.resolved} data-app-theme-choice={theme.selection}>
  <div className={"mw-phone"+(tab==="world"?"":" mw-compact-header")}>
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">5.3.0</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">5.3.1</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => {setSectionFor('world','progress');setTab('world')}}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => {setSectionFor('shop','catalog');setTab('shop')}}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>goSettings('general')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -439,6 +440,7 @@ export const GeneratedComponent = () => {
  <div className="mw-system-stack" style={{display:tab==='settings'&&(section==='updates'||section==='notifications')?'flex':'none'}}><div id="app-updates" hidden={section!=='updates'}><UpdateCenter/></div>{connected&&cloud.session&&<div hidden={section!=='notifications'}><NotificationInbox key={cloud.session.user.id} userId={cloud.session.user.id} familyId={cloud.familyId} onOpen={next=>{openDestination(next);void cloud.refresh()}}/><PushCenter userId={cloud.session.user.id}/></div>}</div>
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
+ {(section==='island'||section==='day')&&connected&&<UpcomingFamilyEvent family={cloud.familyId} onOpen={()=>{setSectionFor('family','calendar');setTab('family')}}/>}
  {section==='island'&&connected&&cloud.role==='parent'&&<button className="mw-section-summary mw-action-shortcut" onClick={()=>setSectionFor('world','day')}>📋 Мой день и решения родителя →</button>}
  {section==='day'&&<>
  {connected&&cloud.role==='parent'&&<ParentApprovals cloud={cloud} onOpen={openDestination}/>}
