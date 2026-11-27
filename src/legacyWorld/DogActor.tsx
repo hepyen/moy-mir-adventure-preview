@@ -11,18 +11,21 @@ function Ear({x}:{x:number}){
   <Ellipsoid at={[0,-.15,.075]} radius={.10} scale={[.56,1.35,.3]} color="#cb8c64"/>
  </group>
 }
-export function DogActor({points,reactTick=0,playTick=0,restTick=0}:{points:number;reactTick?:number;playTick?:number;restTick?:number}){
+export function DogActor({points,reactTick=0,playTick=0,restTick=0,feedTick=0}:{feedTick?:number;points:number;reactTick?:number;playTick?:number;restTick?:number}){
  const root=useRef<Group>(null),body=useRef<Group>(null)
  const face=useRef<Group>(null),tail=useRef<Group>(null)
  const frontLeft=useRef<Group>(null),frontRight=useRef<Group>(null)
  const backLeft=useRef<Group>(null),backRight=useRef<Group>(null)
- const eyes=useRef<Group>(null),mouth=useRef<Group>(null),ball=useRef<Group>(null)
- const travel=useRef(0),pause=useRef(0),barking=useRef(0),playing=useRef(0),resting=useRef(0)
+ const eyes=useRef<Group>(null),mouth=useRef<Group>(null),ball=useRef<Group>(null),bowl=useRef<Group>(null)
+ const travel=useRef(0),pause=useRef(0),barking=useRef(0),playing=useRef(0),resting=useRef(0),feeding=useRef(0)
  useEffect(()=>{if(reactTick>0){pause.current=1.35;barking.current=1.35;resting.current=0}},[reactTick])
  useEffect(()=>{if(playTick>0){playing.current=5.2;resting.current=0;pause.current=0}},[playTick])
  useEffect(()=>{if(restTick>0){resting.current=6;playing.current=0;pause.current=6}},[restTick])
+ useEffect(()=>{if(feedTick>0){feeding.current=4;pause.current=4;playing.current=0;resting.current=0}},[feedTick])
  useFrame(({clock},dt)=>{
   const t=clock.elapsedTime
+  feeding.current=Math.max(0,feeding.current-dt)
+  if(bowl.current)bowl.current.visible=feeding.current>0
   pause.current=Math.max(0,pause.current-dt)
   barking.current=Math.max(0,barking.current-dt)
   playing.current=Math.max(0,playing.current-dt)
@@ -38,7 +41,7 @@ export function DogActor({points,reactTick=0,playTick=0,restTick=0}:{points:numb
    if(Math.hypot(dx,dz)>.0003)root.current.rotation.y=Math.atan2(dx,dz)
   }
   if(body.current){body.current.position.y=resting.current>0?-.075:.015+Math.abs(Math.sin(t*11))*(isBench?.009:.033)+(barking.current>0?.045*Math.abs(Math.sin(t*16)):0);body.current.rotation.x=resting.current>0?-.12:0}
-  if(face.current)face.current.rotation.z=barking.current>0?Math.sin(t*12)*.16:Math.sin(t*1.7)*.09
+  if(face.current){face.current.rotation.x=feeding.current>0?.40+Math.sin(t*8)*.12:0;face.current.rotation.z=barking.current>0?Math.sin(t*12)*.16:Math.sin(t*1.7)*.09}
   if(mouth.current)mouth.current.scale.y=barking.current>0?1.2+Math.abs(Math.sin(t*18))*.7:1
   if(tail.current)tail.current.rotation.y=Math.sin(t*(barking.current>0||playing.current>0?18:10))*(barking.current>0||playing.current>0?.9:.65)
   const stride=resting.current>0?.02:isBench?.11:playing.current>0?.66:.44
@@ -54,6 +57,7 @@ export function DogActor({points,reactTick=0,playTick=0,restTick=0}:{points:numb
    <mesh><sphereGeometry args={[.17,12,10]}/><meshStandardMaterial color="#ffb94e" roughness={.55}/></mesh>
    <mesh rotation={[0,0,Math.PI/4]}><torusGeometry args={[.143,.027,6,18]}/><meshStandardMaterial color="#f3f0cb"/></mesh>
   </group>
+  <group ref={bowl} visible={false} position={[0,.02,.72]}><mesh><cylinderGeometry args={[.22,.17,.09,16]}/><meshStandardMaterial color="#78aacf"/></mesh>{[-.08,0,.08].map(x=><Ellipsoid key={x} at={[x,.07,0]} radius={.055} color="#9b603b"/>)}</group>
   <group ref={body}>
    <Ellipsoid at={[0,.45,-.12]} radius={.38} scale={[.73,.78,1.18]} color="#d99a5f"/>
    <Ellipsoid at={[0,.43,.23]} radius={.28} scale={[.72,.88,.56]} color="#f7d1a0"/>

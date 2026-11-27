@@ -117,7 +117,7 @@ function Window({at,lit=false}:{at:Coord;lit?:boolean}){
   <Orb at={[.18,.12,.125]} r={.045} color="#f7f5db"/>
  </group>
 }
-function LivelySquirrel({points}:{points:number}){
+function LivelySquirrel({points,petAction,petTick}:{points:number;petAction?:string;petTick?:number}){
  const root=useRef<Group>(null)
  const jump=useRef<Group>(null)
  const leftFoot=useRef<Group>(null)
@@ -126,9 +126,13 @@ function LivelySquirrel({points}:{points:number}){
  const head=useRef<Group>(null)
  const eyelids=useRef<Group>(null)
  const paw=useRef<Group>(null)
- useFrame(({clock})=>{
+ const reaction=useRef(0),travel=useRef(0)
+ useEffect(()=>{if(petTick)reaction.current=4},[petTick])
+ useFrame(({clock},dt)=>{
   const t=clock.elapsedTime
-  const progress=(t%35)/35
+  reaction.current=Math.max(0,reaction.current-dt)
+  if(!reaction.current||petAction==='play')travel.current+=Math.min(dt,.05)*(reaction.current&&petAction==='play'?2.3:1)
+  const progress=(travel.current%35)/35
   const location=squirrelPathPosition(progress,points)
   const nextLocation=squirrelPathPosition((progress+.001)%1,points)
   const strolling=progress>.41&&progress<.6
@@ -139,12 +143,12 @@ function LivelySquirrel({points}:{points:number}){
     root.current.rotation.y=facing
    }
   }
-  if(jump.current){jump.current.position.y=.025+Math.abs(Math.sin(t*10))*(strolling?.01:.045);jump.current.rotation.y=Math.sin(t*.7)*.035}
+  if(jump.current){jump.current.position.y=.025+Math.abs(Math.sin(t*10))*(reaction.current&&petAction==='play'?.24:strolling?.01:.045);jump.current.rotation.y=Math.sin(t*.7)*.035}
   if(leftFoot.current)leftFoot.current.rotation.x=Math.sin(t*13)*.38
   if(rightFoot.current)rightFoot.current.rotation.x=-Math.sin(t*13)*.38
   if(tail.current)tail.current.rotation.z=Math.sin(t*2.9)*.22
   if(head.current)head.current.rotation.z=Math.sin(t*1.7)*.12
-  if(paw.current)paw.current.rotation.z=Math.sin(t*3.7)*.27
+  if(paw.current)paw.current.rotation.z=Math.sin(t*(reaction.current&&petAction==='feed'?8:3.7))*.27
   if(eyelids.current){const blink=Math.pow(Math.max(0,Math.cos(t*1.33)),48);eyelids.current.scale.y=1-blink*.93}
  })
  return <group ref={root} position={[2.17,0,1.35]} scale={.61}>
@@ -195,7 +199,7 @@ function TreehouseDoor({opened}:{opened:boolean}){
 }
 function Swing(){const ref=useRef<Group>(null);useFrame(({clock})=>{if(ref.current)ref.current.rotation.x=Math.sin(clock.elapsedTime*1.25)*.19});return <group position={[-2.37,4.17,.2]} ref={ref}>{[-.32,.32].map(x=><Limb key={x} a={[x,0,0]} b={[x,-1.45,.45]} r={.025} color="#e1bb81"/>)}<Timber at={[0,-1.47,.45]} dim={[.82,.11,.44]} color="#ca8d57"/><Orb at={[0,-1.34,.36]} r={.21} color="#ffcc69"/></group>}
 function BranchBridge(){return <group>{Array.from({length:8},(_,i)=><Timber key={i} at={[-1.58+i*.13,3.04+.08*Math.sin(i*.45),.15]} dim={[.115,.07,.62]} color={i%2?'#bb8753':'#d2a06a'}/>)}{[-.2,.5].map(z=><group key={z}><Limb a={[-1.68,3.65,z]} b={[-.55,3.65,z]} r={.028} color="#d9bd85"/>{[-1.65,-.6].map(x=><Timber key={x} at={[x,3.33,z]} dim={[.07,.65,.07]} color="#a26c3e"/>)}</group>)}</group>}
-export function TreehousePiece({index,points,doorOpen=false,lightsOn=false}:{index:number;points:number;doorOpen?:boolean;lightsOn?:boolean}){
+export function TreehousePiece({index,points,doorOpen=false,lightsOn=false,petAction,petTick}:{petAction?:string;petTick?:number;index:number;points:number;doorOpen?:boolean;lightsOn?:boolean}){
  switch(index){
  case 0:return <group>
   <Limb a={[0,0,0]} b={[-.15,4.1,-.25]} r={.54}/>
@@ -271,14 +275,14 @@ export function TreehousePiece({index,points,doorOpen=false,lightsOn=false}:{ind
  case 24:return <group>{[-.65,1.42].map((x,i)=><group key={i}>{Array.from({length:5},(_,n)=><Orb key={n} at={[x+.04*Math.sin(n),4.06-n*.25,1.18]} r={.115} color={n%2?'#48a65d':'#66c961'}/>)}</group>)}</group>
  case 25:return <group>{[-.57,.1,.8,1.36].map((x,i)=><group key={i}><Timber at={[x,3.62,1.77]} dim={[.4,.19,.22]} color="#b07746"/><Blossom x={x} y={3.73} z={1.85} color={i%2?'#ffb665':'#ff85ac'}/></group>)}</group>
  case 26:return <group>{Array.from({length:6},(_,i)=><Timber key={i} at={[-1.7+i*.39,.085,1.43+i*.14]} dim={[.34,.10,.27]} color="#e4c29b"/>)}</group>
- case 27:return <LivelySquirrel points={points}/>
+ case 27:return <LivelySquirrel points={points} petAction={petAction} petTick={petTick}/>
  case 28:return <group>{Array.from({length:13},(_,i)=><Orb key={i} at={[Math.sin(i*1.9)*2.65,1.3+(i%5)*.67,Math.cos(i*1.4)*1.35]} r={.038} color="#ffe78d"/>)}</group>
  default:return <group>{Array.from({length:17},(_,i)=><Orb key={i} at={[Math.sin(i*1.13)*2.35,2.5+(i%6)*.44,Math.cos(i*1.87)*1.32]} r={.05} color={i%2?'#ffdf7d':'#f6a0c3'}/>)}</group>
  }
 }
-export function AnimatedTreehousePiece({index,at,points,doorOpen=false,lightsOn=false,onInspect}:{index:number;at:number;points:number;doorOpen?:boolean;lightsOn?:boolean;onInspect?:(index:number)=>void}){
+export function AnimatedTreehousePiece({index,at,points,doorOpen=false,lightsOn=false,petAction,petTick,onInspect}:{petAction?:string;petTick?:number;index:number;at:number;points:number;doorOpen?:boolean;lightsOn?:boolean;onInspect?:(index:number)=>void}){
  const ref=useRef<Group>(null)
  const [start]=useState(()=>points>=at?1:.001)
  useFrame((_,dt)=>{if(!ref.current)return;const target=points>=at?1:.001;const value=ref.current.scale.y+(target-ref.current.scale.y)*(1-Math.exp(-Math.min(dt,.05)*3));ref.current.scale.set(value,value,value);ref.current.visible=value>.015})
- return <group ref={ref} scale={start} visible={start>.015} onClick={e=>{if(points<at||e.delta>9)return;e.stopPropagation();onInspect?.(index)}}><TreehousePiece index={index} points={points} doorOpen={doorOpen} lightsOn={lightsOn}/></group>
+ return <group ref={ref} scale={start} visible={start>.015} onClick={e=>{if(points<at||e.delta>9)return;e.stopPropagation();onInspect?.(index)}}><TreehousePiece index={index} points={points} doorOpen={doorOpen} lightsOn={lightsOn} petAction={petAction} petTick={petTick}/></group>
 }

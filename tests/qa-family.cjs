@@ -18,6 +18,7 @@ const worldInspectQA=process.env.QA_FOCUS==='world-inspect';
 const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const threeWorldQA=process.env.QA_FOCUS==='three-worlds';
 const remoteWakeQA=process.env.QA_FOCUS==='remote-wake';
+const livingWorldQA=process.env.QA_FOCUS==='living-world';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
@@ -125,7 +126,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=threeWorldQA?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -439,6 +440,48 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(livingWorldQA){
+  const worldPanel=page.locator('.world3d-panel');
+  await worldPanel.locator('canvas').waitFor({timeout:15000});
+  const weather=worldPanel.getByLabel('Погода и освещение');
+  await weather.getByRole('button',{name:'🌙 Ночь'}).click();
+  check('night sky selected',await weather.getByRole('button',{name:'🌙 Ночь'}).getAttribute('aria-pressed')==='true');
+  await weather.getByRole('button',{name:'🌧 Дождь'}).click();
+  check('rain selected',await weather.getByRole('button',{name:'🌧 Дождь'}).getAttribute('aria-pressed')==='true');
+  await weather.getByRole('button',{name:'🍃 Ветер'}).click();
+  check('wind selected',await weather.getByRole('button',{name:'🍃 Ветер'}).getAttribute('aria-pressed')==='true');
+  await worldPanel.getByRole('button',{name:'🍖 Покормить'}).click();
+  await page.waitForTimeout(200);
+  check('dog action exists',await worldPanel.locator('.living-pet').getByRole('button',{name:'🎾 Играть'}).count()===1);
+  await worldPanel.getByRole('button',{name:'🏡 Войти в комнату'}).click();
+  await worldPanel.locator('.living-room-viewport canvas').waitFor({timeout:12000});
+  await worldPanel.getByRole('button',{name:'↔ Переставить'}).click();
+  check('room stores changed furniture locally',await page.evaluate(()=>Object.keys(localStorage).some(k=>k.startsWith('moymir-room:')&&JSON.parse(localStorage.getItem(k)).bed!==0)));
+  await worldPanel.getByRole('button',{name:'💡 Погасить'}).click();
+  check('room light changes',await worldPanel.getByRole('button',{name:'💡 Зажечь'}).count()===1);
+  await worldPanel.getByRole('button',{name:'Выйти из комнаты'}).click();
+  check('exterior restored',await worldPanel.getByRole('button',{name:'🏡 Войти в комнату'}).count()===1);
+  check('future worlds remain hidden',await page.locator('.mw-mystery-card').count()===2&&!(await page.locator('.mw-scroll').innerText()).match(/Домик на дереве|Космическая экспедиция|Космос/));
+  if(role==='child'){
+   earnedMock=1700;await page.locator('.mw-cloud-syncbar button').first().click();
+   const dialog=page.getByRole('dialog',{name:'Поздравление с завершением этапа'});
+   await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
+   await page.locator('.living-pet').getByText('🐿️ Моя белочка').waitFor({timeout:15000});
+   await page.locator('.living-pet').getByRole('button',{name:'🌰 Покормить'}).click();
+   check('squirrel available after earned 80 points',await page.locator('.living-pet').getByText('🐿️ Моя белочка').count()===1);
+   check('treehouse room remains locked at 100 points',await page.getByRole('button',{name:'🏡 Войти в комнату'}).count()===0);
+   earnedMock=3200;await page.locator('.mw-cloud-syncbar button').first().click();
+   await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
+   await page.locator('.space-world').waitFor({timeout:12000});
+   check('robot locked before earned points',await page.locator('.space-world .living-pet').count()===0);
+   earnedMock=4400;await page.locator('.mw-cloud-syncbar button').first().click();
+   await page.locator('.space-world').getByRole('button',{name:'🔋 Зарядить'}).click();
+   check('robot charges and responds',await page.locator('.living-pet-status').innerText()==='Робот заряжает батарею!');
+   await page.locator('.space-world').getByRole('button',{name:'🚀 Войти в жилой модуль'}).click();
+   check('space interior opened',await page.locator('.space-world').getByText('🚀 Жилой модуль',{exact:true}).count()===1);
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(remoteWakeQA){
   if(role==='parent'){
    const panel=page.locator('.mw-remote-wake');

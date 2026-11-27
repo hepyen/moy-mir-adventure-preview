@@ -17,6 +17,8 @@ import {DECOR_SPECS,decorPosition,layoutStorageKey,readDecorLayout,saveDecorLayo
 import type {DecorId,DecorLayout} from './worldDecor'
 import {meadowSpot,treehouseSpot,TREEHOUSE_BUILD_ORDER} from './worldSpots'
 import type {WorldSpot} from './worldSpots'
+import {LivingAtmosphere,SkyControls,useLivingSettings,RoomScene,RoomControls,useRoom,PetActions} from './LivingWorld'
+import type {Weather} from './LivingWorld'
 
 function Block({position=[0,0,0],size=[1,1,1],color='#ffffff',round=0.07,rotation=[0,0,0]}:{position?:[number,number,number];size?:[number,number,number];color?:string;round?:number;rotation?:[number,number,number]}) {
  // Stable geometry per mesh: previous code created a new, undisposed primitive on each render.
@@ -114,10 +116,10 @@ function Pond(){
  useFrame(({clock})=>{if(ref.current)ref.current.scale.setScalar(1+Math.sin(clock.elapsedTime*1.7)*.025)})
  return <group position={[1.6,.04,1.35]}><mesh rotation={[-Math.PI/2,0,0]} receiveShadow><circleGeometry args={[.74,34]}/><meshStandardMaterial color="#32b6e3"/></mesh><group ref={ref}><mesh position={[0,.014,0]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[.64,34]}/><meshStandardMaterial color="#22a6e7" transparent opacity={.88}/></mesh></group></group>
 }
-function HappyDog({points,barkTick,dogPlayTick,dogRestTick}:{points:number;barkTick:number;dogPlayTick:number;dogRestTick:number}) {
- return <DogActor points={points} reactTick={barkTick} playTick={dogPlayTick} restTick={dogRestTick}/>
+function HappyDog({points,barkTick,dogPlayTick,dogRestTick,dogFeedTick}:{points:number;barkTick:number;dogPlayTick:number;dogRestTick:number;dogFeedTick:number}) {
+ return <DogActor points={points} reactTick={barkTick} playTick={dogPlayTick} restTick={dogRestTick} feedTick={dogFeedTick}/>
 }
-function Extras({part,points,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,dogRestTick}:{part:string;points:number;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;dogPlayTick:number;dogRestTick:number}){
+function Extras({part,points,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,dogRestTick,dogFeedTick}:{dogFeedTick:number;part:string;points:number;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;dogPlayTick:number;dogRestTick:number}){
  // Moveable objects are drawn by WorldDecorations so they have one physical location.
  if(['lamp','bench','flowerbed','mailbox'].includes(part))return null
  switch(part){
@@ -146,12 +148,12 @@ function Extras({part,points,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,do
  </group>
  case 'pond':return <Pond/>
  case 'lily':return <group position={[1.6,.08,1.35]}><Ball position={[.13,.02,0]} size={.17} color="#6db56c"/><Flower x={.13} z={0} tint="#f9c6e4"/></group>
- case 'dog':return <HappyDog points={points} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick}/>
+ case 'dog':return <HappyDog points={points} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} dogFeedTick={dogFeedTick}/>
  case 'celebration':return <group>{Array.from({length:8},(_,i)=><Ball key={i} position={[Math.sin(i*2.5)*2,1.9+i*.12,Math.cos(i*2.1)*1.7]} size={.045} color="#ffe2a1"/>)}</group>
  default:return null
  }
 }
-function Appearing({id,at,points,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,dogRestTick,onInspect}:{id:string;at:number;points:number;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;dogPlayTick:number;dogRestTick:number;onInspect:(part:string)=>void}) {
+function Appearing({id,at,points,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,dogRestTick,dogFeedTick,onInspect}:{dogFeedTick:number;id:string;at:number;points:number;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;dogPlayTick:number;dogRestTick:number;onInspect:(part:string)=>void}) {
  const ref=useRef<Group>(null)
  // Keep the initial scale stable across React rerenders. A dynamic JSX scale
  // used to set it straight to 1, skipping the entire appearance animation.
@@ -166,11 +168,11 @@ function Appearing({id,at,points,doorOpen,lightsOn,treeShake,barkTick,dogPlayTic
   group.scale.set(next,next,next)
   group.visible=target===1 || next>.015
  })
- return <group ref={ref} scale={initialScale} visible={initialScale>.015} onClick={e=>{if(points<at||e.delta>9)return;e.stopPropagation();onInspect(id)}}><Extras part={id} points={points} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick}/></group>
+ return <group ref={ref} scale={initialScale} visible={initialScale>.015} onClick={e=>{if(points<at||e.delta>9)return;e.stopPropagation();onInspect(id)}}><Extras part={id} points={points} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} dogFeedTick={dogFeedTick}/></group>
 }
 type CameraAction={id:number;type:'reset'|'closer'|'farther'|'focus';target?:[number,number,number];distance?:number;position?:[number,number,number]}
-const cameraStart=(worldNumber:number)=>worldNumber===2?new Vector3(7.1,7.9,10.4):new Vector3(6.3,7.2,9)
-const cameraTarget=(worldNumber:number)=>new Vector3(0,worldNumber===2?2.8:.55,0)
+const cameraStart=(worldNumber:number)=>worldNumber===0?new Vector3(3.5,3.2,4.5):worldNumber===2?new Vector3(7.1,7.9,10.4):new Vector3(6.3,7.2,9)
+const cameraTarget=(worldNumber:number)=>new Vector3(0,worldNumber===2?2.8:worldNumber===0?.55:.55,0)
 function WorldCameraControls({worldNumber,action}:{worldNumber:number;action:CameraAction}){
  const {camera,gl}=useThree()
  const controls=useRef<OrbitControls|null>(null)
@@ -284,14 +286,15 @@ function AdventureDecor({count,onDiscover}:{count:number;onDiscover:(label:strin
   </group>}
  </group>
 }
-function WorldScene({points,worldNumber,adventureCount,onDiscover,onInspect,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,dogRestTick,decorLayout,decorSelected,decorPreview,onDecorSelect,onDecorPlace,theme='day'}:{points:number;worldNumber:1|2;adventureCount:number;onDiscover:(label:string)=>void;onInspect:(part:string)=>void;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;dogPlayTick:number;dogRestTick:number;decorLayout:DecorLayout;decorSelected:DecorId|null;decorPreview:{x:number;z:number;rotation:number;valid:boolean}|null;onDecorSelect:(id:DecorId)=>void;onDecorPlace:(x:number,z:number)=>void;theme?:'day'|'night'}) {
+function WorldScene({points,worldNumber,adventureCount,onDiscover,onInspect,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,dogRestTick,decorLayout,decorSelected,decorPreview,onDecorSelect,onDecorPlace,theme='day',weather='sun',squirrelAction='',squirrelTick=0,dogFeedTick=0}:{weather?:Weather;squirrelAction?:string;squirrelTick?:number;dogFeedTick?:number;points:number;worldNumber:1|2;adventureCount:number;onDiscover:(label:string)=>void;onInspect:(part:string)=>void;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;dogPlayTick:number;dogRestTick:number;decorLayout:DecorLayout;decorSelected:DecorId|null;decorPreview:{x:number;z:number;rotation:number;valid:boolean}|null;onDecorSelect:(id:DecorId)=>void;onDecorPlace:(x:number,z:number)=>void;theme?:'day'|'night'}) {
  const island=useRef<Group>(null)
  useFrame(({clock})=>{if(island.current)island.current.position.y=Math.sin(clock.elapsedTime*.7)*.045})
- return <><color attach="background" args={[theme==='night'?'#11294c':'#87ddf4']}/><ambientLight intensity={theme==='night'?0.6:0.72}/><hemisphereLight args={[theme==='night'?'#839ccf':'#e6f8ff',theme==='night'?'#335d64':'#75b86e',theme==='night'?0.68:0.95]}/><directionalLight position={[-4,9,6]} color={theme==='night'?'#c6daff':'#ffffff'} intensity={theme==='night'?1.2:2.15} castShadow shadow-mapSize={[512,512]}/>
+ return <><color attach="background" args={[theme==='night'?'#11294c':weather==='rain'?'#849bad':'#87ddf4']}/><ambientLight intensity={theme==='night'?0.6:0.72}/><hemisphereLight args={[theme==='night'?'#839ccf':'#e6f8ff',theme==='night'?'#335d64':'#75b86e',theme==='night'?0.68:0.95]}/><directionalLight position={[-4,9,6]} color={theme==='night'?'#c6daff':'#ffffff'} intensity={theme==='night'?1.2:weather==='rain'?.95:2.15} castShadow shadow-mapSize={[512,512]}/>
  <group ref={island}>
   <Block position={[0,-.34,0]} size={[5.8,.67,4.5]} color="#9d623f" round={.39}/>
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
-  {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} onInspect={onInspect}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points} doorOpen={doorOpen} lightsOn={lightsOn} onInspect={index=>onInspect('treehouse-'+index)}/>)}
+  {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} dogFeedTick={dogFeedTick} onInspect={onInspect}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points} doorOpen={doorOpen} lightsOn={lightsOn} petAction={squirrelAction} petTick={squirrelTick} onInspect={index=>onInspect('treehouse-'+index)}/>)}
+  <LivingAtmosphere weather={weather} sky={theme} world={worldNumber} points={points}/>
   {worldNumber===1&&<AdventureDecor count={adventureCount} onDiscover={onDiscover}/>}
   <WorldDecorations world={worldNumber} points={points} layout={decorLayout} selected={decorSelected} lightsOn={lightsOn} onSelect={onDecorSelect}/>
   {decorSelected&&<>
@@ -393,6 +396,12 @@ export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoint
   setDecorSelected(null);setDecorPreview(null)
   setDecorMessage('↺ Предмет возвращён на первоначальное место.')
  }
+ const living=useLivingSettings('moymir-living:'+decorOwnerId+':'+worldNumber,theme)
+ const room=useRoom('moymir-room:'+decorOwnerId+':'+worldNumber)
+ const [roomOpen,setRoomOpen]=useState(false)
+ const [squirrelAction,setSquirrelAction]=useState('')
+ const [squirrelTick,setSquirrelTick]=useState(0)
+ const [dogFeedTick,setDogFeedTick]=useState(0)
  const[doorOpen,setDoorOpen]=useState(false)
  const[lightsOn,setLightsOn]=useState(false)
  const[treeShake,setTreeShake]=useState(0)
@@ -413,11 +422,14 @@ export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoint
  const greetDog=()=>{setBarkTick(i=>i+1);setDogActivity('Гав-гав! Собачка рада тебя видеть!');playDogBark(soundEnabled);reactToAction('🤖 Наш пёс радуется, когда ты его гладишь!')}
  const playDog=()=>{setDogPlayTick(i=>i+1);setDogActivity('Собачка догоняет мячик и радостно виляет хвостом!');reactToAction('🤖 Смотри, как наш пёс играет с мячиком!')}
  const restDog=()=>{setDogRestTick(i=>i+1);setDogActivity('Собачка прилегла отдохнуть. Тсс, не мешаем!');reactToAction('🤖 Наш дружок устал. Пусть немного отдохнёт!')}
+ const feedDog=()=>{setDogFeedTick(i=>i+1);reactToAction('🐶 Собачка с удовольствием ест корм!')}
+ const actSquirrel=(action:string)=>{setSquirrelAction(action);setSquirrelTick(i=>i+1);reactToAction(action==='feed'?'🐿️ Белочка грызёт орешек!':action==='play'?'🐿️ Белочка радостно прыгает!':'🐿️ Белочка остановилась и машет хвостиком.')}
  const[cameraAction,setCameraAction]=useState<CameraAction>({id:0,type:'reset'})
  const doCamera=(type:CameraAction['type'],target?:[number,number,number],distance?:number,position?:[number,number,number])=>setCameraAction(prev=>({id:prev.id+1,type,target,distance,position}))
  const peekInside=()=>{if(!doorOpen){setDoorOpen(true);reactToAction('🤖 За дверью настоящая комната. Посмотри внутрь!')}const tree=worldNumber===2;doCamera('focus',tree?[.70,3.51,-.24]:[.38,.97,-.35],tree?3.55:3.45,tree?[.75,3.82,3.48]:[.40,1.20,3.08])}
  const doorUnlocked=points>=(worldNumber===1?600:700)
  const lightsUnlocked=points>=(worldNumber===1?650:750)
+ const openRoom=()=>{setRoomOpen(true);setSelected(null);setDecorSelected(null);setDecorPreview(null);setLightsOn(true);setCameraAction(prev=>({id:prev.id+1,type:'reset'}))}
  const inspect=(part:string)=>{
   const movable=DECOR_SPECS[decorWorld].find(spec=>spec.id===part)
   const at=movable?decorPosition(decorWorld,decorLayout,movable.id):null
@@ -447,7 +459,11 @@ export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoint
  }
  const unlocked=unlockedWorldObjects(points)
  const next=nextWorldObject(points)
- return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><div className="world3d-camera-buttons" role="group" aria-label="Управление камерой 3D-мира"><button type="button" onClick={()=>doCamera('farther')} aria-label="Отдалить 3D-мир" title="Отдалить">−</button><button type="button" onClick={()=>doCamera('closer')} aria-label="Приблизить 3D-мир" title="Приблизить">+</button><button type="button" onClick={()=>doCamera('reset')} aria-label="Вернуть первоначальный вид 3D-мира" title="Вернуть вид">↺</button><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран" title="На весь экран">⛶</button></div></div><p className="world3d-gesture-hint">Проведи пальцем, чтобы повернуть · два пальца для масштаба · двойное касание для сброса</p><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><WorldCameraControls worldNumber={worldNumber} action={cameraAction}/><WorldScene points={points} worldNumber={decorWorld} adventureCount={adventureCount} onDiscover={setStoryMessage} onInspect={inspect} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} decorLayout={decorLayout} decorSelected={decorSelected} decorPreview={decorPreview} onDecorSelect={id=>decorSelected?chooseDecoration(id):inspect(id)} onDecorPlace={placeDecoration} theme={theme}/></Canvas></Suspense><MiroRobot worldPoints={earnedPoints} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId} announcement={miroGreeting} announcementId={announcementId}/></div>
+ return <div ref={panelRef} className="world3d-panel"><div className="world3d-toolbar"><span>{worldNumber===1?'3D-поляна':'3D-домик на дереве'}</span><div className="world3d-camera-buttons" role="group" aria-label="Управление камерой 3D-мира"><button type="button" onClick={()=>doCamera('farther')} aria-label="Отдалить 3D-мир" title="Отдалить">−</button><button type="button" onClick={()=>doCamera('closer')} aria-label="Приблизить 3D-мир" title="Приблизить">+</button><button type="button" onClick={()=>doCamera('reset')} aria-label="Вернуть первоначальный вид 3D-мира" title="Вернуть вид">↺</button><button type="button" onClick={()=>void toggleFullscreen()} aria-label="Развернуть 3D-мир на весь экран" title="На весь экран">⛶</button></div></div><p className="world3d-gesture-hint">Проведи пальцем, чтобы повернуть · два пальца для масштаба · двойное касание для сброса</p>{!preview&&<SkyControls mode={living.mode} setMode={living.setMode} weather={living.weather} setWeather={living.setWeather}/>}
+ {roomOpen?<><div className="world3d-viewport living-room-viewport"><Canvas camera={{position:[3.5,3.2,4.5],fov:42}} dpr={[1,1.25]}><color attach="background" args={[living.sky==='night'?'#20354f':'#d1e9dc']}/><ambientLight intensity={lightsOn?1.2:.45}/><directionalLight position={[3,5,3]} intensity={lightsOn?2:.65}/><WorldCameraControls worldNumber={0} action={cameraAction}/><RoomScene layout={room.layout} selected={room.selected} onSelect={room.setSelected} lights={lightsOn} world={decorWorld}/></Canvas></div><RoomControls room={room} lights={lightsOn} onLight={toggleLights} onClose={()=>{setRoomOpen(false);doCamera('reset')}}/></>:<><div className="world3d-viewport"><Suspense fallback={<div className="world3d-loading">Создаём поляну…</div>}><Canvas shadows camera={{position:worldNumber===2?[7.1,7.9,10.4]:[6.3,7.2,9],fov:worldNumber===2?35:37,near:.1,far:100}} dpr={[1,1.25]} gl={{alpha:false,antialias:true}}><WorldCameraControls worldNumber={worldNumber} action={cameraAction}/><WorldScene points={points} worldNumber={decorWorld} adventureCount={adventureCount} onDiscover={setStoryMessage} onInspect={inspect} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} decorLayout={decorLayout} decorSelected={decorSelected} decorPreview={decorPreview} onDecorSelect={id=>decorSelected?chooseDecoration(id):inspect(id)} onDecorPlace={placeDecoration} theme={living.sky} weather={living.weather} squirrelAction={squirrelAction} squirrelTick={squirrelTick} dogFeedTick={dogFeedTick}/></Canvas></Suspense><MiroRobot worldPoints={earnedPoints} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId} announcement={miroGreeting} announcementId={announcementId}/></div>
+ {!preview&&doorUnlocked&&<div className="living-controls"><button type="button" onClick={openRoom}>🏡 Войти в комнату</button></div>}
+ {!preview&&worldNumber===1&&points>=120&&<PetActions name="🐶 Моя собачка"><button onClick={greetDog}>Погладить</button><button onClick={feedDog}>🍖 Покормить</button><button onClick={playDog}>🎾 Играть</button><button onClick={restDog}>Отдохнуть</button></PetActions>}
+ {!preview&&worldNumber===2&&points>=80&&<PetActions name="🐿️ Моя белочка"><button onClick={()=>actSquirrel('pet')}>Погладить</button><button onClick={()=>actSquirrel('feed')}>🌰 Покормить</button><button onClick={()=>actSquirrel('play')}>Играть</button></PetActions>}
  {dogSpeech&&<p className="world3d-dog-speech" role="status">{dogActivity||'Собачка рада тебя видеть!'}</p>}
  {!preview&&<details className="world3d-decoration-editor" aria-label="Украсить 3D-остров"><summary>🎨 Украсить мой остров</summary>
   <p>Выбери предмет, коснись травы для примерки и нажми «Подтвердить место». Оставь свободными проходы, домик и пруд. Перестановка бесплатная.</p>
@@ -465,6 +481,7 @@ export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoint
  {selected&&<section className="world3d-inspect" aria-label="Осмотр постройки"><div className="world3d-inspect-head"><div><strong>{selected.title}</strong><span>{selected.subtitle}</span></div><button type="button" onClick={()=>{setSelected(null);doCamera('reset')}} aria-label="Закрыть осмотр и вернуться к общему виду">×</button></div><p>{selected.description}</p><div className="world3d-inspect-actions"><button type="button" onClick={()=>doCamera('focus',selected.target,selected.distance)}>🔎 Приблизить</button>{doorUnlocked&&['home','door','light'].includes(selected.kind)&&<button type="button" onClick={toggleDoor}>{doorOpen?'🚪 Закрыть дверь':'🚪 Открыть дверь'}</button>}{lightsUnlocked&&['home','door','light'].includes(selected.kind)&&<button type="button" onClick={toggleLights}>{lightsOn?'💡 Выключить свет':'💡 Включить свет'}</button>}{selected.kind==='dog'&&<><button type="button" onClick={greetDog}>🐾 Погладить собачку</button><button type="button" onClick={playDog}>🎾 Играть с мячиком</button><button type="button" onClick={restDog}>😴 Дать отдохнуть</button></>}{doorUnlocked&&['home','door'].includes(selected.kind)&&<button type="button" onClick={peekInside}>👀 Заглянуть внутрь</button>}<button type="button" onClick={()=>doCamera('reset')}>↺ Общий вид</button></div></section>}
  {worldNumber===1&&adventureCount>0&&<div className="world3d-adventures"><strong>🌱 Постройки истории</strong><span>{adventureCount>=1?'🌻 Цветник':null}{adventureCount>=4?' · 📚 Читальный уголок':null}{adventureCount>=10?' · 🏮 Фонарик друзей':null}</span><button type="button" onClick={()=>setStoryMessage('За прохождение истории на полянке появились новые предметы. Нажми на них в 3D-мире!')}>Исследовать</button></div>}
  {storyMessage&&<div className="world3d-story-message" role="status">{storyMessage}<button onClick={()=>setStoryMessage('')} aria-label="Закрыть подсказку">×</button></div>}
+ </>}
  {preview?<p className="world3d-next">🔒 Осмотр будущего мира. Строительство откроется после перехода.</p>:<><div className="world3d-bottom"><span>{worldNumber===1?'🏡 Домик на поляне':'🌳 Домик на дереве'} · {unlocked.length}/30 открыто</span><strong>{Math.min(points,WORLD_01_END)} / {WORLD_01_END} ✨</strong></div>
  <div className="world3d-track"><div style={{width:Math.min(100,points/WORLD_01_END*100)+'%'}}/></div>
  <p className="world3d-next">{next ? 'Следующее открытие: '+(worldNumber===1?next.title:TREEHOUSE_STAGES[unlocked.length])+' · '+next.at+' баллов' : '🎉 Мир завершён! Все элементы открыты.'}</p></>}
