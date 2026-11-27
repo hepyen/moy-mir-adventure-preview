@@ -21,6 +21,7 @@ const remoteWakeQA=process.env.QA_FOCUS==='remote-wake';
 const livingWorldQA=process.env.QA_FOCUS==='living-world';
 const adventureQA=process.env.QA_FOCUS==='adventure';
 const combinedQA=process.env.QA_FOCUS==='education-family';
+const optimizationQA=process.env.QA_FOCUS==='optimization-checkin';
 const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -120,6 +121,7 @@ async function run(role,browser){
   {id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child,active:true},
   {id:'77777777-7777-4777-8777-777777777777',title:'Неиспользуемое дело',points:7,assigned_child:ids.child,active:false}
  ]:null;
+ let checkin=optimizationQA&&role==='parent'?{share_id:'qa-share',latitude:0,longitude:0,accuracy_m:25,measured_at:new Date().toISOString(),received_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString()}:null;
  let calendarRows=[{id:'qa-cal-1',title:'Семейная прогулка',event_date:today,event_time:'17:00',category:'family',note:''}];
  let taskSerial=0;let choreDecision=null;
  let dailyTemplates=taskManagementQA?[
@@ -130,7 +132,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA||optimizationQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -165,6 +167,9 @@ async function run(role,browser){
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
   if(url.pathname.includes('/functions/v1/moymir2-miro-ai'))return resp({answer:'Hello! Let us practise English. What do you like to do after school?'});
   if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});
+    if(name==='moymir_location_checkin'){const b=request.postDataJSON();checkin={share_id:'qa-share',latitude:b.p_lat,longitude:b.p_lon,accuracy_m:b.p_accuracy,measured_at:b.p_measured,received_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString()};return resp('qa-share')}
+    if(name==='moymir_location_stop'){checkin=null;return resp(true)}
+
     if(name==='moymir_wake_status')return resp(remoteWakeQA?wakeState:null);
     if(name==='moymir_wake_send'){wakeState={id:wakeId,created_at:new Date().toISOString(),state:'sent'};return resp(wakeId)}
     if(name==='moymir_wake_claim'){if(remoteWakeQA&&role==='child'&&['sent','received'].includes(wakeState?.state)){wakeState.state='received';return resp(wakeId)}return resp(null)}
@@ -409,6 +414,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   }
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
+  if(name==='moymir_location_share')return resp(checkin?[checkin]:[]);
   let data=[];
   switch(name){
    case 'moymir_school_lessons':data=syntheticLessons;break;
@@ -445,12 +451,46 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   }
   await resp(data,request.headers()['accept']?.includes('vnd.pgrst.object')||false)
  });
+ if(optimizationQA){await ctx.grantPermissions(['geolocation']);await ctx.setGeolocation({latitude:0,longitude:0,accuracy:25})}
  const page=await ctx.newPage();page.on('pageerror',e=>counters.errors.push(e.message));
  const check=(label,pass,details='')=>{console.log((pass?'PASS':'FAIL'),role,label,details);if(!pass)failures++};
  try{
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(optimizationQA){
+  await page.getByRole('button',{name:'Экономить заряд'}).click();
+  check('2D economy mode removes canvas',await page.getByLabel('Упрощённый режим игрового мира').count()===1&&await page.locator('canvas').count()===0);
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByRole('button',{name:'Включить 3D'}).waitFor();
+  check('economy preference persists',await page.getByLabel('Упрощённый режим игрового мира').count()===1);
+  await page.getByRole('button',{name:'Включить 3D'}).click();
+  await page.locator('canvas').waitFor({timeout:15000});
+  check('3D restored',await page.locator('canvas').count()>0);
+  await page.locator('.mw-bottom').getByRole('button',{name:/Учёба/}).click();
+  await page.getByLabel('Учебные приключения').waitFor();
+  check('lazy school route loads',true);
+  await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  const geo=page.getByLabel('Семейная геолокация');
+  await geo.waitFor();
+  if(role==='parent'){
+   await geo.getByText('📍 Позиция отправлена',{exact:true}).waitFor();
+   check('manual point visible with accuracy',await geo.getByText(/погрешность ±25 м/).count()===1);
+   check('map is opt-in',await geo.locator('iframe').count()===0);
+   check('parent cannot submit',await geo.getByRole('button',{name:'Определить мою позицию'}).count()===0);
+  }else{
+   await geo.getByRole('button',{name:'Определить мою позицию'}).click();
+   await geo.getByRole('button',{name:'Отправить родителям'}).waitFor();
+   check('no submission before explicit send',!counters.rpc.some(x=>x.name==='moymir_location_checkin'));
+   await geo.getByRole('button',{name:'Отправить родителям'}).click();
+   await geo.getByText('Позиция отправлена родителям на 15 минут.').waitFor();
+   check('explicit checkin sent',counters.rpc.filter(x=>x.name==='moymir_location_checkin').length===1);
+   await geo.getByRole('button',{name:'Отозвать позицию'}).click();
+   await geo.getByText('Позиция больше недоступна родителям.').waitFor();
+   check('child revokes checkin',await geo.getByRole('button',{name:'Отозвать позицию'}).count()===0);
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(combinedQA){
   await page.locator('.mw-bottom').getByRole('button',{name:/Учёба/}).click();
   const edu=page.getByLabel('Учебные приключения');

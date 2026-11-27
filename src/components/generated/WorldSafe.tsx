@@ -2,7 +2,7 @@ import React,{Component,useMemo,useState} from 'react';
 import {MiroRobot} from '../../legacyWorld/MiroRobot';
 import './WorldSafe.css';
 function canUseWebGL():boolean{
- try{const canvas=document.createElement('canvas');return !!(canvas.getContext('webgl2')||canvas.getContext('webgl'))}catch{return false}
+ try{const canvas=document.createElement('canvas');const gl=canvas.getContext('webgl2')||canvas.getContext('webgl');if(!gl)return false;gl.getExtension('WEBGL_lose_context')?.loseContext();return true}catch{return false}
 }
 function WorldFallback({worldNumber,points,spiritualPoints,soundEnabled,userId}:{worldNumber:1|2|3|4;points:number;spiritualPoints:number;soundEnabled:boolean;userId:string}){
  const ratio=Math.min(100,Math.max(0,points/1600*100));
@@ -14,7 +14,7 @@ function WorldFallback({worldNumber,points,spiritualPoints,soundEnabled,userId}:
    <div className="mw-world-fallback-miro"><MiroRobot worldPoints={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/></div>
   </div>
   <div className="mw-world-fallback-meter"><span style={{width:ratio+'%'}}/></div>
-  <p><strong>{points} / 1600 очков</strong> · Постройки и достижения сохраняются. Объёмная графика недоступна на этом устройстве.</p>
+  <p><strong>{points} / 1600 очков</strong> · Постройки и достижения сохраняются. Упрощённая графика; верни 3D, если устройство поддерживает её.</p>
  </section>;
 }
 class RendererBoundary extends Component<{children:React.ReactNode;worldNumber:1|2|3|4;points:number;spiritualPoints:number;soundEnabled:boolean;userId:string},{error:boolean}>{
@@ -25,7 +25,8 @@ class RendererBoundary extends Component<{children:React.ReactNode;worldNumber:1
 }
 export function WorldSafe({worldNumber,points,spiritualPoints,soundEnabled,userId='guest',children}:{worldNumber:1|2|3|4;points:number;spiritualPoints:number;soundEnabled:boolean;userId?:string;children:React.ReactNode}){
  const [allowed]=useState(canUseWebGL);
- const key=useMemo(()=>worldNumber+':'+(allowed?'3D':'2D'),[allowed,worldNumber]);
- if(!allowed)return <WorldFallback worldNumber={worldNumber} points={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/>;
- return <RendererBoundary key={key} worldNumber={worldNumber} points={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}>{children}</RendererBoundary>;
+ const [economy,setEconomy]=useState(()=>{try{return localStorage.getItem('moymir-world-economy')==='1'}catch{return false}});
+ const key=useMemo(()=>worldNumber+':'+(allowed&&!economy?'3D':'2D'),[allowed,worldNumber,economy]);
+ function toggle(){const v=!economy;setEconomy(v);try{localStorage.setItem('moymir-world-economy',v?'1':'0')}catch{}}
+ return <><div className="mw-render-mode"><span>{!allowed?'3D недоступно':economy?'Экономичный режим · 2D':'Обычный режим · 3D'}</span>{allowed&&<button type="button" aria-pressed={economy} onClick={toggle}>{economy?'Включить 3D':'Экономить заряд'}</button>}</div>{!allowed||economy?<WorldFallback worldNumber={worldNumber} points={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}/>:<RendererBoundary key={key} worldNumber={worldNumber} points={points} spiritualPoints={spiritualPoints} soundEnabled={soundEnabled} userId={userId}>{children}</RendererBoundary>}</>;
 }

@@ -7,7 +7,7 @@ import {Fragment,useEffect,useMemo,useState} from 'react';
 import type {useFamilyCloud} from '../lib/useFamilyCloud';
 import type {SchoolPrefs} from './useSchool';
 import {useSchool} from './useSchool';
-import {askReminderPermission,getReminderStatus,syncReminders} from './reminders';
+import type {useSchoolNotificationSync} from './useSchoolNotificationSync';
 import './SchoolHub.css';
 type Cloud=ReturnType<typeof useFamilyCloud>;
 type School=ReturnType<typeof useSchool>;
@@ -15,27 +15,6 @@ const DAYS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'
 const WEEK=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 function localDay(){const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).formatToParts(new Date());const obj=Object.fromEntries(p.map(x=>[x.type,x.value]));return {iso:`${obj.year}-${obj.month}-${obj.day}`,weekday:new Date(`${obj.year}-${obj.month}-${obj.day}T12:00:00`).getDay()}}
 function deadlineDate(add:number){const d=new Date();d.setDate(d.getDate()+add);return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Madrid',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
-export function useSchoolNotificationSync(school:School,cloud:Cloud){
- const[notice,setNotice]=useState('');const[allowed,setAllowed]=useState(false);
- const loaded=!!cloud.session&&cloud.role==='child'&&!!cloud.childId;
- const key=useMemo(()=>JSON.stringify({uid:cloud.session?.user.id,lessons:school.lessons.map(x=>[x.weekday,x.lesson_order,x.subject]),prefs:school.prefs}),[cloud.session?.user.id,school.lessons,school.prefs]);
- useEffect(()=>{if(!loaded||school.loading||school.error)return;let active=true;
-  void getReminderStatus().then(async state=>{
-   if(!active)return;setAllowed(state.allowed);
-   if(!state.available||!state.allowed)return;
-   const localKey='moymir29-reminders-'+cloud.session?.user.id;
-   let prev='';try{prev=localStorage.getItem(localKey)||''}catch{}
-   if(prev===key&&state.pending>0)return;
-   const out=await syncReminders(school.lessons,school.prefs,cloud.session?.user.id||'');
-   if(!active)return;if(out.error)setNotice(out.error);else {setNotice('Напоминания на этом телефоне настроены ✓');try{localStorage.setItem(localKey,key)}catch{}}
-  });return()=>{active=false};
- },[loaded,school.loading,school.error,key,cloud.session?.user.id,school.lessons,school.prefs]);
- async function enable(){try{const ok=await askReminderPermission();setAllowed(ok);if(!ok){setNotice('Разреши уведомления для «Моего Мира» в настройках Android');return}
-  const r=await syncReminders(school.lessons,school.prefs,cloud.session?.user.id||'');setNotice(r.error||`Запланировано ${r.pending} напоминаний на этом телефоне ✓`);
-  if(!r.error)try{localStorage.setItem('moymir29-reminders-'+cloud.session?.user.id,key)}catch{}
- }catch(e){setNotice(e instanceof Error?e.message:'Не удалось разрешить уведомления')}}
- return {allowed,notice,enable};
-}
 export function SchoolHub({cloud,school,reminders,onAskMiro}:{cloud:Cloud;school:School;reminders:ReturnType<typeof useSchoolNotificationSync>;onAskMiro:(question:string)=>void}){
  const today=localDay();
  const[parentDay,setParentDay]=useState(today.weekday>=1&&today.weekday<=5?today.weekday:1),[slot,setSlot]=useState('1'),[subject,setSubject]=useState(''),[starts,setStarts]=useState(''),[note,setNote]=useState('');
