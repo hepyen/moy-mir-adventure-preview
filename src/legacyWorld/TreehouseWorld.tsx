@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {WeatherContext} from './LivingWorld'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Quaternion, Vector3 } from 'three'
 import type { Group } from 'three'
@@ -281,8 +282,9 @@ export function TreehousePiece({index,points,doorOpen=false,lightsOn=false,petAc
  }
 }
 export function AnimatedTreehousePiece({index,at,points,doorOpen=false,lightsOn=false,petAction,petTick,onInspect}:{petAction?:string;petTick?:number;index:number;at:number;points:number;doorOpen?:boolean;lightsOn?:boolean;onInspect?:(index:number)=>void}){
+ const weather=useContext(WeatherContext)
  const ref=useRef<Group>(null)
  const [start]=useState(()=>points>=at?1:.001)
- useFrame((_,dt)=>{if(!ref.current)return;const target=points>=at?1:.001;const value=ref.current.scale.y+(target-ref.current.scale.y)*(1-Math.exp(-Math.min(dt,.05)*3));ref.current.scale.set(value,value,value);ref.current.visible=value>.015})
+ useFrame(({clock},dt)=>{if(!ref.current)return;ref.current.rotation.z=(weather==='wind'&&index>=1&&index<=5)?-.035+Math.sin(clock.elapsedTime*2.8)*.02:0;const target=points>=at?1:.001;const value=ref.current.scale.y+(target-ref.current.scale.y)*(1-Math.exp(-Math.min(dt,.05)*3));ref.current.scale.set(value,value,value);ref.current.visible=value>.015})
  return <group ref={ref} scale={start} visible={start>.015} onClick={e=>{if(points<at||e.delta>9)return;e.stopPropagation();onInspect?.(index)}}><TreehousePiece index={index} points={points} doorOpen={doorOpen} lightsOn={lightsOn} petAction={petAction} petTick={petTick}/></group>
 }

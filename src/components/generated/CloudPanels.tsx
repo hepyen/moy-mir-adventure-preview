@@ -192,7 +192,7 @@ export function CloudShop({cloud,section="catalog"}:{cloud:Cloud;section?:string
 </>}
  </>;
 }
-export function CloudSpiritual({cloud,section="today",onDailyText}:{cloud:Cloud;section?:string;onDailyText?:()=>void}){
+export function CloudSpiritual({cloud,section="today",onDailyText,onBibleJourney}:{cloud:Cloud;section?:string;onDailyText?:()=>void;onBibleJourney?:()=>void}){
  const stage=spiritualStage(cloud.spiritualPoints);
  const [request,setRequest]=useState(''),[points,setPoints]=useState('10');
  return <><section className="mw-greeting"><div className="mw-eyebrow">МОЙ ДУХОВНЫЙ РОСТ</div><h1>🌾 Духовный рост</h1><p>Отдельный прогресс. Он не расходуется в магазине и не уменьшается из-за дисциплинарных мер.</p></section>
@@ -201,7 +201,8 @@ export function CloudSpiritual({cloud,section="today",onDailyText}:{cloud:Cloud;
  {section==="qualities"&&<GrowthFocus cloud={cloud}/>}
  {section==="bible"&&<BibleJourney key={cloud.session?.user.id} userId={cloud.session?.user.id||"guest"} readonly={cloud.role!=="child"}/>}
  {section==="quiz"&&<PioneerSection cloud={cloud}/>}
- {section==="today"&&<> <h3 className="mw-cloud-heading">Библейские занятия</h3>
+ {section==="today"&&<>
+ {onBibleJourney&&<button className="mw-primary" onClick={onBibleJourney}>⛵ Отправиться в путешествие Павла</button>} <h3 className="mw-cloud-heading">Библейские занятия</h3>
  {spiritualSteps.map(x=>{const done=cloud.spiritual.some(r=>r.step_id===x.id&&r.activity_date===day()&&(x.id!=='daily-text'||Number(r.points)>=10));return <div className="mw-chore" key={x.id}><div className="mw-task-emoji">{x.icon}</div><div className="mw-task-body"><strong>{x.title}</strong><small>{done?'✓ Сегодня отмечено':x.rhythm==='daily'?'Ежедневное занятие':'По возможности'}</small></div><div className="mw-task-right"><b>+{x.points} ✨</b>{cloud.role==='child'&&(x.id==='daily-text'?<button type='button' className='mw-read-quicklink' onClick={()=>{if(onDailyText)onDailyText();else document.querySelector('.daily-reader')?.scrollIntoView({behavior:'smooth',block:'start'})}}>{done?'✓ Прочитано':'Читать'}</button>:<Action run={()=>cloud.rpc(done?'unmark_spiritual_activity':'mark_spiritual_activity',{p_family:cloud.familyId,p_date:day(),p_step:x.id})}>{done?'Отменить':'Отметить'}</Action>)}</div></div>})}
 </>}
  {section==="requests"&&<> {cloud.role==='child'&&<section className="mw-panel mw-cloud-form"><h3>💡 Предложить дополнительные духовные очки</h3><form onSubmit={e=>{e.preventDefault();void cloud.rpc('request_spiritual_points',{p_family:cloud.familyId,p_title:request,p_points:Number(points)}).then(()=>setRequest('')).catch(e=>alert(e.message))}}><input required maxLength={160} minLength={3} placeholder="Что я сделал?" value={request} onChange={e=>setRequest(e.target.value)}/><input type="number" min={1} max={100} required value={points} onChange={e=>setPoints(e.target.value)}/><button type="submit">Отправить родителю</button></form></section>}

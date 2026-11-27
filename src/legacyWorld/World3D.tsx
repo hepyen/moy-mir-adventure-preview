@@ -1,5 +1,5 @@
 import {CanvasLifecycle} from './CanvasLifecycle'
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
@@ -18,7 +18,7 @@ import {DECOR_SPECS,decorPosition,layoutStorageKey,readDecorLayout,saveDecorLayo
 import type {DecorId,DecorLayout} from './worldDecor'
 import {meadowSpot,treehouseSpot,TREEHOUSE_BUILD_ORDER} from './worldSpots'
 import type {WorldSpot} from './worldSpots'
-import {LivingAtmosphere,SkyControls,useLivingSettings,RoomScene,RoomControls,useRoom,PetActions} from './LivingWorld'
+import {WeatherContext,LivingAtmosphere,SkyControls,useLivingSettings,RoomScene,RoomControls,useRoom,PetActions} from './LivingWorld'
 import type {Weather} from './LivingWorld'
 import {AdventureScene,AdventureFocus} from './AdventureScene'
 import type {AdventureView} from './AdventureHub'
@@ -42,27 +42,29 @@ function Flower({x,z,tint='#ff69a2'}:{x:number;z:number;tint?:string}) {
  })}<Ball position={[0,.29,0]} size={.08} color="#ffe39a"/></group>
 }
 function Tree({part,shake=0}:{part:string;shake?:number}) {
- const crown=useRef<Group>(null)
+ const weather=useContext(WeatherContext)
+ const crown=useRef<Group>(null),fruit=useRef<Group>(null),fall=useRef(0)
  const shaking=useRef(0)
  useEffect(()=>{if(shake>0&&part==='crown')shaking.current=2},[shake,part])
  useFrame(({clock},dt)=>{
+  if(fruit.current){fall.current=weather==='wind'?Math.min(1,fall.current+dt*.65):0;fruit.current.children.forEach((a,i)=>{a.position.y=-Math.min([1.9,2.42,1.99,1.61,2.67,2.23][i],fall.current*fall.current*3);a.position.x=fall.current*(.3+i*.05)})}
   if(!crown.current)return
   shaking.current=Math.max(0,shaking.current-dt)
-  crown.current.rotation.z=shaking.current>0?Math.sin(clock.elapsedTime*11)*.09*(shaking.current/2):0
+  crown.current.rotation.z=weather==='wind'?-.11+Math.sin(clock.elapsedTime*3)*.045:shaking.current>0?Math.sin(clock.elapsedTime*11)*.09*(shaking.current/2):0
  })
  const x=-1.35,z=-.54
  return <group position={[x,0,z]}>
  {part==='sprout'&&<><Block position={[0,.14,0]} size={[.06,.28,.07]} color="#589e4e"/><Ball position={[-.11,.29,0]} size={.14} color="#7dc06b"/></>}
  {part==='trunk'&&<><mesh position={[0,.92,0]} castShadow><cylinderGeometry args={[.18,.3,1.85,10]}/><meshStandardMaterial color="#a96b42"/></mesh><Block position={[.3,1.25,0]} size={[.6,.18,.2]} rotation={[0,0,-.48]} color="#a96b42"/></>}
  {part==='crown'&&<group ref={crown}>{[[-.52,2.1,0,.62],[0,2.55,0,.76],[.55,2.17,0,.63],[0,1.95,.4,.55]].map(([a,b,c,r],i)=><Ball key={i} position={[a,b,c]} size={r} color={['#289f49','#39bc55','#218c42','#5fcf62'][i]}/>)}</group>}
- {part==='apples'&&[
+ {part==='apples'&&<group ref={fruit}>{[
  [-.70,2.08,.58],[.29,2.59,.79],[.78,2.16,.53],
  [-.12,1.78,.88],[-.37,2.84,.63],[.58,2.40,.75],
  ].map(([a,b,c],i)=><group key={i}>
   <Ball position={[a,b,c]} size={.165} color={i%2?'#f73c31':'#e82325'}/>
   <Block position={[a+.018,b+.175,c]} size={[.035,.08,.035]} color="#73512d" round={.01}/>
   <Ball position={[a+.075,b+.183,c]} size={.055} color="#4ba947"/>
- </group>)}
+ </group>)}</group>}
  </group>
 }
 function HingedDoor({opened}:{opened:boolean}){
@@ -110,8 +112,9 @@ function House({part,doorOpen=false,lightsOn=false}:{part:string;doorOpen?:boole
  </group>
 }
 function Smoke() {
+ const weather=useContext(WeatherContext)
  const ref=useRef<Group>(null)
- useFrame(({clock})=>{if(ref.current)ref.current.position.y=Math.sin(clock.elapsedTime*.8)*.16})
+ useFrame(({clock})=>{if(ref.current){ref.current.position.y=Math.sin(clock.elapsedTime*.8)*.16;ref.current.children.forEach((o,i)=>{o.position.x=1.25+i*.08+(weather==='wind'?i*.34:0)})}})
  return <group ref={ref}>{[0,1,2].map(i=><Ball key={i} position={[1.25+i*.08,3.2+i*.34,-.6]} size={.14+i*.055} color="#f5f8f4"/>)}</group>
 }
 function Pond(){
@@ -292,8 +295,8 @@ function AdventureDecor({count,onDiscover}:{count:number;onDiscover:(label:strin
 function WorldScene({points,worldNumber,adventureCount,onDiscover,onInspect,doorOpen,lightsOn,treeShake,barkTick,dogPlayTick,dogRestTick,decorLayout,decorSelected,decorPreview,onDecorSelect,onDecorPlace,theme='day',weather='sun',squirrelAction='',squirrelTick=0,dogFeedTick=0,adventure}:{adventure?:AdventureView;weather?:Weather;squirrelAction?:string;squirrelTick?:number;dogFeedTick?:number;points:number;worldNumber:1|2;adventureCount:number;onDiscover:(label:string)=>void;onInspect:(part:string)=>void;doorOpen:boolean;lightsOn:boolean;treeShake:number;barkTick:number;dogPlayTick:number;dogRestTick:number;decorLayout:DecorLayout;decorSelected:DecorId|null;decorPreview:{x:number;z:number;rotation:number;valid:boolean}|null;onDecorSelect:(id:DecorId)=>void;onDecorPlace:(x:number,z:number)=>void;theme?:'day'|'night'}) {
  const island=useRef<Group>(null)
  useFrame(({clock})=>{if(island.current)island.current.position.y=Math.sin(clock.elapsedTime*.7)*.045})
- return <><color attach="background" args={[theme==='night'?'#11294c':weather==='rain'?'#849bad':'#87ddf4']}/><ambientLight intensity={theme==='night'?0.6:0.72}/><hemisphereLight args={[theme==='night'?'#839ccf':'#e6f8ff',theme==='night'?'#335d64':'#75b86e',theme==='night'?0.68:0.95]}/><directionalLight position={[-4,9,6]} color={theme==='night'?'#c6daff':'#ffffff'} intensity={theme==='night'?1.2:weather==='rain'?.95:2.15} castShadow shadow-mapSize={[512,512]}/>
- <group ref={island}>
+ return <><color attach="background" args={[theme==='night'?'#11294c':weather==='rain'?'#849bad':weather==='snow'?'#c8dce8':'#87ddf4']}/><ambientLight intensity={theme==='night'?0.6:0.72}/><hemisphereLight args={[theme==='night'?'#839ccf':'#e6f8ff',theme==='night'?'#335d64':'#75b86e',theme==='night'?0.68:0.95]}/><directionalLight position={[-4,9,6]} color={theme==='night'?'#c6daff':'#ffffff'} intensity={theme==='night'?1.2:weather==='rain'?.95:2.15} castShadow shadow-mapSize={[512,512]}/>
+ <WeatherContext.Provider value={weather}><group ref={island}>
   <Block position={[0,-.34,0]} size={[5.8,.67,4.5]} color="#9d623f" round={.39}/>
   <Block position={[0,-.04,0]} size={[5.83,.23,4.54]} color="#53bc54" round={.26}/>
   {worldNumber===1? WORLD_01_OBJECTS.map(o=><Appearing key={o.id} id={o.id} points={points} at={o.at} doorOpen={doorOpen} lightsOn={lightsOn} treeShake={treeShake} barkTick={barkTick} dogPlayTick={dogPlayTick} dogRestTick={dogRestTick} dogFeedTick={dogFeedTick} onInspect={onInspect}/>):WORLD_01_OBJECTS.map((o,i)=><AnimatedTreehousePiece key={i} index={TREEHOUSE_BUILD_ORDER[i]} at={o.at} points={points} doorOpen={doorOpen} lightsOn={lightsOn} petAction={squirrelAction} petTick={squirrelTick} onInspect={index=>onInspect('treehouse-'+index)}/>)}
@@ -307,7 +310,7 @@ function WorldScene({points,worldNumber,adventureCount,onDiscover,onInspect,door
    </mesh>
    {decorPreview&&<PreviewDecoration id={decorSelected} at={decorPreview} valid={decorPreview.valid} lightsOn={lightsOn}/>}
   </>}
- </group>
+ </group></WeatherContext.Provider>
  </>
 }
 export function World3D({points,earnedPoints=points,worldNumber=1,spiritualPoints=0,soundEnabled=true,userId='guest',decorOwnerId=userId,decorFamilyId='',decorChildId='',adventureCount=0,theme='day',preview=false,adventure}:{adventure?:AdventureView;preview?:boolean;points:number;earnedPoints?:number;worldNumber?:number;spiritualPoints?:number;soundEnabled?:boolean;userId?:string;decorOwnerId?:string;decorFamilyId?:string;decorChildId?:string;adventureCount?:number;theme?:'day'|'night'}) {
