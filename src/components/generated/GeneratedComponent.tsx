@@ -26,6 +26,7 @@ import {UpdateCenter} from '../../features/UpdateCenter';
 import {ParentChildAccess} from '../../features/ParentChildAccess';
 import {NotificationInbox} from '../../notifications/NotificationInbox';
 import {ParentApprovals} from '../../features/ParentApprovals';
+import {ParentWake,ChildWake} from '../../alarm/RemoteWake';
 import {notificationDestination} from '../../notifications/destinations';
 import type {Destination,NotificationPayload,Tab} from '../../notifications/destinations';
 import {isSoundEnabled,playSound} from '../../features/sounds';
@@ -390,7 +391,7 @@ export const GeneratedComponent = () => {
   return <main className={"mw-root mw-theme-"+theme.resolved} data-app-theme={theme.resolved} data-app-theme-choice={theme.selection}>
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">4.4.1</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">4.4.2</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -406,6 +407,7 @@ export const GeneratedComponent = () => {
  {missingTarget&&<p className="mw-note" role="status">Эта запись уже обработана или больше не доступна.</p>}
  {tab === 'world' && <>
  <section className="mw-greeting"><div><div className="mw-eyebrow">{shownParent ? 'КАБИНЕТ РОДИТЕЛЯ' : 'ТВОЁ ПРИКЛЮЧЕНИЕ'}</div><h1>{shownParent ? 'Мир Ильи' : 'Привет, Илья! 👋'}</h1><p>{shownParent ? 'Здесь видно, как занятия превращаются в достижения.' : 'Остров меняется благодаря твоим добрым делам.'}</p></div></section>
+ {connected&&cloud.role==='parent'&&<ParentWake family={cloud.familyId} child={cloud.childId} name={cloud.childName}/>}
  {connected&&cloud.role==='parent'&&<ParentApprovals cloud={cloud} onOpen={openDestination}/>}
  {connected&&<MyDay cloud={cloud} school={school} onGo={setTab} onAskMiro={askMiro}/>}
  <button className="mw-health-shortcut" type="button" onClick={()=>setTab('health')}><span className="mw-health-heart">💚</span><span><strong>Моё здоровье</strong><small>Сон · зарядка с Миро · здоровое меню</small></span><b>Открыть →</b></button>
@@ -443,6 +445,7 @@ export const GeneratedComponent = () => {
  <div className="mw-pin-actions"><button type="button" onClick={()=>{setPinOpen(false);setPinError('')}}>Отмена</button><button type="submit">{parentPinHash?'Войти':'Создать код'}</button></div>
  <small>Это локальная защита тестовой версии, а не серверная семейная авторизация.</small>
  </form></div>}
+ {connected&&cloud.role==='child'&&<ChildWake key={cloud.session?.user.id+':'+cloud.familyId} family={cloud.familyId}/>}
  {celebration&&canAdvance&&<WorldCelebration stage={celebration} name={cloud.childName} busy={advancingWorld} error={worldAdvanceError} onAdvance={()=>void advanceWorld()} onClose={closeCelebration}/>}
  {message && <div className="mw-toast" role="status">{message}</div>}
  </div>

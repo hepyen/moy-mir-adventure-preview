@@ -17,6 +17,8 @@ const approvalQA=process.env.QA_FOCUS==='parent-approvals';
 const worldInspectQA=process.env.QA_FOCUS==='world-inspect';
 const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const threeWorldQA=process.env.QA_FOCUS==='three-worlds';
+const remoteWakeQA=process.env.QA_FOCUS==='remote-wake';
+let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
 const englishTutorQA=process.env.QA_FOCUS==='english-tutor';
@@ -158,6 +160,11 @@ async function run(role,browser){
   if(url.pathname.includes('/auth/v1/'))return resp({user:session.user});
   if(url.pathname.includes('/functions/v1/moymir2-miro-ai'))return resp({answer:'Hello! Let us practise English. What do you like to do after school?'});
   if(url.pathname.includes('/rest/v1/rpc/')){counters.rpc.push({name,body:request.postDataJSON()});
+    if(name==='moymir_wake_status')return resp(remoteWakeQA?wakeState:null);
+    if(name==='moymir_wake_send'){wakeState={id:wakeId,created_at:new Date().toISOString(),state:'sent'};return resp(wakeId)}
+    if(name==='moymir_wake_claim'){if(remoteWakeQA&&role==='child'&&['sent','received'].includes(wakeState?.state)){wakeState.state='received';return resp(wakeId)}return resp(null)}
+    if(name==='moymir_wake_reply'){wakeState.state='awake';return resp(true)}
+
     if(name==='moymir_study_heartbeat'){
      const row=englishSessions.find(x=>x.id===request.postDataJSON().p_session);
      if(!row||row.child_id!==ids.child||!row.lesson_key.startsWith('eng2:'))return resp({error:'Not allowed'});
@@ -432,6 +439,28 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(remoteWakeQA){
+  if(role==='parent'){
+   const panel=page.locator('.mw-remote-wake');
+   await panel.waitFor();
+   page.once('dialog',d=>d.accept());
+   await panel.getByRole('button',{name:'🔔 Разбудить Илью'}).click();
+   await panel.getByText(/Команда отправлена/).waitFor();
+   check('parent sends wake request and cooldown is enabled',wakeState?.state==='sent'&&await panel.getByRole('button').isDisabled());
+  }else{
+   const dialog=page.getByRole('dialog',{name:'Пора просыпаться'});
+   await page.bringToFront();
+   await dialog.waitFor({timeout:12000}).catch(async e=>{console.log('WAKE_DEBUG',wakeState,counters.rpc.filter(x=>x.name.includes('wake')),counters.errors,await page.evaluate(()=>document.visibilityState));throw e});
+   check('child receives a full screen wake prompt',wakeState?.state==='received'&&await dialog.isVisible());
+   check('child cannot see parent trigger',await page.locator('.mw-remote-wake').count()===0);
+   await dialog.getByRole('button',{name:'Выключить звук'}).click();
+   await dialog.getByRole('button',{name:'✓ Я проснулся!'}).click();
+   await dialog.waitFor({state:'detached'});
+   check('child replies to parent',wakeState?.state==='awake'&&counters.rpc.some(x=>x.name==='moymir_wake_reply'&&x.body.p_id===wakeId));
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));
+  return;
+ }
  if(threeWorldQA){
   const switcher=page.locator('.mw-worldswitch');
   const dialog=page.getByRole('dialog',{name:'Поздравление с завершением этапа'});
