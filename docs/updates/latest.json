@@ -1,13 +1,13 @@
 {
-  "version": "5.6.2",
-  "title": "Мой мир 5.6.2 · Свободная примерка Миро",
+  "version": "5.6.3",
+  "title": "Мой мир 5.6.3 · Тестовый семейный пульт",
   "notes": [
-    "Родитель может бесплатно собрать робота из всех семи категорий.",
-    "Выбранный для примерки корпус и детали сохраняются при смене вкладок.",
-    "87 проверок примерки, покупок и готовых комплектов пройдены."
+    "Тестовый пульт Samsung F в родительской копилке игрового времени.",
+    "Для связи нужен отдельный тестовый Android APK 4.4.4.",
+    "Реальный телевизор ещё не проверен; автоматической блокировки нет."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.2/MOY_MIR_5.6.2_OTA.zip",
-  "sha256": "2e247e5f9e4b519cff08fbe506cc61c880c0ce806d8b291d03edaf1aab2fafc7",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.3/MOY_MIR_5.6.3_OTA.zip",
+  "sha256": "4238921e21ceb72d57e732c3561a88e7777c019099b54fc4733b63d57394d81f",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
