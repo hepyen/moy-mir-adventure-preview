@@ -1,14 +1,14 @@
 {
-  "version": "5.6.4",
-  "title": "Мой мир 5.6.4 · Игровой таймер Samsung",
+  "version": "5.6.5",
+  "title": "Мой мир 5.6.5 · Исправление семейного календаря",
   "notes": [
-    "Родитель меняет запрошенные минуты и запускает сеанс.",
-    "Android 4.4.5 добавляет локальный таймер команды выключения телевизора.",
-    "Отсчёт в приложении, а не поверх HDMI. Реальный ТВ-таймер ещё не проверен."
+    "Кнопка «Я прочитал» сразу закрывает уведомление.",
+    "Отметка отправляется повторно после восстановления связи.",
+    "Добавлен выход «Позже», без ложной отметки о прочтении."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.4/MOY_MIR_5.6.4_OTA.zip",
-  "sha256": "7a5d03e2381ad4960c2e3a7d420b0130384c1c7b3aecde986a2f47113e00b352",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.5/MOY_MIR_5.6.5_OTA.zip",
+  "sha256": "9f8797e341252aad7577e1665c41154f160fc9909f2a8b7fbd65476d956b9de4",
   "nativeBaseVersion": "3.3.0",
-  "required": false,
+  "required": true,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
 }
