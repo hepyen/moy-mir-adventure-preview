@@ -1,3 +1,4 @@
+import {LearningAdventures} from '../education/LearningAdventures';
 import {BackpackAssistant} from './BackpackAssistant';
 import {GeographySection} from '../geography/GeographyGame';
 import {EnglishTutorEntry} from '../english/EnglishTutor';
@@ -50,6 +51,7 @@ export function SchoolHub({cloud,school,reminders,onAskMiro}:{cloud:Cloud;school
  async function action(work:()=>Promise<unknown>){setBusy(true);setError('');try{await work();setNotice('Сохранено ✓')}catch(e){setError(e instanceof Error?e.message:'Не удалось сохранить')}finally{setBusy(false)}}
  return <>
  <section className="mw-greeting"><div className="mw-eyebrow">МОЯ ШКОЛА</div><h1>📚 Учёба</h1><p>Уроки, домашние задания и помощь Миро. Расписание заполняется вручную и сохраняется для обоих аккаунтов.</p></section>
+ <LearningAdventures key={cloud.session?.user.id} userId={cloud.session?.user.id||"guest"} readonly={cloud.role!=="child"} onAskMiro={onAskMiro}/>
  <EnglishTutorEntry cloud={cloud}/>
  <SubjectTutorsEntry cloud={cloud}/>
  <GeographySection cloud={cloud}/>

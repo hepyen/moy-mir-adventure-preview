@@ -20,6 +20,7 @@ const threeWorldQA=process.env.QA_FOCUS==='three-worlds';
 const remoteWakeQA=process.env.QA_FOCUS==='remote-wake';
 const livingWorldQA=process.env.QA_FOCUS==='living-world';
 const adventureQA=process.env.QA_FOCUS==='adventure';
+const combinedQA=process.env.QA_FOCUS==='education-family';
 const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -119,6 +120,7 @@ async function run(role,browser){
   {id:ids.task,title:'Сделать уроки',points:20,assigned_child:ids.child,active:true},
   {id:'77777777-7777-4777-8777-777777777777',title:'Неиспользуемое дело',points:7,assigned_child:ids.child,active:false}
  ]:null;
+ let calendarRows=[{id:'qa-cal-1',title:'Семейная прогулка',event_date:today,event_time:'17:00',category:'family',note:''}];
  let taskSerial=0;let choreDecision=null;
  let dailyTemplates=taskManagementQA?[
   {id:ids.daily,title:'Заправить кровать',points:5,icon:'🛏️',active:true,weekdays:[0,1,2,3,4,5,6],penalty_enabled:true},
@@ -128,7 +130,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA||combinedQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -398,6 +400,13 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     return resp(geographyAttempts.find(a=>a.id===id),true);
    }
   }
+  if(name==='moymir_family_calendar'){
+   if(method==='GET')return resp(calendarRows);
+   if(role!=='parent')return route.fulfill({status:403,contentType:'application/json',body:'{}'});
+   if(method==='POST'){const row={...request.postDataJSON(),id:'qa-cal-2'};calendarRows.push(row);return resp({id:row.id})}
+   if(method==='PATCH'){const id=url.searchParams.get('id').slice(3);calendarRows=calendarRows.map(r=>r.id===id?{...r,...request.postDataJSON()}:r);return resp({id})}
+   if(method==='DELETE'){const id=url.searchParams.get('id').slice(3);calendarRows=calendarRows.filter(r=>r.id!==id);return resp({id})}
+  }
   if(method==='POST'&&name==='family_chat_messages'){counters.restPosts.push(name);return resp([])}
   if(['moymir_school_lessons','moymir_school_homework','moymir_school_preferences','moymir_backpack_items','moymir_growth_focus'].includes(name)&&['POST','PATCH','DELETE'].includes(method)){counters.restWrites.push({name,method});return resp([])}
   let data=[];
@@ -442,6 +451,56 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(combinedQA){
+  await page.locator('.mw-bottom').getByRole('button',{name:/Учёба/}).click();
+  const edu=page.getByLabel('Учебные приключения');
+  await edu.waitFor();
+  check('four expeditions',await edu.locator('.edu-cards button').count()===4);
+  if(role==='child'){
+   await edu.getByRole('button',{name:/Географическая экспедиция/}).click();
+   await edu.getByLabel('Широта',{exact:true}).fill('40');
+   check('latitude simulator',await edu.getByText('Широта 40°').count()===1);
+   for(const correct of ['Ecuador','Расстояние от экватора в градусах','1 км','Península','Жаркое и сухое']){
+    await edu.getByRole('button',{name:correct,exact:true}).click();
+    await edu.getByRole('button',{name:/Следующее|Завершить/}).click();
+   }
+   check('expedition score saved',await edu.getByText('Результат: 5/5').count()===1);
+   await edu.getByRole('button',{name:'← Все экспедиции'}).click();
+   await edu.getByRole('button',{name:/Научная лаборатория/}).click();
+   await edu.getByLabel('Температура воды').fill('-10');
+   check('water phase simulation',await edu.getByText(/Лёд · нормальное давление/).count()===1);
+   await edu.getByRole('checkbox',{name:'Свет',exact:true}).uncheck();
+   check('photosynthesis simulation',await edu.getByText(/Не хватает одного/).count()===1);
+  }else check('parent expedition read only',await edu.locator('.edu-cards button:disabled').count()===4);
+  await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
+  const fam=page.getByLabel('Семейное управление');
+  await fam.getByText('Семейная прогулка',{exact:true}).waitFor();
+  check('shared calendar loads',await fam.getByText('Семейная прогулка',{exact:true}).count()===1);
+  if(role==='parent'){
+   await fam.getByRole('button',{name:'+ Добавить событие'}).click();
+   await fam.getByLabel('Название',{exact:true}).fill('Проверка календаря');
+   await fam.getByRole('button',{name:'Сохранить событие'}).click();
+   await fam.getByText('Проверка календаря',{exact:true}).waitFor();
+   check('calendar create',await fam.getByText('Проверка календаря',{exact:true}).count()===1);
+   const row=fam.locator('.family-event').filter({hasText:'Проверка календаря'});
+   await row.getByRole('button',{name:'Редактировать'}).click();
+   await fam.getByLabel('Название',{exact:true}).fill('Новое название');
+   await fam.getByRole('button',{name:'Сохранить изменения'}).click();
+   await fam.getByText('Новое название',{exact:true}).waitFor();
+   check('calendar update',await fam.getByText('Новое название',{exact:true}).count()===1);
+   page.once('dialog',d=>d.accept());
+   await fam.locator('.family-event').filter({hasText:'Новое название'}).getByRole('button',{name:'Удалить'}).click();
+   await fam.getByText('Новое название',{exact:true}).waitFor({state:'hidden'});
+   check('calendar delete',await fam.getByText('Новое название',{exact:true}).count()===0);
+  }else{
+   check('child cannot edit events',await fam.getByRole('button',{name:'Редактировать'}).count()===0);
+   await fam.getByLabel('На что коплю').fill('Семейное кино');
+   await fam.getByLabel('Сколько монет').fill('2000');
+   await fam.getByRole('button',{name:'Сохранить цель'}).click();
+   check('savings goal local',await fam.getByText('Осталось накопить: 300.',{exact:false}).count()===1);
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(adventureQA){
   const hub=page.getByLabel('Игровые приключения');
   await hub.waitFor();
