@@ -1,13 +1,13 @@
 {
-  "version": "5.4.1",
-  "title": "Мой мир 5.4.1 · Библейские приключения",
+  "version": "5.4.2",
+  "title": "Мой мир 5.4.2 · Исправление вкладки Дела",
   "notes": [
-    "Четыре маршрута: Павел, Ной, Моисей и Давид.",
-    "14 испытаний и 8 облачных сувениров; сохранение прежнего прогресса.",
-    "Повторно проверены календарь и покупки мебели."
+    "Исправлен конфликт светлого фона и текста кнопок в ночной теме.",
+    "Кнопки решений контрастны, располагаются поверх фона, увеличены области нажатия.",
+    "Проверены дневная и ночная темы родителя и ребёнка."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.4.1/MOY_MIR_5.4.1_OTA.zip",
-  "sha256": "14dc1a7b542d2615e5a5a4fccdcd63c3e83161d8cd41ac5f180ec4f7a0ff34d3",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.4.2/MOY_MIR_5.4.2_OTA.zip",
+  "sha256": "01fc33cd31f2638b6ebb2fdaf8bfd829e9b9d95f8f304d6a0689a63e4d2b5bfd",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
