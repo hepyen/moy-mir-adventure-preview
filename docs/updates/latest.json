@@ -1,13 +1,13 @@
 {
-  "version": "5.6.0",
-  "title": "Мой мир 5.6.0 · Лаборатория мехов",
+  "version": "5.6.1",
+  "title": "Мой мир 5.6.1 · Коллекция образов Миро",
   "notes": [
-    "Четыре готовые 3D-модели мехов Quaternius и 52 новых позиции.",
-    "Независимые слоты: корпуса, маски, глаза, броня, детали, цвета и вставки.",
-    "Облачный гардероб, покупки и сохранение прежних приобретений."
+    "Кнопка Новые образы прямо в мире: восемь готовых сборок и четыре редкости.",
+    "Реальные миниатюры, бесплатная 3D-примерка, покупка комплекта с учётом имеющихся деталей.",
+    "После покупки все детали можно модернизировать."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.0/MOY_MIR_5.6.0_OTA.zip",
-  "sha256": "57d6e1cf6089b8327a838a6144a1cf200108fce6392c82fa4116d5a53bf6c03e",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.1/MOY_MIR_5.6.1_OTA.zip",
+  "sha256": "057c54a74b5e3308ca6af295e598bd6549d0e5fffee1bed2429b6a5329d13cc7",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
