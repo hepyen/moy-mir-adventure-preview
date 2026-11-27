@@ -1,13 +1,13 @@
 {
-  "version": "5.6.1",
-  "title": "Мой мир 5.6.1 · Коллекция образов Миро",
+  "version": "5.6.2",
+  "title": "Мой мир 5.6.2 · Свободная примерка Миро",
   "notes": [
-    "Кнопка Новые образы прямо в мире: восемь готовых сборок и четыре редкости.",
-    "Реальные миниатюры, бесплатная 3D-примерка, покупка комплекта с учётом имеющихся деталей.",
-    "После покупки все детали можно модернизировать."
+    "Родитель может бесплатно собрать робота из всех семи категорий.",
+    "Выбранный для примерки корпус и детали сохраняются при смене вкладок.",
+    "87 проверок примерки, покупок и готовых комплектов пройдены."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.1/MOY_MIR_5.6.1_OTA.zip",
-  "sha256": "057c54a74b5e3308ca6af295e598bd6549d0e5fffee1bed2429b6a5329d13cc7",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.6.2/MOY_MIR_5.6.2_OTA.zip",
+  "sha256": "2e247e5f9e4b519cff08fbe506cc61c880c0ce806d8b291d03edaf1aab2fafc7",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
