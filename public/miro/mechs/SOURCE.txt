@@ -1,0 +1,5 @@
+Original artwork: Quaternius, Animated Mech Pack (March 2021)
+https://quaternius.com/packs/animatedmech
+License: CC0 1.0 Universal (see LICENSE.txt).
+Source mirror: https://github.com/agentkaerf/FreeModels/tree/db3df04d1e4714298a09510b26fb6de6645138a2/Animated%20Mech%20Pack%20-%20March%202021
+Original flat-color George, Leela, Mike, Stan glTF files were converted to GLB; only Idle, Hello and Dance animation entries retained. No weapon assets imported.

@@ -1,3 +1,5 @@
+import {Suspense} from 'react'
+import {MECH_MODELS,MiroMech} from './MiroMech'
 import {useRef} from 'react'
 import {useFrame} from '@react-three/fiber'
 import type {Group} from 'three'
@@ -7,7 +9,7 @@ function Ball({p,s,c,metal=0}:{p:V;s:V;c:string;metal?:number}){return <mesh pos
 function Box({p,s,c,r=[0,0,0]}:{p:V;s:V;c:string;r?:V}){return <mesh position={p} rotation={r}><boxGeometry args={s}/><meshStandardMaterial color={c} roughness={.55}/></mesh>}
 function Tube({p,r=[0,0,0],radius=.12,height=.6,c}:{p:V;r?:V;radius?:number;height?:number;c:string}){return <mesh position={p} rotation={r}><cylinderGeometry args={[radius,radius,height,16]}/><meshStandardMaterial color={c} roughness={.5}/></mesh>}
 function Glow({p,s,c='#6cfff4'}:{p:V;s:V;c?:string}){return <mesh position={p} scale={s}><sphereGeometry args={[1,16,12]}/><meshBasicMaterial color={c}/></mesh>}
-export function MiroModel({look,rotation=0,animate=true}:{look:Wardrobe;rotation?:number;animate?:boolean}){
+function LegacyMiroModel({look,rotation=0,animate=true}:{look:Wardrobe;rotation?:number;animate?:boolean}){
  const root=useRef<Group>(null),k=look.skin,a=look.accessory
  const original:Record<string,string>={'skin-classic':'#effaff','skin-spider':'#d42c47','skin-rabbit':'#eac8e1','skin-astro':'#f3f5f9','skin-diver':'#269bba','skin-explorer':'#b39358','skin-dragon':'#79be78'}
  const c=PAINTS[look.paint]||original[k]||original['skin-classic'],secondary=k==='skin-spider'?'#2855b3':k==='skin-explorer'?'#536749':'#bdddea'
@@ -30,6 +32,7 @@ export function MiroModel({look,rotation=0,animate=true}:{look:Wardrobe;rotation
  {a==='acc-pack'&&<><Box p={[0,.58,-.39]} s={[.49,.55,.28]} c="#c57d48"/><Box p={[0,.72,-.55]} s={[.43,.16,.07]} c="#e8b36d"/></>}
  </group>
 }
+export function MiroModel(props:{look:Wardrobe;rotation?:number;animate?:boolean}){return MECH_MODELS[props.look.skin]?<Suspense fallback={null}><MiroMech {...props}/></Suspense>:<LegacyMiroModel {...props}/>}
 export function MiroWorldActor({position=[-1.7,.65,1.1],scale=.42}:{position?:V;scale?:number}){
  const {wardrobe,ready}=useMiroWardrobe()
  if(!ready||wardrobe.skin==='skin-classic'&&wardrobe.accessory==='acc-none'&&wardrobe.paint==='paint-original')return null

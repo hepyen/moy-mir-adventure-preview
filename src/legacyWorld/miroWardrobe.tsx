@@ -1,3 +1,4 @@
+import {MECH_CATALOG} from './miroMechCatalog'
 import {createContext,useContext,useEffect,useRef,useState,type ReactNode} from 'react'
 import {supabase} from '../lib/supabase'
 import {RoomCloudContext} from './RoomCloudContext'
@@ -20,11 +21,13 @@ export const MIRO_CATALOG=[
  {id:'paint-gold',label:'Золотой',icon:'●',cost:2,description:'Золотая окраска'},
  {id:'paint-violet',label:'Фиолетовый',icon:'●',cost:1,description:'Фиолетовая окраска'},
  {id:'paint-blue',label:'Синий',icon:'●',cost:1,description:'Синяя окраска'}
-] as const
+,...MECH_CATALOG] as const
 export type MiroItem=typeof MIRO_CATALOG[number]
-export type Wardrobe={skin:string;accessory:string;paint:string;owned:string[]}
-export const DEFAULT_WARDROBE:Wardrobe={skin:'skin-classic',accessory:'acc-none',paint:'paint-original',owned:[]}
+export type Wardrobe={skin:string;accessory:string;paint:string;visor?:string;optics?:string;armor?:string;trim?:string;owned:string[]}
+export const DEFAULT_WARDROBE:Wardrobe={skin:'skin-classic',accessory:'acc-none',paint:'paint-original',visor:'visor-none',optics:'optics-default',armor:'armor-none',trim:'trim-default',owned:[]}
 export const PAINTS:Record<string,string>={'paint-mint':'#70d6b0','paint-rose':'#ef9fca','paint-gold':'#f6cb67','paint-violet':'#a78deb','paint-blue':'#65a9ee'}
+for(const item of MECH_CATALOG)if('color' in item)PAINTS[item.id]=item.color
+export const itemSlot=(id:string)=>id.startsWith('acc-')?'accessory':id.split('-')[0] as 'skin'|'paint'|'visor'|'optics'|'armor'|'trim'
 const fallback={wardrobe:DEFAULT_WARDROBE,ready:false,busy:false,parent:false,connected:false,balance:0,notice:'',equip:async(_item:MiroItem,_buy:boolean)=>false,reload:async()=>{}}
 const Context=createContext(fallback)
 export function useMiroWardrobe(){return useContext(Context)}
@@ -32,7 +35,7 @@ export function MiroWardrobeProvider({children}:{children:ReactNode}){
  const scope=useContext(RoomCloudContext)
  const [wardrobe,setWardrobe]=useState<Wardrobe>(DEFAULT_WARDROBE),[ready,setReady]=useState(false),[busy,setBusy]=useState(false),[notice,setNotice]=useState('')
  const epoch=useRef(0),flight=useRef(false)
- async function reload(){const id=++epoch.current;setReady(false);if(!scope){setWardrobe(DEFAULT_WARDROBE);return}try{const {data,error}=await supabase.from('moymir_miro_wardrobe').select('skin,accessory,paint,owned').eq('family_id',scope.family).eq('child_id',scope.child).maybeSingle();if(id!==epoch.current)return;if(error)throw error;setWardrobe(data||DEFAULT_WARDROBE);setReady(true);setNotice('Гардероб загружен.')}catch{if(id===epoch.current)setNotice('Не удалось загрузить гардероб. Повтори попытку.')}}
+ async function reload(){const id=++epoch.current;setReady(false);if(!scope){setWardrobe(DEFAULT_WARDROBE);return}try{const {data,error}=await supabase.from('moymir_miro_wardrobe').select('skin,accessory,paint,visor,optics,armor,trim,owned').eq('family_id',scope.family).eq('child_id',scope.child).maybeSingle();if(id!==epoch.current)return;if(error)throw error;setWardrobe(data||DEFAULT_WARDROBE);setReady(true);setNotice('Гардероб загружен.')}catch{if(id===epoch.current)setNotice('Не удалось загрузить гардероб. Повтори попытку.')}}
  useEffect(()=>{setWardrobe(DEFAULT_WARDROBE);setNotice('');setBusy(false);flight.current=false;void reload();return()=>{epoch.current++}},[scope?.family,scope?.child,scope?.parent])
  async function equip(item:MiroItem,buy:boolean){if(!scope||scope.parent||!ready||flight.current)return false;const id=epoch.current;flight.current=true;setBusy(true);try{const r=await supabase.rpc('moymir_miro_equip',{p_family:scope.family,p_item:item.id,p_buy:buy});if(r.error)throw r.error;if(id!==epoch.current)return false;setWardrobe(r.data);setNotice(buy?'Покупка сохранена. Костюм обновлён.':'Облик сохранён.');scope.refresh();return true}catch{if(id===epoch.current)setNotice('Не удалось сохранить. Проверь баланс и соединение.');return false}finally{if(id===epoch.current){flight.current=false;setBusy(false)}}}
  return <Context.Provider value={{wardrobe,ready,busy,parent:!!scope?.parent,connected:!!scope,balance:scope?.balance||0,notice,equip,reload}}>{children}</Context.Provider>
