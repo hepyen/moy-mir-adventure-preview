@@ -19,6 +19,7 @@ const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const threeWorldQA=process.env.QA_FOCUS==='three-worlds';
 const remoteWakeQA=process.env.QA_FOCUS==='remote-wake';
 const livingWorldQA=process.env.QA_FOCUS==='living-world';
+const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
 const worldConflictQA=process.env.QA_FOCUS==='world-conflict';
@@ -126,7 +127,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -440,6 +441,36 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(miroQA){
+  await page.getByRole('button',{name:'🤖 Поговорить с Миро'}).click();
+  const dialog=page.getByRole('dialog',{name:/Миро/});
+  await dialog.waitFor();
+  check('three Miro sections',await dialog.getByRole('group',{name:'Режимы Миро'}).getByRole('button').count()===3);
+  await dialog.getByRole('button',{name:'📚 Учёба',exact:true}).click();
+  await dialog.getByRole('checkbox',{name:/Дроби и десятичные числа/}).check();
+  check('study memory persisted',await page.evaluate(()=>Object.keys(localStorage).some(k=>k.startsWith('moymir-miro-profile-v2:')&&JSON.parse(localStorage.getItem(k)).topics.includes('fractions'))));
+  await dialog.getByRole('button',{name:'Повторить сохранённую тему'}).click();
+  check('saved topic opens draft', (await dialog.getByRole('textbox',{name:'Вопрос Миро'}).inputValue()).includes('Дроби'));
+  await dialog.getByRole('textbox',{name:'Вопрос Миро'}).fill('Что повторить сегодня?');
+  await dialog.getByRole('button',{name:'➤'}).click();
+  await dialog.getByText(/В твоём списке повторения/).waitFor();
+  check('saved topics returned offline',await dialog.getByText(/В твоём списке повторения: Дроби/).count()===1);
+  await dialog.getByRole('button',{name:'🤖 Робот',exact:true}).click();
+  check('style available after points',await dialog.getByRole('button',{name:/Золотой/}).isEnabled());
+  check('locked future style',await dialog.getByRole('button',{name:/Фиолетовый/}).isDisabled());
+  await dialog.getByRole('button',{name:/Золотой/}).click();
+  check('style choice saved',await dialog.getByRole('button',{name:/Золотой/}).getAttribute('aria-pressed')==='true');
+  await dialog.getByRole('checkbox',{name:/Озвучивать ответы автоматически/}).check();
+  await dialog.getByRole('combobox',{name:'Язык речи'}).selectOption('es-ES');
+  check('voice settings saved',await page.evaluate(()=>Object.keys(localStorage).some(k=>k.startsWith('moymir-miro-profile-v2:')&&JSON.parse(localStorage.getItem(k)).language==='es-ES'&&JSON.parse(localStorage.getItem(k)).autoSpeak)));
+  await dialog.getByRole('button',{name:'Уменьшить Миро'}).click();
+  await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'🤖 Поговорить с Миро'}).click({timeout:15000});
+  await dialog.getByRole('button',{name:'📚 Учёба',exact:true}).click();
+  check('memory survives reload',await dialog.getByRole('checkbox',{name:/Дроби и десятичные числа/}).isChecked());
+  await dialog.getByRole('button',{name:'💬 Разговор',exact:true}).click();
+  check('voice controls available',await dialog.getByRole('button',{name:/Сказать вопрос/}).count()===1&&await dialog.getByRole('button',{name:'Озвучить ответ Миро'}).count()>0);
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(livingWorldQA){
   const worldPanel=page.locator('.world3d-panel');
   await worldPanel.locator('canvas').waitFor({timeout:15000});
