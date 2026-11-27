@@ -1,13 +1,13 @@
 {
-  "version": "4.4.5",
-  "title": "Мой мир 4.4.5 · Миро 2.0",
+  "version": "4.4.6",
+  "title": "Мой мир 4.4.6 · Игровые приключения",
   "notes": [
-    "Новые режимы Миро: разговор, учёба и развитие робота.",
-    "Память тем для повторения, озвучивание и голосовой ввод при поддержке телефона.",
-    "Новые корпуса Миро открываются за достижения, без траты монет."
+    "Шесть миссий и 18 находок в открытых мирах.",
+    "Рюкзак материалов и мастерская: созданные предметы появляются в 3D-мире.",
+    "Игровые находки не изменяют монеты, баллы развития и реальные награды."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.5/MOY_MIR_4.4.5_OTA.zip",
-  "sha256": "76a2439195eaa40492d324d746cfc4c665846ef75fdaa248669fe4492333aa60",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v4.4.6/MOY_MIR_4.4.6_OTA.zip",
+  "sha256": "ccbf4b69ee27a608387aabde9acd18a17986bb5264317b67d6c416c32717ace9",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
