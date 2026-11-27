@@ -28,8 +28,9 @@ const navigationQA=process.env.QA_FOCUS==='navigation-52';
 const familyScrollQA=process.env.QA_FOCUS==='family-scroll';
 const world530QA=process.env.QA_FOCUS==='world-530';
 const miroQA=process.env.QA_FOCUS==='miro2';
+const fittingQA=process.env.QA_FOCUS==='miro-fitting';
 const buildQA=process.env.QA_FOCUS==='miro-builds';
-const mechQA=process.env.QA_FOCUS==='mech-lab'||buildQA;
+const mechQA=process.env.QA_FOCUS==='mech-lab'||buildQA||fittingQA;
 const miroWorkshopQA=process.env.QA_FOCUS==='miro-workshop'||mechQA;
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -834,6 +835,36 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   }
   check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
  }
+ if(fittingQA){
+  await page.getByRole('button',{name:'✨ Новые образы',exact:true}).click();
+  const lab=page.getByRole('dialog',{name:'Мастерская Миро 3D'});await lab.waitFor();
+  await lab.getByText(/Родительский просмотр|Мой гардероб/).waitFor();
+  const stage=lab.locator('.miro-workshop-stage');
+  const nav=lab.getByLabel('Категории деталей');
+  if(role==='parent')check('parent starts free preview',await lab.getByText('Свободная примерка · без списаний',{exact:true}).count()===1);
+  const original=JSON.stringify(miroWardrobe);
+  await nav.getByRole('button',{name:'Корпуса',exact:true}).click();
+  await lab.getByRole('button',{name:/Вектор · разведчик/}).click();
+  await nav.getByRole('button',{name:'Глаза',exact:true}).click();
+  check('unowned body retained across tabs',await stage.getAttribute('data-skin')==='skin-vector');
+  await lab.getByRole('button',{name:/Двойной сенсор/}).click();
+  await nav.getByRole('button',{name:'Маски',exact:true}).click();await lab.getByRole('button',{name:/Сканирующая панель/}).click();
+  await nav.getByRole('button',{name:'Броня',exact:true}).click();await lab.getByRole('button',{name:/Усиленная броня/}).click();
+  await nav.getByRole('button',{name:'Цвета',exact:true}).click();await lab.getByRole('button',{name:/Графит/}).click();
+  await nav.getByRole('button',{name:'Вставки',exact:true}).click();await lab.getByRole('button',{name:/Оранжевые вставки/}).click();
+  await nav.getByRole('button',{name:'Детали',exact:true}).click();await lab.getByRole('button',{name:/Двойной турбоблок/}).click();
+  for(const [slot,id] of [['skin','skin-vector'],['optics','optics-dual'],['visor','visor-scanner'],['armor','armor-heavy'],['paint','paint-graphite'],['trim','trim-orange'],['accessory','acc-jet']])check('retained '+slot,await stage.getAttribute('data-'+slot)===id);
+  await page.waitForTimeout(750);await stage.screenshot({path:'/tmp/miro-fitting-'+role+'.png'});
+  check('all previews free and no saved change',miroSpent===0&&JSON.stringify(miroWardrobe)===original);
+  check('no purchase in free preview',await lab.getByRole('button',{name:/^Купить/}).count()===0);
+  await lab.getByRole('button',{name:'Сбросить примерку'}).click();check('reset returns saved body',await stage.getAttribute('data-skin')==='skin-classic');
+  await nav.getByRole('button',{name:'Образы',exact:true}).click();await lab.getByLabel('Готовые сборки').getByRole('button',{name:/Aurum Prime/}).click();
+  await nav.getByRole('button',{name:'Глаза',exact:true}).click();await lab.getByRole('button',{name:/Монолинза/}).click();
+  check('bundle preview stays editable',await stage.getAttribute('data-skin')==='skin-sentinel'&&await stage.getAttribute('data-optics')==='optics-mono'&&await stage.getAttribute('data-armor')==='armor-shield');
+  await lab.getByRole('button',{name:'✕ Закрыть'}).click();await page.getByRole('button',{name:'✨ Новые образы',exact:true}).click();await lab.waitFor();
+  check('closing discards unpaid preview',await stage.getAttribute('data-skin')==='skin-classic'&&miroSpent===0);
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(buildQA){
   await page.getByRole('button',{name:'✨ Новые образы',exact:true}).click();
   const lab=page.getByRole('dialog',{name:'Мастерская Миро 3D'});await lab.waitFor();
@@ -854,7 +885,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    check('bundle applied',miroSpent===8&&miroWardrobe.skin==='skin-vector'&&miroWardrobe.optics==='optics-cyan');
    await catalog.getByRole('button',{name:/Scout X1/}).click();await lab.getByRole('button',{name:'Надеть комплект'}).click();await lab.getByText('Примерка бесплатна.',{exact:false}).waitFor();check('free equip owned set',miroSpent===8);
    await lab.getByRole('button',{name:'Глаза',exact:true}).click();await lab.getByRole('button',{name:/Двойной сенсор/}).click();check('editable bought set',await stage.getAttribute('data-optics')==='optics-dual');
-  }else check('parent cannot purchase set',await buy.isDisabled());
+  }else check('parent cannot purchase set',await buy.count()===0);
   check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
  }
  if(miroWorkshopQA){
@@ -862,7 +893,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   await page.getByRole('button',{name:'🤖 Робот',exact:true}).click();
   await page.getByRole('button',{name:/Создать своего робота/}).click();
   const lab=page.getByRole('dialog',{name:'Мастерская Миро 3D'});
-  await lab.waitFor();await lab.getByText(/Мой гардероб|Просмотр гардероба/).waitFor();
+  await lab.waitFor();await lab.getByText(/Мой гардероб|Родительский просмотр/).waitFor();
   const stage=lab.locator('.miro-workshop-stage');await stage.locator('canvas').waitFor();
   check('full screen 3D workshop',await lab.evaluate(e=>e.getBoundingClientRect().height>=window.innerHeight-2));
   check('four new models plus classic',await lab.locator('.miro-workshop-catalog button').count()===5);
@@ -884,7 +915,7 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     await page.waitForTimeout(500);await stage.screenshot({path:'/tmp/moymir-560-child-custom.png'});
     await lab.getByRole('button',{name:'✕ Закрыть'}).click();await page.getByRole('button',{name:'Уменьшить Миро'}).click();
     await page.reload({waitUntil:'domcontentloaded'});await page.locator('.miro-robot svg[data-miro-skin="skin-vector"]').waitFor();check('mech appearance restored',true);
-  }else check('parent preview cannot spend',await lab.getByRole('button',{name:'Купить · 6 🪙'}).isDisabled());
+  }else check('parent preview cannot spend',await lab.getByRole('button',{name:'Купить · 6 🪙'}).count()===0);
   check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
  }
  if(miroQA){
