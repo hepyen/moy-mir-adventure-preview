@@ -199,7 +199,7 @@ export function CloudSpiritual({cloud,section="today",onDailyText,onBibleJourney
  <div className="mw-spirit-hero"><span>{stage.icon}</span><div><strong>{stage.name}</strong><p>Этап {stage.number} из 10</p><h2>{cloud.spiritualPoints} ✨</h2></div></div>
  <div className="mw-progress"><div className="mw-progress-head"><strong>До следующего этапа</strong><span>{stage.progress}/1000</span></div><div className="mw-progress-track"><div style={{width:`${stage.progress/1000*100}%`}}/></div></div>
  {section==="qualities"&&<GrowthFocus cloud={cloud}/>}
- {section==="bible"&&<BibleJourney key={cloud.session?.user.id} userId={cloud.session?.user.id||"guest"} readonly={cloud.role!=="child"}/>}
+ {section==="bible"&&<BibleJourney key={cloud.session?.user.id} userId={cloud.session?.user.id||"guest"} readonly={cloud.role!=="child"} family={cloud.familyId} child={cloud.childId}/>}
  {section==="quiz"&&<PioneerSection cloud={cloud}/>}
  {section==="today"&&<>
  {onBibleJourney&&<button className="mw-primary" onClick={onBibleJourney}>⛵ Отправиться в путешествие Павла</button>} <h3 className="mw-cloud-heading">Библейские занятия</h3>

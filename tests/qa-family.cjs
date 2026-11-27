@@ -128,6 +128,7 @@ async function run(role,browser){
  ]:null;
  let safetyRows=[{id:'qa-rule-1',app_name:'Учебная игра',rule:'ask',note:'После уроков'}];
  let checkin=(optimizationQA||safetyToolkitQA)&&role==='parent'?{share_id:'qa-share',latitude:0,longitude:0,accuracy_m:25,measured_at:new Date().toISOString(),received_at:new Date().toISOString(),expires_at:new Date(Date.now()+900000).toISOString()}:null;
+ let roomMock=role==='parent'?{layout:{bed:0,desk:0,plant:0,extras:[]},revision:1}:null,roomSpent=0,journeyMock={solved:[],souvenirs:[]};
  let calendarReceipts=world530QA&&role==='child'?[]:[{event_id:'qa-cal-1',revision:1,read_at:new Date().toISOString()}];
  let calendarRows=[{id:'qa-cal-1',revision:1,title:'Семейная прогулка',event_date:today,event_time:'17:00',category:'family',note:''}];
  let taskSerial=0;let choreDecision=null;
@@ -289,7 +290,9 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
     if(name==='moymir_playtime_start'){const when=new Date().toISOString();playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'active',started_at:when}:x);return resp(when)}
     if(name==='moymir_playtime_finish'){playSessions=playSessions.map(x=>x.id===request.postDataJSON()?.p_id?{...x,status:'finished'}:x);return resp(true)}
     if(name==='moymir_complete_story_chapter'){storyDone.push(Number(request.postDataJSON()?.p_chapter));return resp(true)}
-    if(name==='moymir_family_overview')return resp({worldPoints:earnedMock+englishCredit,balance:1700+englishCredit,earned:earnedMock+englishCredit,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
+    if(name==='moymir_room_save'){const q=request.postDataJSON();if(role==='parent'||q.p_revision!==(roomMock?.revision||0))return route.fulfill({status:400,contentType:'application/json',body:'{}'});const old=roomMock?.layout.extras||[];if(roomMock)roomSpent+=(q.p_layout.extras||[]).filter(v=>!old.some(o=>o.id===v.id)).length;roomMock={layout:q.p_layout,revision:q.p_revision+1};return resp({...roomMock,balance:1700-roomSpent})}
+    if(name==='moymir_journey_action'){const q=request.postDataJSON();if(q.p_stop!==undefined&&!journeyMock.solved.includes(q.p_stop))journeyMock.solved.push(q.p_stop);if(q.p_reward&&!journeyMock.souvenirs.includes(q.p_reward))journeyMock.souvenirs.push(q.p_reward);return resp(journeyMock)}
+    if(name==='moymir_family_overview')return resp({worldPoints:earnedMock+englishCredit,balance:1700+englishCredit-roomSpent,earned:earnedMock+englishCredit,spent:0,deducted:0,spiritualPoints:spiritualAward+growthAward,tasks7:2,daily7:5,spiritual7:spiritualAward+growthAward,homework7:1,today:dateToday});return resp(name==='advance_my_world'?2:name==='report_child_app_open'?false:'ok')}
   if(method==='HEAD'&&name==='moymir_story_chapters')return route.fulfill({status:200,headers:{'content-range':`0-${Math.max(0,storyDone.length-1)}/${storyDone.length}`,'access-control-allow-origin':'*'},body:''});
   if(!url.pathname.includes('/rest/v1/'))return resp({});
   if(name==='moymir_subject_practice_attempts'){
@@ -420,6 +423,8 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
    if(method==='PATCH'){const id=url.searchParams.get('id').slice(3);safetyRows=safetyRows.map(r=>r.id===id?{...r,...request.postDataJSON()}:r);return resp({id},true)}
    if(method==='DELETE'){const id=url.searchParams.get('id').slice(3);safetyRows=safetyRows.filter(r=>r.id!==id);return resp({id},true)}
   }
+  if(name==='moymir_room_layouts')return resp(roomMock?[roomMock]:[]);
+  if(name==='moymir_journey_collection')return resp([journeyMock]);
   if(name==='moymir_calendar_read'){if(method==='GET')return resp(calendarReceipts);if(method==='POST'&&role==='child'){calendarReceipts.push({...request.postDataJSON(),read_at:new Date().toISOString()});return resp([])}return route.fulfill({status:403,contentType:'application/json',body:'{}'})}
   if(name==='moymir_family_calendar'){
    if(method==='GET')return resp(calendarRows);
@@ -500,11 +505,24 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   await weather.getByRole('button',{name:'🍃 Ветер'}).click();check('wind selected',await weather.getByRole('button',{name:'🍃 Ветер'}).getAttribute('aria-pressed')==='true');
   await page.getByRole('button',{name:/Войти в домик|Войти в комнату|Войти внутрь/}).first().click({timeout:5000});
   const room=page.locator('.dream-room');await room.waitFor();
-  await room.getByText(/Каталог мебели/).click();await room.getByRole('button',{name:/Стул Добавить/}).click();
-  check('chair added',await room.getByText(/Каталог мебели · 1\/12/).count()===1);
-  await room.getByRole('button',{name:'↻ Повернуть'}).click();await room.getByRole('button',{name:'Цвет #6c9cc0'}).click();
-  check('furniture persisted',await page.evaluate(()=>Object.keys(localStorage).filter(k=>k.startsWith('moymir-room:')).some(k=>JSON.parse(localStorage.getItem(k)).extras?.some(v=>v.kind==='chair'&&v.rotation===1&&v.color==='#6c9cc0'))));
-  await room.getByRole('button',{name:'Убрать',exact:true}).click();check('furniture removed',await room.getByText(/Каталог мебели · 0\/12/).count()===1);
+  await room.getByText(/Каталог мебели/).click();
+  const chair=room.getByRole('button',{name:/Стул 1 монета/});
+  if(role==='parent'){
+   await room.getByText('Интерьер загружен из облака.').waitFor();
+   check('parent cannot spend child wallet',await chair.isDisabled());
+  }else{
+   await chair.click();await room.getByText('Мебель куплена за 1 монету.').waitFor();
+   check('chair purchase charged once',roomSpent===1&&roomMock.layout.extras.length===1);
+   await room.getByRole('button',{name:'↻ Повернуть'}).click();
+   await room.getByRole('button',{name:'Цвет #6c9cc0'}).click();
+   await page.waitForFunction(()=>Object.keys(localStorage).filter(k=>k.startsWith('moymir-room:')).some(k=>JSON.parse(localStorage.getItem(k)).extras?.some(v=>v.kind==='chair'&&v.rotation===1&&v.color==='#6c9cc0')));
+   check('cloud furniture edits free',roomSpent===1&&roomMock.layout.extras[0].rotation===1);
+   await room.getByRole('button',{name:'↻ Обновить из облака'}).click();await room.getByText('Интерьер загружен из облака.').waitFor();
+   check('room restored from server',await room.getByText(/Каталог мебели · 1\/12/).count()===1);
+   await room.getByRole('button',{name:'Убрать',exact:true}).click();
+   await room.getByText(/Каталог мебели · 0\/12/).waitFor();
+   check('removal does not refund',roomSpent===1);
+  }
   await room.getByRole('button',{name:'Выйти из комнаты'}).click();
   await page.locator('.mw-bottom').getByRole('button',{name:/Духовный рост/}).click();
   await page.getByRole('group',{name:'Разделы',exact:true}).getByRole('button',{name:'Путь Павла',exact:true}).click();
@@ -512,10 +530,10 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
   check('game available in spiritual section',await bible.getByText(/Что сделала Лидия после крещения/).count()===1);
   if(role==='child'){
    await bible.getByRole('button',{name:'Пригласила Павла и его спутников к себе домой'}).click();
-   check('separate tokens earned',await bible.getByText('🏅 2 жетонов · 1/5 испытаний',{exact:true}).count()===1);
+   await bible.getByText('🏅 2 жетонов · 1/5 испытаний',{exact:true}).waitFor();check('separate server tokens earned',journeyMock.solved.length===1);
    await bible.getByRole('button',{name:'🏅 Коллекция'}).click();
    await bible.getByRole('button',{name:'Получить за 2 жет.'}).click();
-   check('souvenir redeemed once',await bible.getByRole('button',{name:'✓ В коллекции',exact:true}).isDisabled());
+   await bible.getByRole('button',{name:'✓ В коллекции',exact:true}).waitFor();check('souvenir redeemed once',journeyMock.souvenirs.length===1);
    check('tokens spent',await bible.getByText('🏅 0 жетонов · 1/5 испытаний',{exact:true}).count()===1);
   }
   await page.locator('.mw-bottom').getByRole('button',{name:/Семья/}).click();
