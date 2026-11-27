@@ -1,13 +1,13 @@
 {
-  "version": "5.4.2",
-  "title": "Мой мир 5.4.2 · Исправление вкладки Дела",
+  "version": "5.5.0",
+  "title": "Мой мир 5.5.0 · Мастерская Миро 3D",
   "notes": [
-    "Исправлен конфликт светлого фона и текста кнопок в ночной теме.",
-    "Кнопки решений контрастны, располагаются поверх фона, увеличены области нажатия.",
-    "Проверены дневная и ночная темы родителя и ребёнка."
+    "Полноэкранная 3D-мастерская: семь костюмов, аксессуары, цвета, поворот и бесплатная примерка.",
+    "Покупки за монеты, облачный гардероб и выбранный облик в мире.",
+    "48 проверок мастерской и существующих функций Миро пройдены."
   ],
-  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.4.2/MOY_MIR_5.4.2_OTA.zip",
-  "sha256": "01fc33cd31f2638b6ebb2fdaf8bfd829e9b9d95f8f304d6a0689a63e4d2b5bfd",
+  "url": "https://github.com/hepyen/moy-mir-adventure-preview/releases/download/v5.5.0/MOY_MIR_5.5.0_OTA.zip",
+  "sha256": "57c3bf1c50bc0846418ca7ac7e244a8a85788d38734bf48b7e85df58823e75c8",
   "nativeBaseVersion": "3.3.0",
   "required": false,
   "apkUrl": "https://hepyen.github.io/moy-mir-adventure-preview/downloads/"
