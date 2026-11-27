@@ -19,6 +19,7 @@ const worldMilestoneQA=process.env.QA_FOCUS==='world-milestone';
 const threeWorldQA=process.env.QA_FOCUS==='three-worlds';
 const remoteWakeQA=process.env.QA_FOCUS==='remote-wake';
 const livingWorldQA=process.env.QA_FOCUS==='living-world';
+const adventureQA=process.env.QA_FOCUS==='adventure';
 const miroQA=process.env.QA_FOCUS==='miro2';
 let wakeState=null;const wakeId='c1234567-1111-4111-8111-123456789012';
 const worldDecorQA=process.env.QA_FOCUS==='world-decor';
@@ -127,7 +128,7 @@ async function run(role,browser){
  let pioneerActive=null;
  let pioneerFailOnce=false;
  const pioneerFakeState=()=>({total:0,unlocked:1,awards:[],cycles:[],history:[],active:pioneerActive});
- let earnedMock=(threeWorldQA||livingWorldQA||miroQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
+ let earnedMock=(threeWorldQA||livingWorldQA||miroQA||adventureQA)?1599:1700,englishCredit=0,englishSessionSerial=0;
  const {SUBJECTS,ALL_SUBJECT_LESSONS}=await import('../src/subjects/subjects.ts');
  const englishAnswers={diagnostic:[1,1,0,1,0,1,2,2,1,1,1,1,1,0,0,0,1,1], 'to-be':[1,0,2,1,0,1],'have-got':[1,2,0,2,0,1],'present-simple':[1,0,2,1,2,0],'present-continuous':[1,2,0,1,1,0],'there-is-are':[1,2,1,0,1,0],'past-simple':[1,0,1,2,0,1],'daily-words':[0,1,2,0,1,2],questions:[1,0,2,0,1,2]};
  for(const subjectLesson of ALL_SUBJECT_LESSONS)englishAnswers[subjectLesson.id]=subjectLesson.questions.map(q=>q.correct);
@@ -441,6 +442,55 @@ if(name==='review_daily_chore'&&request.postDataJSON()?.p_completion===qaDaily)q
  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:18000});await page.waitForTimeout(2200);
  check('connected',await page.getByText(/Прежний прогресс подключён/).count()>0,(await page.locator('.mw-cloud-syncbar').innerText()).slice(0,140));
  check('balance',await page.getByText(englishResetAudioQA&&role==='child'?/Баланс: 1730/:/Баланс: 1700/).count()>0);
+ if(adventureQA){
+  const hub=page.getByLabel('Игровые приключения');
+  await hub.waitFor();
+  check('two missions in open world',await hub.locator('.adventure-mission').count()===2);
+  check('future worlds not exposed',!(await hub.innerText()).match(/Лун|Белочка|Космос/));
+  await hub.getByRole('button',{name:'🛠 Мастерская'}).click();
+  check('craft blocked without materials',await hub.getByRole('button',{name:'Нужны материалы'}).count()===2);
+  await hub.getByRole('button',{name:'🗺 Миссии'}).click();
+  if(role==='child'){
+   const first=hub.locator('.adventure-mission').first();
+   for(let i=0;i<3;i++){
+    await first.getByRole('button',{name:'Осмотреть место'}).first().click();
+    await page.getByRole('button',{name:'Подобрать находку'}).click();
+   }
+   check('all three unique finds collected',await first.getByText(/Найдено 3\/3/).count()===1&&await first.getByRole('button',{name:'Осмотреть место'}).count()===0);
+   await hub.getByRole('button',{name:'🎒 Рюкзак'}).click();
+   check('inventory contains 3 materials',await hub.getByText('Материалы · 3').count()===1);
+   await hub.getByRole('button',{name:'🛠 Мастерская'}).click();
+   await hub.getByRole('button',{name:'Создать предмет'}).click();
+   check('recipe creates only once',await hub.getByRole('button',{name:'✓ Создано'}).isDisabled());
+   await hub.getByRole('button',{name:'🎒 Рюкзак'}).click();
+   check('materials consumed',await hub.getByText('Материалы · 0').count()===1);
+   check('crafted decoration in collection',await hub.getByText('Фонарь путешественника',{exact:true}).count()===1);
+   check('balance unchanged',await page.getByText(/Баланс: 1700/).count()>0);
+   await page.reload({waitUntil:'domcontentloaded'});
+   await hub.getByRole('button',{name:'🎒 Рюкзак'}).click({timeout:15000});
+   check('inventory survives reload',await hub.getByText('Фонарь путешественника',{exact:true}).count()===1);
+   earnedMock=1700;await page.locator('.mw-cloud-syncbar button').first().click();
+   const dialog=page.getByRole('dialog',{name:'Поздравление с завершением этапа'});
+   await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
+   await hub.getByRole('button',{name:'🗺 Миссии'}).click();
+   check('new world has own mission and locked materials',await hub.getByText('Запасы белочки',{exact:true}).count()===1&&await hub.getByText('Закрытая находка').count()===5);
+   await hub.getByRole('button',{name:'Осмотреть место'}).click();
+   await page.getByRole('button',{name:'Подобрать находку'}).click();
+   await hub.getByRole('button',{name:'🎒 Рюкзак'}).click();
+   check('treehouse inventory separate',await hub.getByText('Орешек',{exact:true}).count()===1&&await hub.getByText('Фонарь путешественника',{exact:true}).count()===0);
+   earnedMock=3200;await page.locator('.mw-cloud-syncbar button').first().click();
+   await dialog.getByRole('button',{name:/Перейти к другому этапу/}).click();
+   earnedMock=3400;await page.locator('.mw-cloud-syncbar button').first().click();
+   await hub.getByRole('button',{name:'🗺 Миссии'}).click();
+   await hub.locator('.adventure-mission').first().getByRole('button',{name:'Осмотреть место'}).first().click();
+   await page.getByRole('button',{name:'Подобрать находку'}).click();
+   check('space treasure collected',await hub.locator('.adventure-mission').first().getByText(/Найдено 1\/3/).count()===1);
+  }else{
+   check('parent cannot collect',await hub.getByRole('button',{name:'Осмотреть место'}).count()===0);
+   check('parent read only notice',await hub.getByText(/Приключения проходит ребёнок/).count()===1);
+  }
+  check('no page exceptions',counters.errors.length===0,counters.errors.join(' | '));return;
+ }
  if(miroQA){
   await page.getByRole('button',{name:'🤖 Поговорить с Миро'}).click();
   const dialog=page.getByRole('dialog',{name:/Миро/});

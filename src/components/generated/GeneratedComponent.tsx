@@ -6,6 +6,7 @@ import {HealthHub} from '../../health/HealthHub';
 import {useAppTheme,AppThemeSwitch} from '../../theme/useAppTheme';
 import {updateMiroDayContext} from '../../day/miroContext';
 import {MyDay} from '../../day/MyDay';
+import {AdventureHub,useAdventureGame} from '../../legacyWorld/AdventureHub';
 import {IslandMoments} from '../../legacyWorld/IslandMoments';
 import {lazy,Suspense} from 'react';
 import {attachMusicLifecycle,setMusicScene} from '../../features/music';
@@ -336,6 +337,7 @@ export const GeneratedComponent = () => {
   const nextXp = 500 - xp % 500;
   const currentWorld=actualWorld;
   const pointsInWorld=actualWorldPoints;
+  const adventure=useAdventureGame(connected?cloud.familyId:"",connected?cloud.childId:"",cloud.role,currentWorld,pointsInWorld);
   const nextWorldStage=WORLD_01_OBJECTS.find(o=>o.at>pointsInWorld);
   const toast = (v: string) => {
     setMessage(v);
@@ -392,7 +394,7 @@ export const GeneratedComponent = () => {
   return <main className={"mw-root mw-theme-"+theme.resolved} data-app-theme={theme.resolved} data-app-theme-choice={theme.selection}>
  <div className="mw-phone">
  <div className="mw-top">
- <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">4.4.5</span></strong><span>Остров приключений</span></div></div>
+ <div className="mw-identity"><div className="mw-logo">✦</div><div><strong>МОЙ МИР <span className="mw-beta">4.4.6</span></strong><span>Остров приключений</span></div></div>
  <div className="mw-head-stats"><button className="mw-star-counter" onClick={() => setTab('world')}>⭐ {actualXp}</button><button className="mw-coin" onClick={() => setTab('shop')}>🪙 <b>{actualCoins}</b></button><button aria-label="Открыть настройки" onClick={()=>setTab('settings')}>⚙️</button></div>
  </div>
  <div className="mw-hero-profile"><div className="mw-profile-avatar"><img src={import.meta.env.BASE_URL+'brand/icon.png'} alt="Миро EV"/></div><div><strong>Миро EV</strong><small>👦 {connected?cloud.childName:'Илья'} · ⭐ {actualXp} звёзд</small><span>🌍 Мой Мир · уровень {Math.max(1,Math.floor(actualXp/100)+1)}</span></div></div>
@@ -414,7 +416,8 @@ export const GeneratedComponent = () => {
  {connected&&<MyDay cloud={cloud} school={school} onGo={setTab} onAskMiro={askMiro}/>}
  <button className="mw-health-shortcut" type="button" onClick={()=>setTab('health')}><span className="mw-health-heart">💚</span><span><strong>Моё здоровье</strong><small>Сон · зарядка с Миро · здоровое меню</small></span><b>Открыть →</b></button>
  <div className="mw-worldswitch" aria-label="Открытые миры">{([1,2,3] as const).filter(n=>n<=unlockedWorld).map(n=><button key={n} className={currentWorld===n?'active':''} aria-pressed={currentWorld===n} onClick={()=>setPreviewWorld(n)}>{['🏡 Домик на поляне','🌳 Домик на дереве','🪐 Космос'][n-1]} ✓</button>)}</div>
- <WorldSafe key={currentWorld+':'+(cloud.session?.user.id||'guest')} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound} userId={cloud.session?.user.id||'guest'}><Suspense fallback={<div className="mw-panel">✨ Загружаем 3D-мир…</div>}>{currentWorld===3?<SpaceWorld points={pointsInWorld} owner={cloud.childId||cloud.session?.user.id||"guest"} userId={cloud.session?.user.id||"guest"} earnedPoints={actualXp} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound}/>:<World3D theme={theme.resolved} points={pointsInWorld} earnedPoints={actualXp} worldNumber={currentWorld} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||'guest'} decorOwnerId={cloud.childId||cloud.session?.user.id||'guest'} decorFamilyId={cloud.familyId||''} decorChildId={cloud.childId||''} soundEnabled={sound} adventureCount={story.total}/>}</Suspense></WorldSafe>
+ <WorldSafe key={currentWorld+':'+(cloud.session?.user.id||'guest')} worldNumber={currentWorld} points={pointsInWorld} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound} userId={cloud.session?.user.id||'guest'}><Suspense fallback={<div className="mw-panel">✨ Загружаем 3D-мир…</div>}>{currentWorld===3?<SpaceWorld adventure={connected?adventure.view:undefined} points={pointsInWorld} owner={cloud.childId||cloud.session?.user.id||"guest"} userId={cloud.session?.user.id||"guest"} earnedPoints={actualXp} spiritualPoints={connected?cloud.spiritualPoints:0} soundEnabled={sound}/>:<World3D adventure={connected?adventure.view:undefined} theme={theme.resolved} points={pointsInWorld} earnedPoints={actualXp} worldNumber={currentWorld} spiritualPoints={connected?cloud.spiritualPoints:0} userId={cloud.session?.user.id||'guest'} decorOwnerId={cloud.childId||cloud.session?.user.id||'guest'} decorFamilyId={cloud.familyId||''} decorChildId={cloud.childId||''} soundEnabled={sound} adventureCount={story.total}/>}</Suspense></WorldSafe>
+ {connected&&<AdventureHub game={adventure}/>}
  {connected&&<IslandStory cloud={cloud} story={story}/>}
  {connected&&currentWorld!==3&&<IslandMoments cloud={cloud} worldNumber={currentWorld}/>}
  {!connected&&<button className="mw-primary" onClick={()=>setShowConnection(true)}>☁️ Подключить мои прежние достижения</button>}
